@@ -79,7 +79,7 @@ namespace Donatello.Websocket.Client
 
                 do
                 {
-                    response = await _websocketClient.ReceiveAsync(tempBuffer, wsToken);
+                    response = await _websocketClient.ReceiveAsync(tempBuffer, CancellationToken.None);
 
                     Buffer.BlockCopy(tempBuffer, 0, buffer, 0, tempBuffer.Length);
                     Array.Clear(tempBuffer, 0, tempBuffer.Length);
