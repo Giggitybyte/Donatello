@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Donatello.Websocket.Client;
-using Donatello.Websocket.Payload;
 using Qommon.Collections;
 
-namespace Donatello.Websocket.Bot
+namespace Donatello.Websocket.Bot.Extension
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public abstract class ExtensionBase
     {
         /// <summary>
@@ -24,7 +26,7 @@ namespace Donatello.Websocket.Bot
         /// <param name="bot"></param>
         internal ExtensionBase(DiscordBot bot)
         {
-            Bot = bot;
+            this.Bot = bot;
         }
 
         /// <summary>

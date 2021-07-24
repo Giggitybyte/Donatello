@@ -7,6 +7,7 @@ namespace Donatello.Websocket.Commands
     {
         public DiscordCommandContext(IServiceProvider serviceProvider) : base(serviceProvider)
         {
+
         }
     }
 }

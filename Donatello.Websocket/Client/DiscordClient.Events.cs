@@ -2,7 +2,7 @@
 {
     // User facing events.
     // Invoked by a Discord event dispatch.
-    public partial class DiscordClient
+    public sealed partial class DiscordClient
     {
 
     }

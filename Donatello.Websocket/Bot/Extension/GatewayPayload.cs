@@ -1,7 +1,10 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Donatello.Websocket.Payload
+namespace Donatello.Websocket.Bot.Extension
 {
+	/// <summary>
+	/// 
+	/// </summary>
     public sealed class GatewayPayload
     {
 		/// <summary>
@@ -15,13 +18,6 @@ namespace Donatello.Websocket.Payload
 		/// </summary>
 		[JsonPropertyName("d")]
 		public object Data { get; set; }
-
-		/// <summary>
-		/// 
-		/// </summary>
-		[JsonPropertyName("s")]
-		[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-		public int? Sequence { get; set; }
 
 		/// <summary>
 		/// 

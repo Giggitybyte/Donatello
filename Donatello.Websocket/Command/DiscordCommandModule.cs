@@ -2,8 +2,8 @@
 
 namespace Donatello.Websocket.Commands
 {
-    public class DiscordCommandModule : ModuleBase<DiscordCommandContext>
+    public abstract class DiscordCommandModule : ModuleBase<DiscordCommandContext>
     {
-
+        
     }
 }

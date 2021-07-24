@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text.Json;
 using System.Threading.Tasks;
+using Donatello.Websocket.Bot.Extension;
 using Donatello.Websocket.Client;
 using Donatello.Websocket.Commands;
-using Donatello.Websocket.Payload.Incoming;
 using Qmmands;
 using RestSharp;
 using RestSharp.Serializers.SystemTextJson;
@@ -22,7 +23,7 @@ namespace Donatello.Websocket.Bot
         private string _apiToken;
         private IRestClient _restClient;
         private CommandService _commandService;
-        private DiscordBotConfiguration _discordConfig;        
+        private DiscordBotConfiguration _discordConfig;
         internal SortedSet<DiscordClient> _shards;
 
         /// <summary>
@@ -95,43 +96,27 @@ namespace Donatello.Websocket.Bot
         public async Task StartAsync()
         {
             var gatewayInfoRequest = new RestRequest("gateway/bot", Method.GET);
-            var gatewayInfoResponse = await _restClient.ExecuteAsync<GatewayInfoPayload>(gatewayInfoRequest).ConfigureAwait(false);
-            var gatewayInfo = gatewayInfoResponse.Data;
+            var gatewayInfoResponse = await _restClient.ExecuteAsync(gatewayInfoRequest).ConfigureAwait(false);
 
-            if (gatewayInfo.SessionLimits.MaxConcurrency == 1)
-            {
-                for (int shardId = 0; shardId < gatewayInfo.ShardCount; shardId++)
-                {
-                    var shard = new DiscordClient();
-                    await shard.ConnectAsync(gatewayInfo.WebsocketUrl, _apiToken, shardId).ConfigureAwait(false);
-                    _shards.Add(shard);
-                }
+            using var payload = JsonDocument.Parse(gatewayInfoResponse.Content);
 
-                return;
-            }
+            var websocketUrl = payload.RootElement
+                .GetProperty("url")
+                .GetString();
 
-            var shardGroup = new List<DiscordClient>();
-            for (int shardId = 0; shardId < gatewayInfo.ShardCount; shardId++)
-            {
-                shardGroup.Add(new DiscordClient());
+            var shardCount = payload.RootElement
+                .GetProperty("shards")
+                .GetInt32();
 
-                if (shardGroup.Count == gatewayInfo.SessionLimits.MaxConcurrency)
-                {
-                    var connectionTasks = new List<Task>();
-                    foreach (var shard in shardGroup)
-                    {
-                        var task = shard.ConnectAsync(gatewayInfo.WebsocketUrl, _apiToken, shardId);
-                        connectionTasks.Add(task);
-                    }
+            var batchSize = payload.RootElement
+                .GetProperty("session_start_limit")
+                .GetProperty("max_concurrency")
+                .GetInt32();
 
-                    await Task.WhenAll(connectionTasks).ConfigureAwait(false);
-
-                    foreach (var shard in shardGroup) 
-                        _shards.Add(shard);
-
-                    shardGroup.Clear();
-                }
-            }
+            if (batchSize == 1)
+                await StartSequentiallyAsync(websocketUrl, shardCount).ConfigureAwait(false);
+            else
+                await StartConcurrentlyAsync(websocketUrl, shardCount, batchSize).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -142,14 +127,46 @@ namespace Donatello.Websocket.Bot
             throw new NotImplementedException();
         }
 
-        private async ValueTask StartSequentiallyAsync(string token)
+        /// <summary>
+        /// Connects each shard in sequential order.
+        /// </summary>
+        private async Task StartSequentiallyAsync(string url, int shardCount)
         {
-
+            for (int shardId = 0; shardId < shardCount; shardId++)
+            {
+                var shard = new DiscordClient() { Id = shardId };
+                await shard.ConnectAsync(url, _apiToken).ConfigureAwait(false);
+                _shards.Add(shard);
+            }
         }
 
-        private async ValueTask StartConcurrentlyAsync(string token)
+        /// <summary>
+        /// 
+        /// </summary>
+        private async Task StartConcurrentlyAsync(string url, int shardCount, int batchSize)
         {
+            var shardBatch = new List<DiscordClient>();
+            for (int shardId = 0; shardId < shardCount; shardId++)
+            {
+                shardBatch.Add(new DiscordClient() { Id = shardId });
 
+                if (shardBatch.Count == batchSize)
+                {
+                    var connectionTasks = new List<Task>();
+                    foreach (var shard in shardBatch)
+                    {
+                        var task = shard.ConnectAsync(url, _apiToken);
+                        connectionTasks.Add(task);
+                    }
+
+                    await Task.WhenAll(connectionTasks).ConfigureAwait(false);
+
+                    foreach (var shard in shardBatch)
+                        _shards.Add(shard);
+
+                    shardBatch.Clear();
+                }
+            }
         }
 
         /// <summary>
