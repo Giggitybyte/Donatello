@@ -25,5 +25,12 @@ namespace Donatello.Websocket.Bot.Extension
 		[JsonPropertyName("t")]
 		[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
 		public string EventName { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[JsonPropertyName("s")]
+		[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+		internal int? Sequence { get; set; }
 	}
 }

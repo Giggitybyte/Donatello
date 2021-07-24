@@ -4,6 +4,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace Donatello.Websocket.Client
@@ -16,21 +17,23 @@ namespace Donatello.Websocket.Client
         private string _discordApiToken;
         private ClientWebSocket _websocketClient;
         private CancellationTokenSource _wsTokenSource;
-        private Task _wsReceieveLoopTask, _wsHeartbeatTask;
+        private Channel<JsonElement> _payloadChannel;
+        private Task _wsReceieveLoopTask, _wsPayloadProcessingTask, _wsHeartbeatTask;
 
         /// <summary>
         /// Zero-based shard ID number.
         /// </summary>
-        public int Id { get; internal set; }
+        public int Id { get; private set; }
 
         /// <summary>
         /// Connects to the Discord gateway and begins processing incoming events and commands.
         /// </summary>
-        internal async Task ConnectAsync(string gatewayUrl, string apiToken)
+        internal async Task ConnectAsync(string gatewayUrl, string apiToken, int id)
         {
             if (_websocketClient?.State == WebSocketState.Open) throw new InvalidOperationException("Websocket is already connected.");
             if (string.IsNullOrWhiteSpace(apiToken)) throw new ArgumentException("Token should not be empty.");
 
+            this.Id = id;
             _discordApiToken = apiToken;
             _wsTokenSource = new CancellationTokenSource();
             _websocketClient = new ClientWebSocket();
@@ -49,7 +52,10 @@ namespace Donatello.Websocket.Client
             if (_websocketClient.State == WebSocketState.Open)
             {
                 _wsTokenSource.Cancel();
+
                 _wsReceieveLoopTask.Wait();
+                _wsPayloadProcessingTask.Wait();
+                _wsHeartbeatTask.Wait();
 
                 await _websocketClient.CloseOutputAsync(WebSocketCloseStatus.EndpointUnavailable, "", CancellationToken.None);
             }
@@ -65,7 +71,7 @@ namespace Donatello.Websocket.Client
             => _websocketClient.SendAsync(Encoding.UTF8.GetBytes(payload), WebSocketMessageType.Text, true, _wsTokenSource.Token);
 
         /// <summary>
-        /// 
+        /// Writes incoming data from the websocket connection to a <see cref="Channel"/>.
         /// </summary>
         private async Task WebsocketReceiveLoop()
         {
@@ -90,6 +96,8 @@ namespace Donatello.Websocket.Client
                 ArrayPool<byte>.Shared.Return(tempBuffer);
 
                 using var payload = JsonDocument.Parse(buffer.AsMemory(0, payloadLength));
+
+                payload.RootElement.Clone();
                 var opcode = payload.RootElement.GetProperty("op").GetInt32();
                 var data = payload.RootElement.GetProperty("d");
 
@@ -125,6 +133,23 @@ namespace Donatello.Websocket.Client
                 else
                     throw new NotImplementedException($"Unknown opcode received: {opcode}");
             };
+        }
+
+        private async Task WebsocketPayloadProcessingLoop()
+        {
+
+
+
+            if (((opcode >= 2) && (opcode <= 6)) | (opcode == 8))
+                throw new NotSupportedException($"Invalid opcode received: {opcode}");
+
+            throw new NotImplementedException($"Unknown opcode received: {opcode}");
+
+        }
+
+        private async Task WebsocketHeartbeatLoop()
+        {
+
         }
     }
 }

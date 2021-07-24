@@ -128,34 +128,34 @@ namespace Donatello.Websocket.Bot
         }
 
         /// <summary>
-        /// Connects each shard in sequential order.
+        /// Creates and connects each shard in sequential order.
         /// </summary>
         private async Task StartSequentiallyAsync(string url, int shardCount)
         {
             for (int shardId = 0; shardId < shardCount; shardId++)
             {
-                var shard = new DiscordClient() { Id = shardId };
-                await shard.ConnectAsync(url, _apiToken).ConfigureAwait(false);
+                var shard = new DiscordClient();
+                await shard.ConnectAsync(url, _apiToken, shardId).ConfigureAwait(false);
                 _shards.Add(shard);
             }
         }
 
         /// <summary>
-        /// 
+        /// Creates new sha
         /// </summary>
         private async Task StartConcurrentlyAsync(string url, int shardCount, int batchSize)
         {
             var shardBatch = new List<DiscordClient>();
             for (int shardId = 0; shardId < shardCount; shardId++)
             {
-                shardBatch.Add(new DiscordClient() { Id = shardId });
+                shardBatch.Add(new DiscordClient());
 
                 if (shardBatch.Count == batchSize)
                 {
                     var connectionTasks = new List<Task>();
                     foreach (var shard in shardBatch)
                     {
-                        var task = shard.ConnectAsync(url, _apiToken);
+                        var task = shard.ConnectAsync(url, _apiToken, shardId);
                         connectionTasks.Add(task);
                     }
 
