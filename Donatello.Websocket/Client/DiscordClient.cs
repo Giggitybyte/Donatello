@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Donatello.Websocket.Bot;
 
 namespace Donatello.Websocket.Client
 {
@@ -27,6 +28,8 @@ namespace Donatello.Websocket.Client
 
         private string _gatewaySessionId;
         private string _discordApiToken;
+
+        private DiscordBot _bot;
 
 
         /// <summary>
@@ -87,9 +90,7 @@ namespace Donatello.Websocket.Client
             jsonWriter.WriteStartObject();
             jsonWriter.WriteNumber("op", opcode);
 
-            jsonWriter.WritePropertyName("d");
-
-            jsonWriter.WriteStartObject();
+            jsonWriter.WriteStartObject("d");
             objectWriter(jsonWriter);
             jsonWriter.WriteEndObject();
 
@@ -121,21 +122,20 @@ namespace Donatello.Websocket.Client
                     break;
 
                 case JsonValueKind.Null:
-                    jsonWriter.WriteNull("d")
+                    jsonWriter.WriteNull("d");
                     break;
 
                 case JsonValueKind.True:
                 case JsonValueKind.False:
-                    jsonWriter.WriteBoolean("d", (bool)payload)
+                    jsonWriter.WriteBoolean("d", (bool)payload);
                     break;
 
                 default:
-                    throw new JsonException("Invalid payload type (wrong overload?)");
+                    throw new JsonException("Invalid payload type.");
             }
 
             return _websocketClient.SendAsync(buffer.WrittenMemory, WebSocketMessageType.Text, true, CancellationToken.None);
         }
-
 
         /// <summary>
         /// Writes incoming data from the websocket connection to the payload <see cref="Channel"/>.
@@ -148,7 +148,7 @@ namespace Donatello.Websocket.Client
                 var payloadLength = 0;
                 var buffer = ArrayPool<byte>.Shared.Rent(8192);
                 var tempBuffer = ArrayPool<byte>.Shared.Rent(512);
-                WebSocketReceiveResult response;                
+                WebSocketReceiveResult response;
 
                 do
                 {
@@ -193,12 +193,29 @@ namespace Donatello.Websocket.Client
 
                 else if (opcode == 10) // Hello
                 {
-                    if (_wsHeartbeatTask is not null) throw new InvalidOperationException("Received 'hello' while heartbeat active.");
+                    if (_wsHeartbeatTask is not null) 
+                        throw new InvalidOperationException("Received 'hello' while heartbeat active.");
 
                     _heartbeatIntervalMs = payload.GetProperty("d").GetProperty("heartbeat_interval").GetInt32();
                     _wsHeartbeatTask = await CreateLongRunningTask(WebsocketReceiveLoop).ConfigureAwait(false);
 
+                    await SendPayload(2, (writer) =>
+                    {
+                        writer.WriteString("token", _discordApiToken);
 
+                        writer.WriteStartObject("properties");
+                        writer.WriteString("$os", Environment.OSVersion.ToString());
+                        writer.WriteString("$browser", "Donatello");
+                        writer.WriteString("$device", "Donatello");
+                        writer.WriteEndObject();
+
+                        writer.WriteNumber("large_threshold", 250);
+
+                        // writer.WriteStartArray("shard");
+                        // ...
+
+                        // TODO: finish identify payload.
+                    });
                 }
 
                 else if (opcode == 11) // Heartbeat ack
@@ -229,22 +246,16 @@ namespace Donatello.Websocket.Client
             }
         }
 
-        private async Task SendIdentify()
-        {
-
-        }
-
         /// <summary>
         /// Internal shortcut method.
         /// </summary>
         private ValueTask SendHeartbeat()
-            => SendPayload(1, (writer) =>
-            {
-                if (_lastEventSequence == 0)
-                    writer.WritePropertyName()
-                else
-                    writer.WriteNumber("d", _lastEventSequence);
-            });
+        {
+            if (_lastEventSequence == 0)
+                return SendPayload(1, JsonValueKind.Null, null);
+            else
+                return SendPayload(1, JsonValueKind.Number, _lastEventSequence)
+        }
 
         /// <summary>
         /// Internal shortcut method.
