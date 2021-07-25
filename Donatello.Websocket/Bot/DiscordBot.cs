@@ -17,8 +17,6 @@ namespace Donatello.Websocket.Bot
     /// </summary>
     public sealed partial class DiscordBot
     {
-        internal const int API_VERSION = 9;
-
         private string _apiToken;
         private RestClient _restClient;
         private CommandService _commandService;
