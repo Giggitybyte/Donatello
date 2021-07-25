@@ -14,11 +14,13 @@ namespace Donatello.Websocket.Client
     /// </summary>
     public sealed partial class DiscordClient
     {
-        private string _discordApiToken;
-        private ClientWebSocket _websocketClient;
-        private CancellationTokenSource _wsTokenSource;
-        private Channel<JsonElement> _payloadChannel;
         private Task _wsReceieveLoopTask, _wsPayloadProcessingTask, _wsHeartbeatTask;
+        private CancellationTokenSource _wsTokenSource;
+        private ClientWebSocket _websocketClient;
+        private Channel<JsonElement> _payloadChannel;
+        private int _lastSequence, _heartbeatIntervalMs;
+        private DateTime _lastAcknowledge;
+        private string _discordApiToken;
 
         /// <summary>
         /// Zero-based shard ID number.
@@ -39,7 +41,8 @@ namespace Donatello.Websocket.Client
             _websocketClient = new ClientWebSocket();
 
             await _websocketClient.ConnectAsync(new Uri(gatewayUrl), _wsTokenSource.Token);
-            _wsReceieveLoopTask = await Task.Factory.StartNew(WebsocketReceiveLoop, _wsTokenSource.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            _wsReceieveLoopTask = await CreateLongRunningTask(WebsocketReceiveLoop).ConfigureAwait(false);
+            _wsPayloadProcessingTask = await CreateLongRunningTask(WebsocketPayloadProcessingLoop).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -67,8 +70,21 @@ namespace Donatello.Websocket.Client
         /// <summary>
         /// 
         /// </summary>
-        internal Task SendPayload(string payload)
-            => _websocketClient.SendAsync(Encoding.UTF8.GetBytes(payload), WebSocketMessageType.Text, true, _wsTokenSource.Token);
+        internal ValueTask SendPayload(int opcode, Action<Utf8JsonWriter> payloadWriter)
+        {
+            var buffer = new ArrayBufferWriter<byte>();
+            using var jsonWriter = new Utf8JsonWriter(buffer);
+
+            jsonWriter.WriteStartObject();
+
+            jsonWriter.WriteNumber("op", opcode);
+            payloadWriter(jsonWriter);
+
+            jsonWriter.WriteEndObject();
+            jsonWriter.Flush();
+
+            return _websocketClient.SendAsync(buffer.WrittenMemory, WebSocketMessageType.Text, true, CancellationToken.None);
+        }
 
         /// <summary>
         /// Writes incoming data from the websocket connection to a <see cref="Channel"/>.
@@ -96,60 +112,86 @@ namespace Donatello.Websocket.Client
                 ArrayPool<byte>.Shared.Return(tempBuffer);
 
                 using var payload = JsonDocument.Parse(buffer.AsMemory(0, payloadLength));
-
-                payload.RootElement.Clone();
-                var opcode = payload.RootElement.GetProperty("op").GetInt32();
-                var data = payload.RootElement.GetProperty("d");
+                await _payloadChannel.Writer.WriteAsync(payload.RootElement.Clone());
 
                 ArrayPool<byte>.Shared.Return(buffer, true);
+            };
+        }
 
-                if (opcode == 0) // Event dispatch
-                {
-                    // See: DiscordClient.Dispatch
-                    HandleEventDispatch(data.Clone());
-                }
-                else if (opcode == 1) // Heartbeat
-                {
+        /// <summary>
+        /// Reads payload data from a <see cref="Channel"/> and determines how to handle its contents.
+        /// </summary>
+        private async Task WebsocketPayloadProcessingLoop()
+        {
+            while (!_wsTokenSource.Token.IsCancellationRequested)
+            {
+                var payload = await _payloadChannel.Reader.ReadAsync();
+                var opcode = payload.GetProperty("op").GetInt32();
+                var data = payload.GetProperty("d");
 
-                }
-                else if (opcode == 7) // Reconnect
-                {
+                if (opcode == 0) // Event; see DiscordClient.Dispach
+                    await HandleEventDispatch(data).ConfigureAwait(false);
 
-                }
+                else if (opcode == 1) // Heartbeat request
+                    await SendHeartbeat().ConfigureAwait(false);
+
+                else if (opcode == 7) // Reconnect request
+                    throw new NotImplementedException();
+
                 else if (opcode == 9) // Invalid session
-                {
+                    throw new NotImplementedException();
 
-                }
                 else if (opcode == 10) // Hello
                 {
+                    if (_wsHeartbeatTask is not null) throw new InvalidOperationException("Received 'hello' while heartbeat active.");
 
+                    _heartbeatIntervalMs = data.GetProperty("heartbeat_interval").GetInt32();
+                    _wsHeartbeatTask = await CreateLongRunningTask(WebsocketReceiveLoop).ConfigureAwait(false);
                 }
+
                 else if (opcode == 11) // Heartbeat ack
                 {
 
                 }
+
                 else if (((opcode >= 2) && (opcode <= 6)) | (opcode == 8))
                     throw new NotSupportedException($"Invalid opcode received: {opcode}");
+
                 else
                     throw new NotImplementedException($"Unknown opcode received: {opcode}");
-            };
+            }
         }
 
-        private async Task WebsocketPayloadProcessingLoop()
-        {
-
-
-
-            if (((opcode >= 2) && (opcode <= 6)) | (opcode == 8))
-                throw new NotSupportedException($"Invalid opcode received: {opcode}");
-
-            throw new NotImplementedException($"Unknown opcode received: {opcode}");
-
-        }
-
+        /// <summary>
+        /// 
+        /// </summary>
         private async Task WebsocketHeartbeatLoop()
         {
+            var wsToken = _wsTokenSource.Token;
 
+            while (!wsToken.IsCancellationRequested)
+            {
+                await Task.Delay(_heartbeatIntervalMs, wsToken).ConfigureAwait(false);
+                await SendHeartbeat().ConfigureAwait(false);
+            }
         }
+
+        /// <summary>
+        /// Internal shortcut method.
+        /// </summary>
+        private ValueTask SendHeartbeat() 
+            => SendPayload(1, (writer) => 
+            {
+                if (_lastSequence == 0)
+                    writer.WriteNull("d");
+                else
+                    writer.WriteNumber("d", _lastSequence);
+            });
+
+        /// <summary>
+        /// Internal shortcut method.
+        /// </summary>
+        private Task<Task> CreateLongRunningTask(Func<Task> function) 
+            => Task.Factory.StartNew(function, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
     }
 }

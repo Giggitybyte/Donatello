@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.30907.101
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Websocket", "Donatello.Websocket\Donatello.Websocket.csproj", "{360D5FAF-4611-4B9A-9525-885A1C598124}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Donatello.Websocket.Test", "Donatello.Websocket.Test\Donatello.Websocket.Test.csproj", "{A2DB88D8-9F5A-4160-89D5-D0A42AEFF5D5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Websocket.Test", "Donatello.Websocket.Test\Donatello.Websocket.Test.csproj", "{A2DB88D8-9F5A-4160-89D5-D0A42AEFF5D5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

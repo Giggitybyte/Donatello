@@ -8,7 +8,6 @@
   <ItemGroup>
     <PackageReference Include="Qmmands" Version="4.0.1-nightly-00257" />
     <PackageReference Include="RestSharp" Version="106.12.0" />
-    <PackageReference Include="RestSharp.Serializers.SystemTextJson" Version="106.12.0" />
   </ItemGroup>
 
 </Project>
