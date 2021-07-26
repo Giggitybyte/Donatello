@@ -22,9 +22,9 @@ namespace Donatello.Websocket.Client
 
         private Channel<JsonElement> _payloadChannel;
 
-        private int _heartbeatIntervalMs;
         private int _lastEventSequence;
-        private DateTime _lastHeartbeatAck;
+        private int _heartbeatIntervalMs;
+        private DateTime _lastHeartbeatAckTime;
 
         private string _gatewaySessionId;
         private string _discordApiToken;
@@ -56,8 +56,8 @@ namespace Donatello.Websocket.Client
             _websocketClient = new ClientWebSocket();
 
             await _websocketClient.ConnectAsync(new Uri($"{gatewayUrl}?v={API_VERSION}&encoding=json"), CancellationToken.None);
-            _wsReceieveLoopTask = await CreateLongRunningTask(WebsocketReceiveLoop).ConfigureAwait(false);
-            _wsPayloadProcessingTask = await CreateLongRunningTask(WebsocketPayloadProcessingLoop).ConfigureAwait(false);
+            _wsReceieveLoopTask = Task.Run(WebsocketReceiveLoop);
+            _wsPayloadProcessingTask = Task.Run(WebsocketPayloadProcessingLoop);
         }
 
         /// <summary>
@@ -193,11 +193,11 @@ namespace Donatello.Websocket.Client
 
                 else if (opcode == 10) // Hello
                 {
-                    if (_wsHeartbeatTask is not null) 
+                    if (_wsHeartbeatTask?.Status == TaskStatus.Running) 
                         throw new InvalidOperationException("Received 'hello' while heartbeat active.");
 
                     _heartbeatIntervalMs = payload.GetProperty("d").GetProperty("heartbeat_interval").GetInt32();
-                    _wsHeartbeatTask = await CreateLongRunningTask(WebsocketReceiveLoop).ConfigureAwait(false);
+                    _wsHeartbeatTask = Task.Run(WebsocketReceiveLoop);
 
                     await SendPayload(2, (writer) =>
                     {
@@ -215,11 +215,13 @@ namespace Donatello.Websocket.Client
                         // ...
 
                         // TODO: finish identify payload.
-                    });
+
+                        writer.wri
+                    }).ConfigureAwait(false);
                 }
 
                 else if (opcode == 11) // Heartbeat ack
-                    _lastHeartbeatAck = DateTime.UtcNow;
+                    _lastHeartbeatAckTime = DateTime.UtcNow;
 
                 else if (((opcode >= 2) && (opcode <= 6)) | (opcode == 8)) // Client opcodes
                     throw new NotSupportedException($"Invalid opcode received: {opcode}");
@@ -230,7 +232,7 @@ namespace Donatello.Websocket.Client
         }
 
         /// <summary>
-        /// 
+        /// Sends a heartbeat payload to the gateway at a fixed interval.
         /// </summary>
         private async Task WebsocketHeartbeatLoop()
         {
@@ -256,11 +258,5 @@ namespace Donatello.Websocket.Client
             else
                 return SendPayload(1, JsonValueKind.Number, _lastEventSequence)
         }
-
-        /// <summary>
-        /// Internal shortcut method.
-        /// </summary>
-        private Task<Task> CreateLongRunningTask(Func<Task> function)
-            => Task.Factory.StartNew(function, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
     }
 }
