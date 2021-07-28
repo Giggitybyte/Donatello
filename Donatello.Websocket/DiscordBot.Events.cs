@@ -1,8 +1,8 @@
-﻿using Donatello.Websocket.EventContext;
+﻿using Donatello.Websocket.Event;
 using Qmmands;
 using Qommon.Events;
 
-namespace Donatello.Websocket.Bot
+namespace Donatello.Websocket
 {
     public sealed partial class DiscordBot
     {
@@ -20,7 +20,7 @@ namespace Donatello.Websocket.Bot
             remove => _commandExecutionFailedEvent.Unhook(value);
         }
 
-        private AsynchronousEvent<MessageReceivedEventContext> _gatewayMessageReceivedEvent = new();
+        private AsynchronousEvent<MessageReceivedEventPayload> _gatewayMessageReceivedEvent = new();
         public event AsynchronousEventHandler<CommandExecutionFailedEventArgs> MessageReceived
         {
             add => _commandExecutionFailedEvent.Hook(value);

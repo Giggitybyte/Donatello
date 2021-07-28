@@ -1,9 +1,9 @@
 ﻿using System;
+using System.Text.Json;
 using System.Threading.Tasks;
-using Donatello.Websocket.Client;
 using Qommon.Collections;
 
-namespace Donatello.Websocket.Bot.Extension
+namespace Donatello.Websocket
 {
     /// <summary>
     /// 
@@ -18,7 +18,7 @@ namespace Donatello.Websocket.Bot.Extension
         /// <summary>
         /// 
         /// </summary>
-        protected ReadOnlyCollection<DiscordClient> Shards { get => new(Bot._shards); }
+        protected ReadOnlyCollection<DiscordShard> Shards { get => new(Bot._shards); }
 
         /// <summary>
         /// 
@@ -32,7 +32,7 @@ namespace Donatello.Websocket.Bot.Extension
         /// <summary>
         /// 
         /// </summary>
-        protected Task SendPayload(GatewayPayload payload)
+        protected ValueTask SendPayload(DiscordShard shard, int opcode, Action<Utf8JsonWriter> objectBuilder)
         {
             throw new NotImplementedException();
         }
@@ -42,7 +42,7 @@ namespace Donatello.Websocket.Bot.Extension
         /// </summary>
         /// <param name="client"></param>
         /// <param name="payload"></param>
-        protected Task SendPayload(DiscordClient client, GatewayPayload payload)
+        protected ValueTask SendPayload(DiscordShard client, GatewayPayload payload)
         {
             throw new NotImplementedException();
         }

@@ -5,31 +5,40 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using Donatello.Websocket.Bot;
+using Donatello.Websocket.Entity;
 
-namespace Donatello.Websocket.Client
+namespace Donatello.Websocket
 {
     /// <summary>
     /// Websocket client for the Discord API.
     /// </summary>
-    public sealed partial class DiscordClient
+    public sealed partial class DiscordShard
     {
-        internal const int API_VERSION = 9;
-
         private Task _wsReceieveLoopTask, _wsPayloadProcessingTask, _wsHeartbeatTask;
         private CancellationTokenSource _wsTokenSource;
         private ClientWebSocket _websocketClient;
 
         private Channel<JsonElement> _payloadChannel;
+        private ChannelWriter<JsonElement> _eventChannelWriter;
 
         private int _lastEventSequence;
         private int _heartbeatIntervalMs;
-        private DateTime _lastHeartbeatAckTime;
+        private bool _receivedHeartbeatAck;
 
+        private string _apiToken;
         private string _gatewaySessionId;
-        private string _discordApiToken;
+        private DiscordIntent _intents;
 
-        private DiscordBot _bot;
+
+        internal DiscordShard(string apiToken, DiscordIntent intents, ChannelWriter<JsonElement> eventChannelWriter)
+        {
+            if (string.IsNullOrWhiteSpace(apiToken))
+                throw new ArgumentException("Token should not be empty.");
+
+            _apiToken = apiToken;
+            _intents = intents;
+            _eventChannelWriter = eventChannelWriter;
+        }
 
 
         /// <summary>
@@ -45,17 +54,17 @@ namespace Donatello.Websocket.Client
         /// <summary>
         /// Connects to the Discord gateway and begins processing incoming payloads and commands.
         /// </summary>
-        internal async Task ConnectAsync(string gatewayUrl, string apiToken, int id)
+        internal async Task ConnectAsync(string gatewayUrl, int id)
         {
             if (this.IsConnected) throw new InvalidOperationException("Websocket is already connected.");
-            if (string.IsNullOrWhiteSpace(apiToken)) throw new ArgumentException("Token should not be empty.");
 
             this.Id = id;
-            _discordApiToken = apiToken;
             _wsTokenSource = new CancellationTokenSource();
             _websocketClient = new ClientWebSocket();
 
-            await _websocketClient.ConnectAsync(new Uri($"{gatewayUrl}?v={API_VERSION}&encoding=json"), CancellationToken.None);
+            await _websocketClient.ConnectAsync(new Uri($"{gatewayUrl}?v=9&encoding=json"), CancellationToken.None);
+
+            _payloadChannel = Channel.CreateUnbounded<JsonElement>();
             _wsReceieveLoopTask = Task.Run(WebsocketReceiveLoop);
             _wsPayloadProcessingTask = Task.Run(WebsocketPayloadProcessingLoop);
         }
@@ -147,14 +156,14 @@ namespace Donatello.Websocket.Client
             {
                 var payloadLength = 0;
                 var buffer = ArrayPool<byte>.Shared.Rent(8192);
-                var tempBuffer = ArrayPool<byte>.Shared.Rent(512);
+                var tempBuffer = ArrayPool<byte>.Shared.Rent(256);
                 WebSocketReceiveResult response;
 
                 do
                 {
                     response = await _websocketClient.ReceiveAsync(tempBuffer, CancellationToken.None);
 
-                    Buffer.BlockCopy(tempBuffer, 0, buffer, 0, tempBuffer.Length);
+                    Buffer.BlockCopy(tempBuffer, 0, buffer, payloadLength, tempBuffer.Length);
                     Array.Clear(tempBuffer, 0, tempBuffer.Length);
 
                     payloadLength += response.Count;
@@ -170,7 +179,7 @@ namespace Donatello.Websocket.Client
         }
 
         /// <summary>
-        /// Reads payload data from the payload <see cref="Channel"/> and determines how to handle its contents.
+        /// Fetches a payload from the <i>payload <see cref="Channel"/>™</i> and determines how to handle each one.
         /// </summary>
         private async Task WebsocketPayloadProcessingLoop()
         {
@@ -179,8 +188,8 @@ namespace Donatello.Websocket.Client
                 var payload = await _payloadChannel.Reader.ReadAsync();
                 var opcode = payload.GetProperty("op").GetInt32();
 
-                if (opcode == 0) // Event; see DiscordClient.Dispach
-                    await HandleEventDispatch(payload.GetProperty("d")).ConfigureAwait(false);
+                if (opcode == 0) // Event
+                    await _eventChannelWriter.WriteAsync(payload).ConfigureAwait(false);
 
                 else if (opcode == 1) // Heartbeat request
                     await SendHeartbeat().ConfigureAwait(false);
@@ -193,15 +202,15 @@ namespace Donatello.Websocket.Client
 
                 else if (opcode == 10) // Hello
                 {
-                    if (_wsHeartbeatTask?.Status == TaskStatus.Running) 
+                    if (_wsHeartbeatTask?.Status == TaskStatus.Running)
                         throw new InvalidOperationException("Received 'hello' while heartbeat active.");
 
                     _heartbeatIntervalMs = payload.GetProperty("d").GetProperty("heartbeat_interval").GetInt32();
-                    _wsHeartbeatTask = Task.Run(WebsocketReceiveLoop);
+                    _wsHeartbeatTask = Task.Run(WebsocketHeartbeatLoop);
 
                     await SendPayload(2, (writer) =>
                     {
-                        writer.WriteString("token", _discordApiToken);
+                        writer.WriteString("token", _apiToken);
 
                         writer.WriteStartObject("properties");
                         writer.WriteString("$os", Environment.OSVersion.ToString());
@@ -214,14 +223,12 @@ namespace Donatello.Websocket.Client
                         // writer.WriteStartArray("shard");
                         // ...
 
-                        // TODO: finish identify payload.
-
-                        writer.wri
+                        writer.WriteNumber("intents", (int)_intents);
                     }).ConfigureAwait(false);
                 }
 
                 else if (opcode == 11) // Heartbeat ack
-                    _lastHeartbeatAckTime = DateTime.UtcNow;
+                    _receivedHeartbeatAck = true;
 
                 else if (((opcode >= 2) && (opcode <= 6)) | (opcode == 8)) // Client opcodes
                     throw new NotSupportedException($"Invalid opcode received: {opcode}");
@@ -239,24 +246,36 @@ namespace Donatello.Websocket.Client
             int missedHeartbeats = 0;
             var wsToken = _wsTokenSource.Token;
 
+            await Task.Delay(_heartbeatIntervalMs, wsToken).ConfigureAwait(false);
+
             while (!wsToken.IsCancellationRequested)
             {
-                await Task.Delay(_heartbeatIntervalMs, wsToken).ConfigureAwait(false);
                 await SendHeartbeat().ConfigureAwait(false);
+                await Task.Delay(_heartbeatIntervalMs, wsToken).ConfigureAwait(false);
+                
+                if (_receivedHeartbeatAck)
+                    missedHeartbeats = 0;
+                else
+                {
+                    missedHeartbeats += 1;
 
-                // TODO: zombie connection check.
+                    if (missedHeartbeats >= 3)
+                        throw new WebSocketException("Discord missed 3 heartbeat acks.");
+                }
+
+                _receivedHeartbeatAck = false;
             }
         }
 
         /// <summary>
-        /// Internal shortcut method.
+        /// Sends a heartbeat payload.
         /// </summary>
         private ValueTask SendHeartbeat()
         {
             if (_lastEventSequence == 0)
                 return SendPayload(1, JsonValueKind.Null, null);
             else
-                return SendPayload(1, JsonValueKind.Number, _lastEventSequence)
+                return SendPayload(1, JsonValueKind.Number, _lastEventSequence);
         }
     }
 }
