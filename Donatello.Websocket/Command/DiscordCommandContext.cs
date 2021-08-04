@@ -1,7 +1,7 @@
 ﻿using System;
 using Qmmands;
 
-namespace Donatello.Websocket.Commands
+namespace Donatello.Websocket.Command
 {
     public sealed class DiscordCommandContext : CommandContext
     {
