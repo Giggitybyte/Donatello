@@ -1,16 +1,15 @@
 ﻿using System;
 
-namespace Donatello.Websocket.Entity
+namespace Donatello.Websocket.Entities
 {
-
     /// <summary>
-    /// 
+    /// Represents one or more gateway intents.
     /// </summary>
     [Flags]
     public enum DiscordIntent
     {
         /// <summary>
-        /// 
+        /// All privileged and non-privileged events.
         /// </summary>
         All = Unprivileged | GuildMembers | GuildPresences,
 

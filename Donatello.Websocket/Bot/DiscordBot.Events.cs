@@ -6,7 +6,7 @@ using Qommon.Events;
 
 namespace Donatello.Websocket.Bot
 {
-    // User facing events.
+    // Declarations for all user facing events.
     public sealed partial class DiscordBot
     {
         private AsynchronousEvent<CommandExecutedEventArgs> _commandExecutedEvent = new(EventExceptionLogger);

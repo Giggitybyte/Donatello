@@ -7,20 +7,20 @@ namespace Donatello.Websocket.Bot
     /// </summary>
     internal readonly struct GatewayEvent
     {
-        internal GatewayEvent(JsonElement payloadJson, DiscordShard sourceShard)
+        internal GatewayEvent(int shardId, JsonElement payload)
         {
-            Payload = payloadJson;
-            Shard = sourceShard;
+            Payload = payload;
+            ShardId = shardId;
         }
 
         /// <summary>
-        /// 
+        /// ID of the shard which received the event payload.
         /// </summary>
-        internal JsonElement Payload { get; }
+        internal int ShardId { get; }
 
         /// <summary>
-        /// 
+        /// JSON event payload.
         /// </summary>
-        internal DiscordShard Shard { get; }
+        internal JsonElement Payload { get; }
     }
 }

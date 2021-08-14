@@ -1,13 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Reflection;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Donatello.Websocket.Command;
-using Donatello.Websocket.Entity;
+using Donatello.Websocket.Entities;
 using Qmmands;
+using Qommon.Collections;
 using RestSharp;
 
 namespace Donatello.Websocket.Bot
@@ -20,23 +19,15 @@ namespace Donatello.Websocket.Bot
     {
         private string _apiToken;
         private DiscordIntent _intents;
+        private DiscordShard[] _shards;
+
+        private Channel<GatewayEvent> _eventChannel;
+        private Task _eventProcessingTask;
 
         private RestClient _restClient;
         private CommandService _commandService;
-        private Channel<GatewayEvent> _eventChannel;
 
-        private Task _eventProcessingTask;
-        private CancellationTokenSource _shardCts;
-
-        private int _recommendedShardCount;
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="apiToken"></param>
-        /// <param name="discordConfig"></param>
-        /// <param name="commandConfig"></param>
-        public DiscordBot(string apiToken, DiscordIntent intents, CommandServiceConfiguration commandConfig = null)
+        public DiscordBot(string apiToken, DiscordIntent intents = DiscordIntent.Unprivileged, CommandServiceConfiguration commandConfig = null)
         {
             if (string.IsNullOrWhiteSpace(apiToken))
                 throw new ArgumentException("Token cannot be empty.");
@@ -49,19 +40,17 @@ namespace Donatello.Websocket.Bot
             _restClient.AddDefaultHeader("Authorization", $"Bot {_apiToken}");
 
             commandConfig ??= CommandServiceConfiguration.Default;
-            // commandConfig.CooldownBucketKeyGenerator = ...;
+            // commandConfig.CooldownBucketKeyGenerator ??= ...;
 
             _commandService = new CommandService(commandConfig);
             _commandService.CommandExecuted += (e) => _commandExecutedEvent.InvokeAsync(e);
             _commandService.CommandExecutionFailed += (e) => _commandExecutionFailedEvent.InvokeAsync(e);
-
-            Shards = new SortedList<int, DiscordShard>();
         }
 
         /// <summary>
-        /// Active websocket clients.
+        /// 
         /// </summary>
-        internal SortedList<int, DiscordShard> Shards { get; private set; }
+        internal ReadOnlyList<DiscordShard> Shards { get => new(_shards); }
 
         /// <summary>
         /// Searches the provided assembly for classes which inherit from <see cref="DiscordCommandModule"/> and registers each of their commands.
@@ -81,14 +70,14 @@ namespace Donatello.Websocket.Bot
         /// Loads an extension for this <see cref="DiscordBot"/> instance.<para/>
         /// </summary>
         /// <typeparam name="T">The extension type that will be instanced.</typeparam>
-        public void AddExtension<T>() where T : BaseExtension
+        public void AddExtension<T>() // where T : BaseExtension
             => throw new NotImplementedException();
 
         /// <summary>
         /// 
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public async ValueTask RemoveExtensionAsync<T>() where T : BaseExtension
+        public async ValueTask RemoveExtensionAsync<T>() // where T : BaseExtension
             => throw new NotImplementedException();
 
         /// <summary>
@@ -96,54 +85,21 @@ namespace Donatello.Websocket.Bot
         /// </summary>
         public async Task StartAsync()
         {
-            var gatewayInfoRequest = new RestRequest("gateway/bot", Method.GET);
-            var gatewayInfoResponse = await _restClient.ExecuteAsync(gatewayInfoRequest).ConfigureAwait(false);
+            var payload = await GetGatewayInfoAsync();
 
-            using var payload = JsonDocument.Parse(gatewayInfoResponse.Content);
+            var websocketUrl = payload.GetProperty("url").GetString();
+            var shardCount = payload.GetProperty("shards").GetInt32();
+            // var batchSize = payload.GetProperty("session_start_limit").GetProperty("max_concurrency").GetInt32();
 
-            var websocketUrl = payload.RootElement.GetProperty("url").GetString();
-            var shardCount = payload.RootElement.GetProperty("shards").GetInt32();
-            var batchSize = payload.RootElement.GetProperty("session_start_limit").GetProperty("max_concurrency").GetInt32();
+            _shards = new DiscordShard[shardCount];
+            _eventProcessingTask = ProcessIncomingEventsAsync(_eventChannel.Reader);
 
-            _recommendedShardCount = shardCount;
-            _shardCts = new CancellationTokenSource();
-            _eventProcessingTask = Task.Run(ShardManagementLoop);
-
-            if (batchSize == 1) // Sequential
+            for (int shardId = 0; shardId < shardCount; shardId++)
             {
-                for (int shardId = 0; shardId < shardCount; shardId++)
-                {
-                    var shard = new DiscordShard(_eventChannel.Writer, _shardCts.Token);
-                    await shard.ConnectAsync(websocketUrl, shardId).ConfigureAwait(false);
-                    Shards.Add(shardId, shard);
-                }
-            }
-            else // Concurrent batches
-            {
-                var shards = new List<DiscordShard>();
-                while (shards.Count < shardCount)
-                    shards.Add(new DiscordShard(_eventChannel.Writer, _shardCts.Token));
+                var shard = new DiscordShard(_eventChannel.Writer) { Id = shardId };
+                await shard.ConnectAsync(websocketUrl);
 
-                var remainingBatches = shardCount / batchSize;
-                var leftoverShards = shardCount % batchSize;
-                if (leftoverShards != 0) remainingBatches += 1;
-
-                var lastShardId = 0;
-                while (remainingBatches > 0)
-                {
-                    int count = (remainingBatches == 1 ? leftoverShards : batchSize);
-                    var shardBatch = shards.GetRange(lastShardId, count);
-                    var batchTasks = new List<Task>();
-
-                    for (int shardId = lastShardId; shardId < (lastShardId + batchSize); shardId++)
-                    {
-                        var shard = shards[shardId];
-                        await shard.ConnectAsync(websocketUrl, shardId).ConfigureAwait(false);
-                        Shards.Add(shardId, shard);
-                    }
-
-                    remainingBatches--;
-                }
+                _shards[shardId] = shard;
             }
         }
 
@@ -152,64 +108,111 @@ namespace Donatello.Websocket.Bot
         /// </summary>
         public async Task StopAsync()
         {
-            
+            if (_eventProcessingTask is null)
+                throw new InvalidOperationException("This instance is not currently connected to Discord.");
+
+            var disconnectTasks = new Task[_shards.Length];
+            foreach (var shard in _shards)
+                disconnectTasks[shard.Id] = shard.DisconnectAsync();
+
+            await Task.WhenAll(disconnectTasks);
+
+            _eventChannel.Writer.TryComplete();
+            await _eventChannel.Reader.Completion;
+
+            Array.Clear(_shards, 0, _shards.Length);
         }
 
         /// <summary>
-        /// Receives gateway event payloads from the event <see cref="Channel"/> and determines how to respond based on the payload opcode.
-        /// Either a user facing event will be invoked or the state of the shard which received the payload will be altered.
+        /// Queries the Discord REST API for up-to-date connection information for the gateway.
         /// </summary>
-        private async Task ShardManagementLoop()
+        private async Task<JsonElement> GetGatewayInfoAsync()
         {
-            await foreach (var gatewayEvent in _eventChannel.Reader.ReadAllAsync())
+            var gatewayInfoRequest = new RestRequest("gateway/bot", Method.GET);
+            var gatewayInfoResponse = await _restClient.ExecuteAsync(gatewayInfoRequest);
+            return JsonDocument.Parse(gatewayInfoResponse.Content).RootElement.Clone();
+        }
+
+        /// <summary>
+        /// Receives gateway event payloads from each connected <see cref="DiscordShard"/> and determines how to respond based on the payload opcode.
+        /// </summary>
+        private async Task ProcessIncomingEventsAsync(ChannelReader<GatewayEvent> channelReader)
+        {
+            await foreach (var gatewayEvent in channelReader.ReadAllAsync())
             {
                 var opcode = gatewayEvent.Payload.GetProperty("op").GetInt32();
 
                 if (opcode == 0) // Guild, channel, or user event
-                    await DispatchEventAsync(gatewayEvent).ConfigureAwait(false);
+                    await DispatchEventAsync(gatewayEvent); // DiscordBot.Dispatch
 
                 else if (opcode == 7) // Reconnect request
-                    throw new NotImplementedException();
+                    await ReconnectAsync(_shards[gatewayEvent.ShardId]);
 
                 else if (opcode == 9) // Invalid session
-                    throw new NotImplementedException();
+                {
+                    var shard = _shards[gatewayEvent.ShardId];
+                    var resumeable = gatewayEvent.Payload.GetProperty("d").GetBoolean();
+
+                    if (!resumeable)
+                    {
+                        shard.SessionId = string.Empty;
+                        shard.LastSequenceNumber = 0;
+                    }
+
+                    await ReconnectAsync(shard);
+                }
 
                 else if (opcode == 10) // Hello
                 {
-                    var interval = gatewayEvent.Payload
-                        .GetProperty("d")
-                        .GetProperty("heartbeat_interval")
-                        .GetInt32();
+                    var shard = _shards[gatewayEvent.ShardId];
+                    var interval = gatewayEvent.Payload.GetProperty("d").GetProperty("heartbeat_interval").GetInt32();
 
-                    gatewayEvent.Shard.StartHeartbeat(interval);
+                    shard.StartHeartbeat(interval);
 
-                    // Identify
-                    await gatewayEvent.Shard.SendPayloadAsync(2, (writer) =>
+                    if (string.IsNullOrEmpty(shard.SessionId))
                     {
-                        writer.WriteString("token", _apiToken);
+                        await shard.SendPayloadAsync(2, (writer) =>
+                        {
+                            writer.WriteString("token", _apiToken);
 
-                        writer.WriteStartObject("properties");
-                        writer.WriteString("$os", Environment.OSVersion.ToString());
-                        writer.WriteString("$browser", "Donatello");
-                        writer.WriteString("$device", "Donatello");
-                        writer.WriteEndObject();
+                            writer.WriteStartObject("properties");
+                            writer.WriteString("$os", Environment.OSVersion.ToString());
+                            writer.WriteString("$browser", "Donatello");
+                            writer.WriteString("$device", "Donatello");
+                            writer.WriteEndObject();
 
-                        writer.WriteNumber("large_threshold", 250);
+                            writer.WriteNumber("large_threshold", 250);
 
-                        writer.WriteStartArray("shard");
-                        writer.WriteNumberValue(gatewayEvent.Shard.Id);
-                        writer.WriteNumberValue(_recommendedShardCount);
-                        writer.WriteEndArray();
+                            writer.WriteStartArray("shard");
+                            writer.WriteNumberValue(shard.Id);
+                            writer.WriteNumberValue(_shards.Length);
+                            writer.WriteEndArray();
 
-                        writer.WriteNumber("intents", (int)_intents);
-                    }).ConfigureAwait(false);
+                            writer.WriteNumber("intents", (int)_intents);
+                        });
+                    }
+                    else
+                    {
+                        await shard.SendPayloadAsync(6, (writer) =>
+                        {
+                            writer.WriteString("token", _apiToken);
+                            writer.WriteString("session_id", shard.SessionId);
+                            writer.WriteNumber("seq", shard.LastSequenceNumber);
+                        });
+                    }
                 }
-
-                else if (((opcode >= 2) && (opcode <= 6)) | (opcode == 8)) // Client opcodes
-                    throw new NotSupportedException($"Invalid opcode received: {opcode}");
 
                 else
                     throw new NotImplementedException($"Unknown opcode received: {opcode}");
+            }
+
+            async Task ReconnectAsync(DiscordShard shard)
+            {
+                var connectionInfo = await GetGatewayInfoAsync();
+                var url = connectionInfo.GetProperty("url").GetString();
+
+                await shard.DisconnectAsync();
+                await shard.ConnectAsync(url);
             }
         }
     }

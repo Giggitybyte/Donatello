@@ -14,29 +14,36 @@ namespace Donatello.Websocket.Bot
     public sealed class DiscordShard
     {
         private Task _wsReceieveTask, _wsHeartbeatTask;
+        private CancellationTokenSource _websocketCts, _heartbeatDelayCts;
         private ClientWebSocket _websocketClient;
-        private CancellationToken _cancellationToken;
 
         private ChannelWriter<GatewayEvent> _eventChannelWriter;
 
-        private int _heartbeatIntervalMs;
+        private int _heartbeatInvervalMs;
         private bool _receivedHeartbeatAck;
 
-        internal DiscordShard(ChannelWriter<GatewayEvent> eventChannelWriter, CancellationToken cancellationToken)
+        internal DiscordShard(ChannelWriter<GatewayEvent> eventChannelWriter)
         {
             _eventChannelWriter = eventChannelWriter;
-            _cancellationToken = cancellationToken;
+
+            _websocketCts = new CancellationTokenSource();
+            _heartbeatDelayCts = new CancellationTokenSource();
         }
 
         /// <summary>
-        /// The most recent sequence number received by this shard.
+        /// 
         /// </summary>
-        internal int LastSequence { get; set; }
+        internal string SessionId { get; set; }
+
+        /// <summary>
+        /// The most recent event sequence number received from this shard.
+        /// </summary>
+        internal int LastSequenceNumber { get; set; }
 
         /// <summary>
         /// Zero-based shard ID number.
         /// </summary>
-        public int Id { get; private set; }
+        public int Id { get; internal set; }
 
         /// <summary>
         /// 
@@ -54,22 +61,21 @@ namespace Donatello.Websocket.Bot
         public bool IsHeartbeatActive { get => _wsHeartbeatTask.Status == TaskStatus.Running; }
 
         /// <summary>
-        /// Connects to the Discord gateway and begins processing incoming payloads and commands.
+        /// Connects to the Discord gateway.
         /// </summary>
-        internal async Task ConnectAsync(string gatewayUrl, int id)
+        internal async Task ConnectAsync(string gatewayUrl)
         {
             if (this.IsConnected)
                 throw new InvalidOperationException("Websocket is already connected.");
 
-            this.Id = id;
-            _websocketClient = new ClientWebSocket();
+            _websocketClient ??= new ClientWebSocket();
+            _wsReceieveTask = WebsocketReceiveLoop(_websocketCts.Token);
 
             await _websocketClient.ConnectAsync(new Uri($"{gatewayUrl}?v=9&encoding=json"), CancellationToken.None);
-            _wsReceieveTask = Task.Run(WebsocketReceiveLoop);
         }
 
         /// <summary>
-        /// Closes the open connection with Discord.
+        /// Closes the connection with the Discord gateway.
         /// </summary>
         internal async Task DisconnectAsync()
         {
@@ -77,14 +83,15 @@ namespace Donatello.Websocket.Bot
                 throw new InvalidOperationException("Websocket client was not initialized.");
 
             if (!this.IsConnected)
-                throw new InvalidOperationException("Websocket is already disconnected.");
+                throw new InvalidOperationException("Websocket is not connected.");
 
-            _wsReceieveTask.Wait();
-            _wsHeartbeatTask.Wait();
+            _websocketCts.Cancel();
+            await _wsReceieveTask;
 
-            await _websocketClient.CloseOutputAsync(WebSocketCloseStatus.EndpointUnavailable, "", CancellationToken.None);
+            _heartbeatDelayCts.Cancel();
+            await _wsHeartbeatTask;
 
-            _websocketClient.Dispose();
+            await _websocketClient.CloseAsync(WebSocketCloseStatus.EndpointUnavailable, "", CancellationToken.None);
         }
 
         /// <summary>
@@ -95,8 +102,8 @@ namespace Donatello.Websocket.Bot
             if (_wsHeartbeatTask?.Status == TaskStatus.Running)
                 throw new InvalidOperationException("Heartbeat is already active.");
 
-            _heartbeatIntervalMs = intervalMs;
-            _wsHeartbeatTask = Task.Run(WebsocketHeartbeatLoop);
+            _heartbeatInvervalMs = intervalMs;
+            _wsHeartbeatTask = WebsocketHeartbeatLoop(_websocketCts.Token, _heartbeatDelayCts.Token);
         }
 
         /// <summary>
@@ -163,19 +170,21 @@ namespace Donatello.Websocket.Bot
         /// <returns></returns>
         private ValueTask SendHeartbeatAsync()
         {
-            if (LastSequence == 0)
+            if (_wsHeartbeatTask is not null)
+                _heartbeatDelayCts.Cancel();
+
+            if (LastSequenceNumber == 0)
                 return SendPayloadAsync(1, JsonValueKind.Null, null);
             else
-                return SendPayloadAsync(1, JsonValueKind.Number, LastSequence);
+                return SendPayloadAsync(1, JsonValueKind.Number, LastSequenceNumber);
         }
 
         /// <summary>
         /// Receives incoming payloads from the gateway connection.
-        /// 
         /// </summary>
-        private async Task WebsocketReceiveLoop()
+        private async Task WebsocketReceiveLoop(CancellationToken cancelToken)
         {
-            while (!_cancellationToken.IsCancellationRequested)
+            while (cancelToken!.IsCancellationRequested)
             {
                 var payloadLength = 0;
                 var buffer = ArrayPool<byte>.Shared.Rent(8192);
@@ -186,23 +195,24 @@ namespace Donatello.Websocket.Bot
                     response = await _websocketClient.ReceiveAsync(buffer, CancellationToken.None);
                     payloadLength += response.Count;
 
-                    if (payloadLength == buffer.Length) ArrayPool<byte>.Shared.Resize(ref buffer, buffer.Length + 2048);
+                    if (payloadLength == buffer.Length)
+                        ArrayPool<byte>.Shared.Resize(ref buffer, buffer.Length + 4096);
+
                 } while (!response.EndOfMessage);
 
-
-                using var payload = JsonDocument.Parse(buffer.AsMemory(0, response.Count));
+                using var payload = JsonDocument.Parse(buffer.AsMemory(0, payloadLength));
                 var opcode = payload.RootElement.GetProperty("op").GetInt32();
 
                 if (opcode == 11) // Heartbeat ack
                     _receivedHeartbeatAck = true;
 
                 else if (opcode == 1) // Heartbeat request
-                    await SendHeartbeatAsync().ConfigureAwait(false);
+                    await SendHeartbeatAsync();
 
                 else // Not heartbeat related
                 {
-                    var gatewayEvent = new GatewayEvent(payload.RootElement.Clone(), this);
-                    await _eventChannelWriter.WriteAsync(gatewayEvent).ConfigureAwait(false);
+                    var gatewayEvent = new GatewayEvent(this.Id, payload.RootElement.Clone());
+                    await _eventChannelWriter.WriteAsync(gatewayEvent);
                 }
 
                 ArrayPool<byte>.Shared.Return(buffer, true);
@@ -212,29 +222,23 @@ namespace Donatello.Websocket.Bot
         /// <summary>
         /// Sends a heartbeat payload to the gateway at a fixed interval.
         /// </summary>
-        private async Task WebsocketHeartbeatLoop()
+        private async Task WebsocketHeartbeatLoop(CancellationToken wsToken, CancellationToken delayToken)
         {
-            await Task.Delay(_heartbeatIntervalMs, _cancellationToken).ConfigureAwait(false);
+            await Task.Delay(_heartbeatInvervalMs, delayToken);
 
             var missedHeartbeats = 0;
-            while (!_cancellationToken.IsCancellationRequested)
+            while (!wsToken.IsCancellationRequested)
             {
-                await SendHeartbeatAsync().ConfigureAwait(false);
-                await Task.Delay(_heartbeatIntervalMs, _cancellationToken).ConfigureAwait(false);
-
+                await SendHeartbeatAsync();
+                await Task.Delay(_heartbeatInvervalMs, delayToken);
 
                 if (_receivedHeartbeatAck)
                 {
                     missedHeartbeats = 0;
                     _receivedHeartbeatAck = false;
                 }
-                else
-                {
-                    missedHeartbeats += 1;
-
-                    if (missedHeartbeats >= 3)
-                        throw new WebSocketException("Discord missed 3 heartbeat acks.");
-                }
+                else if (++missedHeartbeats >= 3)
+                    throw new WebSocketException("Discord missed 3 heartbeat acks.");
             }
         }
 

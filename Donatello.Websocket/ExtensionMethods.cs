@@ -10,23 +10,14 @@ namespace Donatello.Websocket
         /// </summary>
         internal static void Resize<T>(this ArrayPool<T> pool, ref T[] array, int newSize)
         {
-            if (array is null)
-                array = pool.Rent(newSize);
+            T[] newArray = pool.Rent(newSize);
+            int itemsToCopy = Math.Min(array.Length, newSize);
 
-            else if (array.Length == newSize)
-                return;
+            Array.Copy(array, 0, newArray, 0, itemsToCopy);
 
-            else
-            {
-                T[] newArray = pool.Rent(newSize);
-                int itemsToCopy = Math.Min(array.Length, newSize);
+            pool.Return(array, true);
 
-                Array.Copy(array, 0, newArray, 0, itemsToCopy);
-
-                pool.Return(array, true);
-
-                array = newArray;
-            }
+            array = newArray;
         }
     }
 }

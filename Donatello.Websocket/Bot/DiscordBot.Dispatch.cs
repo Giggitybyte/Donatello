@@ -7,7 +7,7 @@ namespace Donatello.Websocket.Bot
     {
         internal async Task DispatchEventAsync(GatewayEvent discordEvent)
         {
-
+            
         }
     }
 }
