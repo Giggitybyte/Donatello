@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Donatello.Websocket.Entities
+namespace Donatello.Websocket
 {
     /// <summary>
     /// Represents one or more gateway intents.

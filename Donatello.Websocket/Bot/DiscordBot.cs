@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Donatello.Websocket.Command;
-using Donatello.Websocket.Entities;
+using Microsoft.Extensions.Logging;
 using Qmmands;
 using Qommon.Collections;
 using RestSharp;
@@ -21,13 +21,21 @@ namespace Donatello.Websocket.Bot
         private DiscordIntent _intents;
         private DiscordShard[] _shards;
 
+        private ILoggerFactory _loggerFactory;
+
         private Channel<GatewayEvent> _eventChannel;
         private Task _eventProcessingTask;
 
         private RestClient _restClient;
         private CommandService _commandService;
 
-        public DiscordBot(string apiToken, DiscordIntent intents = DiscordIntent.Unprivileged, CommandServiceConfiguration commandConfig = null)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="apiToken"></param>
+        /// <param name="intents"></param>
+        /// <param name="loggerFactory"></param>
+        public DiscordBot(string apiToken, DiscordIntent intents = DiscordIntent.Unprivileged, ILoggerFactory loggerFactory = null)
         {
             if (string.IsNullOrWhiteSpace(apiToken))
                 throw new ArgumentException("Token cannot be empty.");
@@ -36,10 +44,15 @@ namespace Donatello.Websocket.Bot
             _intents = intents;
             _eventChannel = Channel.CreateUnbounded<GatewayEvent>();
 
+            _loggerFactory = loggerFactory ?? LoggerFactory.Create(builder => 
+            {
+                builder.AddSimpleConsole();
+            });
+
             _restClient = new RestClient("https://discord.com/api");
             _restClient.AddDefaultHeader("Authorization", $"Bot {_apiToken}");
 
-            commandConfig ??= CommandServiceConfiguration.Default;
+            var commandConfig = CommandServiceConfiguration.Default;
             // commandConfig.CooldownBucketKeyGenerator ??= ...;
 
             _commandService = new CommandService(commandConfig);
@@ -124,7 +137,7 @@ namespace Donatello.Websocket.Bot
         }
 
         /// <summary>
-        /// Queries the Discord REST API for up-to-date connection information for the gateway.
+        /// Fetches up-to-date gateway connection information from the Discord REST API.
         /// </summary>
         private async Task<JsonElement> GetGatewayInfoAsync()
         {

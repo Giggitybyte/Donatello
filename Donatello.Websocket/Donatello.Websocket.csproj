@@ -6,7 +6,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="5.0.0" />
     <PackageReference Include="Qmmands" Version="4.0.1-nightly-00257" />
     <PackageReference Include="RestSharp" Version="106.12.0" />
   </ItemGroup>
@@ -14,8 +16,8 @@
   <ItemGroup>
     <Folder Include="Bot\Cache\" />
     <Folder Include="Bot\Ratelimit\" />
-    <Folder Include="Entities\Enum\" />
     <Folder Include="Entities\Guild\" />
+    <Folder Include="Entities\Channel\" />
   </ItemGroup>
 
 </Project>
