@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30907.101
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Websocket", "Donatello.Websocket\Donatello.Websocket.csproj", "{360D5FAF-4611-4B9A-9525-885A1C598124}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Gateway", "Donatello.Gateway\Donatello.Gateway.csproj", "{3E41E54B-FCF9-4568-802A-C2AAD1F3D2F8}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Websocket.Test", "Donatello.Websocket.Test\Donatello.Websocket.Test.csproj", "{A2DB88D8-9F5A-4160-89D5-D0A42AEFF5D5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Donatello.Interactions", "Donatello.Interactions\Donatello.Interactions.csproj", "{FE2E28F2-1C79-458B-BCBE-D77D2A32A883}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,14 +13,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{360D5FAF-4611-4B9A-9525-885A1C598124}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{360D5FAF-4611-4B9A-9525-885A1C598124}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{360D5FAF-4611-4B9A-9525-885A1C598124}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{360D5FAF-4611-4B9A-9525-885A1C598124}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A2DB88D8-9F5A-4160-89D5-D0A42AEFF5D5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A2DB88D8-9F5A-4160-89D5-D0A42AEFF5D5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A2DB88D8-9F5A-4160-89D5-D0A42AEFF5D5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A2DB88D8-9F5A-4160-89D5-D0A42AEFF5D5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3E41E54B-FCF9-4568-802A-C2AAD1F3D2F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E41E54B-FCF9-4568-802A-C2AAD1F3D2F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E41E54B-FCF9-4568-802A-C2AAD1F3D2F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E41E54B-FCF9-4568-802A-C2AAD1F3D2F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE2E28F2-1C79-458B-BCBE-D77D2A32A883}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE2E28F2-1C79-458B-BCBE-D77D2A32A883}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE2E28F2-1C79-458B-BCBE-D77D2A32A883}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE2E28F2-1C79-458B-BCBE-D77D2A32A883}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
