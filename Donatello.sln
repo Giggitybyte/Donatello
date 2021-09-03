@@ -5,7 +5,14 @@ VisualStudioVersion = 16.0.30907.101
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Gateway", "Donatello.Gateway\Donatello.Gateway.csproj", "{3E41E54B-FCF9-4568-802A-C2AAD1F3D2F8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Donatello.Interactions", "Donatello.Interactions\Donatello.Interactions.csproj", "{FE2E28F2-1C79-458B-BCBE-D77D2A32A883}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Interactions", "Donatello.Interactions\Donatello.Interactions.csproj", "{FE2E28F2-1C79-458B-BCBE-D77D2A32A883}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{279BA834-F811-4F57-918E-5DDBB64442C1}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Donatello.Rest", "Donatello.Rest\Donatello.Rest.csproj", "{4F854D6E-4836-4772-BB71-10DD0E75B3E5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +28,10 @@ Global
 		{FE2E28F2-1C79-458B-BCBE-D77D2A32A883}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FE2E28F2-1C79-458B-BCBE-D77D2A32A883}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FE2E28F2-1C79-458B-BCBE-D77D2A32A883}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4F854D6E-4836-4772-BB71-10DD0E75B3E5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4F854D6E-4836-4772-BB71-10DD0E75B3E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4F854D6E-4836-4772-BB71-10DD0E75B3E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4F854D6E-4836-4772-BB71-10DD0E75B3E5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

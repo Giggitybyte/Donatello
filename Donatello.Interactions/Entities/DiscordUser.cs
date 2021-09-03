@@ -1,115 +1,106 @@
 ﻿using System.Drawing;
 using System.Text.Json;
-using Donatello.Interactions.Enums;
+using Donatello.Interactions.Entities.Enums;
 
 namespace Donatello.Interactions.Entities
 {
     /// <summary></summary>
-    public class DiscordUser
+    public sealed class DiscordUser : DiscordEntity
     {
-        private readonly JsonElement _json;
+        public DiscordUser(JsonElement json) : base(json) { }
 
-        internal DiscordUser(JsonElement json)
-        {
-            _json = json;
-        }
+        /// <summary>The user's name.</summary>
+        public string Username => Json.GetProperty("username").GetString();
 
-        /// <summary>Unique Discord user ID</summary>
-        public ulong Id => ulong.Parse(_json.GetProperty("id").GetString());
+        /// <summary>Sequence used to differentiate between users with the same username.</summary>
+        public ushort Discriminator => ushort.Parse(Json.GetProperty("discriminator").GetString());
 
-        /// <summary>The user's name</summary>
-        public string Username => _json.GetProperty("username").GetString();
+        /// <summary>Full Discord tag, e.g. <c>thegiggitybyte#8099</c>.</summary>
+        public string Tag => $"{Username}#{Discriminator}";
 
-        /// <summary>Numeric sequence used to differentiate between users with the same username</summary>
-        public ushort Discriminator => ushort.Parse(_json.GetProperty("discriminator").GetString());
-
-        /// <summary>Full Discord tag, e.g. <c>thegiggitybyte#8099</c></summary>
-        public string Tag => $"{this.Username}#{this.Discriminator}";
-
-        /// <summary></summary>
-        public DiscordFlag? Flags
-        {
-            get
-            {
-                if (_json.TryGetProperty("public_flags", out var prop))
-                    return (DiscordFlag)prop.GetInt32();
-                else
-                    return null;
-            }
-        }
-
-        /// <summary>Direct URL for the user's avatar</summary>
+        /// <summary>User avatar URL.</summary>
         public string AvatarUrl
         {
             get
             {
-                var avatarHash = _json.GetProperty("avatar").GetString();
-                var isAnimated = avatarHash.StartsWith("a_");
-
+                var avatarHash = Json.GetProperty("avatar").GetString();
                 if (!string.IsNullOrEmpty(avatarHash))
-                    return $"https://cdn.discordapp.com/avatars/{this.Id}/{avatarHash}.{(isAnimated ? "gif" : "png")}";
+                {
+                    var extension = avatarHash.StartsWith("a_") ? "gif" : "png";
+                    return $"https://cdn.discordapp.com/avatars/{this.Id}/{avatarHash}.{extension}";
+                }
                 else
                     return $"https://cdn.discordapp.com/embed/avatars/{this.Discriminator % 5}.png";
             }
         }
 
-        /// <summary>Direct URL for the user's banner</summary>
+        /// <summary>User banner URL.</summary>
+        /// <remarks>If the user has not uploaded a banner, this property will return <see langword="null"/>.</remarks>
         public string BannerUrl
         {
             get
             {
-                if (_json.TryGetProperty("banner", out var prop))
+                if (Json.TryGetProperty("banner", out var prop))
                 {
                     var bannerHash = prop.GetString();
-                    var isAnimated = bannerHash.StartsWith("a_");
+                    var extension = bannerHash.StartsWith("a_") ? "gif" : "png";
 
-                    return $"https://cdn.discordapp.com/avatars/{this.Id}/{bannerHash}.{(isAnimated ? "gif" : "png")}";
+                    return $"https://cdn.discordapp.com/avatars/{this.Id}/{bannerHash}.{extension}";
                 }
                 else
                     return null;
             }
         }
 
-        /// <summary>
-        /// A solid color derived from colors of the user's avatar. 
-        /// Used as the default banner if the user has not uploaded one.
-        /// </summary>
-        public Color? BannerColor
+        /// <summary>Displayed as the user's banner if one has not been uploaded.</summary>
+        public Color BannerColor
         {
             get
             {
-                if (_json.TryGetProperty("accent_color", out var prop))
+                if (Json.TryGetProperty("accent_color", out var prop))
                     return Color.FromArgb(prop.GetInt32());
                 else
-                    return null;
+                    return Color.Empty;
             }
         }
 
-        /// <summary>Whether or not this user is a bot user</summary>
-        public bool? IsBot
+        /// <summary>Additional metadata for this user, e.g. badges.</summary>
+        public UserFlag Flags
         {
             get
             {
-                if (_json.TryGetProperty("bot", out var prop))
-                    return prop.GetBoolean();
+                if (Json.TryGetProperty("public_flags", out var prop))
+                    return (UserFlag)prop.GetInt32();
                 else
-                    return null;
+                    return UserFlag.None;
             }
         }
 
-        /// <summary>Whether or not this user is the official Discord system user</summary>
-        public bool? IsSystem
+        /// <summary>Whether this user is a bot user.</summary>
+        public bool IsBot
         {
             get
             {
-                if (_json.TryGetProperty("system", out var prop))
+                if (Json.TryGetProperty("bot", out var prop))
                     return prop.GetBoolean();
                 else
-                    return null;
+                    return false;
             }
         }
 
-        /// <summary>Returns the tag for this user</summary>
+        /// <summary>Whether this user is the official Discord system user.</summary>
+        public bool IsSystem
+        {
+            get
+            {
+                if (Json.TryGetProperty("system", out var prop))
+                    return prop.GetBoolean();
+                else
+                    return false;
+            }
+        }
+
+        /// <summary>Returns the user's full tag.</summary>
         public override string ToString()
             => this.Tag;
     }

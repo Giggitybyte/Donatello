@@ -3,8 +3,6 @@ using System.Buffers;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -16,33 +14,21 @@ using Qommon.Events;
 
 namespace Donatello.Interactions
 {
+    /// <summary>
+    /// High-level client and bot framework for the Discord interaction model.<br/>
+    /// Interactions are received from Discord through an integrated webhook listener.
+    /// </summary>
     public sealed class DiscordBot
     {
-        internal static readonly HttpClient HttpClient = new HttpClient();
-
         private readonly string _apiToken;
         private readonly PublicKey _publicKey;
 
-        private Task _httpListenerTask;
+        private Task _interactionListenerTask;
         private CommandService _commandService;
         private CancellationTokenSource _cts;
 
         private AsynchronousEvent<CommandExecutedEventArgs> _commandExecutedEvent = new(EventExceptionLogger);
         private AsynchronousEvent<CommandExecutionFailedEventArgs> _commandExecutionFailedEvent = new(EventExceptionLogger);
-
-        /// <summary>Fired when a command successfully executes.</summary>
-        public event AsynchronousEventHandler<CommandExecutedEventArgs> CommandExecuted
-        {
-            add => _commandExecutedEvent.Hook(value);
-            remove => _commandExecutedEvent.Unhook(value);
-        }
-
-        /// <summary>Fired when a command does not</summary>
-        public event AsynchronousEventHandler<CommandExecutionFailedEventArgs> CommandExecutionFailed
-        {
-            add => _commandExecutionFailedEvent.Hook(value);
-            remove => _commandExecutionFailedEvent.Unhook(value);
-        }
 
         public DiscordBot(string apiToken, string publicKey)
         {
@@ -52,34 +38,62 @@ namespace Donatello.Interactions
                 throw new ArgumentException("Public key cannot be empty.", nameof(publicKey));
 
             _apiToken = apiToken;
-            _publicKey = PublicKey.Import(SignatureAlgorithm.Ed25519, Convert.FromHexString(publicKey), KeyBlobFormat.PkixPublicKeyText);
+            _publicKey = PublicKey.Import
+            (
+                SignatureAlgorithm.Ed25519,
+                Convert.FromHexString(publicKey),
+                KeyBlobFormat.PkixPublicKeyText
+            );
 
-            
+            _commandService = new CommandService(CommandServiceConfiguration.Default);
             _commandService.CommandExecuted += (e) => _commandExecutedEvent.InvokeAsync(e);
             _commandService.CommandExecutionFailed += (e) => _commandExecutionFailedEvent.InvokeAsync(e);
         }
 
-        public bool IsRunning { get => _httpListenerTask.Status == TaskStatus.Running; }
+        /// <summary>Whether or not this instance is listening for interactions.</summary>
+        public bool IsRunning { get => _interactionListenerTask.Status == TaskStatus.Running; }
 
+        /// <summary>Fired when a command successfully executes.</summary>
+        public event AsynchronousEventHandler<CommandExecutedEventArgs> CommandExecuted
+        {
+            add => _commandExecutedEvent.Hook(value);
+            remove => _commandExecutedEvent.Unhook(value);
+        }
+
+        /// <summary>Fired when a command cannot complete execution.</summary>
+        public event AsynchronousEventHandler<CommandExecutionFailedEventArgs> CommandExecutionFailed
+        {
+            add => _commandExecutionFailedEvent.Hook(value);
+            remove => _commandExecutionFailedEvent.Unhook(value);
+        }
+
+        /// <summary>Submits all registered commands to Discord and begins listening for interactions.</summary>
         public async ValueTask StartAsync(int port = 8080)
         {
             if (this.IsRunning)
                 throw new InvalidOperationException("Instance is already active.");
 
-            _httpListenerTask = HttpListenerLoop(port, _cts.Token);
+            _interactionListenerTask = InteractionListenerLoop(port, _cts.Token);
+
+            foreach (var command in _commandService.GetAllCommands())
+            {
+                // ...
+            }
         }
 
+        /// <summary>Stops listening for interactions.</summary>
         public async ValueTask StopAsync()
         {
             if (!this.IsRunning)
                 throw new InvalidOperationException("Instance is not active.");
 
             _cts.Cancel();
-            await _httpListenerTask;
-            _httpListenerTask.Dispose();
+            await _interactionListenerTask;
+            _interactionListenerTask.Dispose();
         }
 
-        private async Task HttpListenerLoop(int port, CancellationToken token)
+        /// <summary>Interaction client implementation.</summary>
+        private async Task InteractionListenerLoop(int port, CancellationToken token)
         {
             using var listener = new HttpListener();
             listener.Prefixes.Add($"https://*:{port}/");
@@ -90,6 +104,7 @@ namespace Donatello.Interactions
             {
                 var httpContext = await listener.GetContextAsync().ConfigureAwait(false);
                 var request = httpContext.Request;
+                var response = httpContext.Response;
 
                 using var streamReader = new StreamReader(request.InputStream, Encoding.UTF8);
 
@@ -97,7 +112,6 @@ namespace Donatello.Interactions
                 var signature = request.Headers.Get("X-Signature-Ed25519");
                 var timestamp = request.Headers.Get("X-Signature-Timestamp");
 
-                var outgoingResponse = httpContext.Response;
                 var isValidSignature = SignatureAlgorithm.Ed25519.Verify
                 (
                     _publicKey,
@@ -106,66 +120,86 @@ namespace Donatello.Interactions
                 );
 
                 if (isValidSignature)
-                    await ProcessRequestAsync(data, outgoingResponse).ConfigureAwait(false);
+                    await ProcessRequestAsync(data, response).ConfigureAwait(false);
                 else
                 {
-                    outgoingResponse.StatusCode = 401;
-                    outgoingResponse.StatusDescription = "Invalid header signature.";
+                    response.StatusCode = 401;
+                    response.StatusDescription = "Invalid header signature.";
                 }
 
-                outgoingResponse.Close();
+                response.Close();
             }
 
             listener.Stop();
         }
 
-        async Task ProcessRequestAsync(string data, HttpListenerResponse response)
+        private async Task ProcessRequestAsync(string rawData, HttpListenerResponse response)
         {
-            using var payload = JsonDocument.Parse(data);
+            using var payload = JsonDocument.Parse(rawData);
             var interactionType = payload.RootElement.GetProperty("type").GetInt32();
 
             var responseBuffer = new ArrayBufferWriter<byte>();
             using var responseWriter = new Utf8JsonWriter(responseBuffer);
 
             if (interactionType == 1) // Ping
-            {
                 responseWriter.WriteNumber("type", 1);
-            }
-
-            else if (interactionType == 2) // Command
-            {
-                var executionTask = _commandService.ExecuteAsync("", new DiscordCommandContext());
-                var deferTimerTask = Task.Delay(2000);
-                var completedTask = await Task.WhenAny(deferTimerTask, executionTask).ConfigureAwait(false);
-
-                if (completedTask == executionTask)
-                {
-                    var result = await executionTask;
-                    result.
-                }
-                else
-                {
-                    responseWriter.WriteNumber("type", 5);
-                }
-            }
-
-            else if (interactionType == 3) // Component
-            {
-
-            }
-
+            else if (interactionType == 2)
+                ExecuteCommand();
+            else if (interactionType == 3)
+                HandleComponent();
             else
             {
                 response.StatusCode = 501;
                 response.StatusDescription = "Unknown interaction type.";
-
                 return;
             }
 
-            await responseWriter.FlushAsync().ConfigureAwait(false);
-            await response.OutputStream.WriteAsync(responseBuffer.WrittenMemory).ConfigureAwait(false);
+            if (responseWriter.BytesPending > 0)
+            {
+                await responseWriter.FlushAsync().ConfigureAwait(false);
+                await response.OutputStream.WriteAsync(responseBuffer.WrittenMemory).ConfigureAwait(false);
 
-            response.StatusCode = 200;
+                response.StatusCode = 200;
+            }
+
+            void ExecuteCommand()
+            {
+                var data = payload.RootElement.GetProperty("data");
+                var name = data.GetProperty("name").GetString();
+
+                int commandType;
+                if (data.TryGetProperty("type", out var prop))
+                    commandType = prop.GetInt32();
+                else
+                    commandType = 1;
+
+                var result = _commandService.FindCommands(name).FirstOrDefault();
+                if (result is not null)
+                {
+                    foreach (var option in data.GetProperty("options").EnumerateArray())
+                    {
+
+                    }
+
+                    var context = new DiscordCommandContext() 
+                    { 
+                         Channel = 
+                    };
+
+                    var executionTask = result.Command.ExecuteAsync("", context);
+                    responseWriter.WriteNumber("type", 5);
+                }
+                else
+                {
+                    response.StatusCode = 500;
+                    response.StatusDescription = "Command not found.";
+                }
+            }
+
+            void HandleComponent()
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private static Task EventExceptionLogger(Exception exception)
