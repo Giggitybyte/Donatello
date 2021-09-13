@@ -7,7 +7,6 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Donatello.Interactions.Commands;
 using NSec.Cryptography;
 using Qmmands;
 using Qommon.Events;
@@ -50,7 +49,7 @@ namespace Donatello.Interactions
             _commandService.CommandExecutionFailed += (e) => _commandExecutionFailedEvent.InvokeAsync(e);
         }
 
-        /// <summary>Whether or not this instance is listening for interactions.</summary>
+        /// <summary>Whether this instance is listening for interactions.</summary>
         public bool IsRunning { get => _interactionListenerTask.Status == TaskStatus.Running; }
 
         /// <summary>Fired when a command successfully executes.</summary>
@@ -88,11 +87,12 @@ namespace Donatello.Interactions
                 throw new InvalidOperationException("Instance is not active.");
 
             _cts.Cancel();
+
             await _interactionListenerTask;
             _interactionListenerTask.Dispose();
         }
 
-        /// <summary>Interaction client implementation.</summary>
+        /// <summary>Webhook listener.</summary>
         private async Task InteractionListenerLoop(int port, CancellationToken token)
         {
             using var listener = new HttpListener();
@@ -112,7 +112,7 @@ namespace Donatello.Interactions
                 var signature = request.Headers.Get("X-Signature-Ed25519");
                 var timestamp = request.Headers.Get("X-Signature-Timestamp");
 
-                var isValidSignature = SignatureAlgorithm.Ed25519.Verify
+                bool isValidSignature = SignatureAlgorithm.Ed25519.Verify
                 (
                     _publicKey,
                     Encoding.UTF8.GetBytes($"{timestamp}{data}"),
@@ -120,7 +120,7 @@ namespace Donatello.Interactions
                 );
 
                 if (isValidSignature)
-                    await ProcessRequestAsync(data, response).ConfigureAwait(false);
+                    await ProcessInteractionAsync(data, response).ConfigureAwait(false);
                 else
                 {
                     response.StatusCode = 401;
@@ -133,7 +133,8 @@ namespace Donatello.Interactions
             listener.Stop();
         }
 
-        private async Task ProcessRequestAsync(string rawData, HttpListenerResponse response)
+        /// <summary>Interaction client implementation.</summary>
+        private async Task ProcessInteractionAsync(string rawData, HttpListenerResponse response)
         {
             using var payload = JsonDocument.Parse(rawData);
             var interactionType = payload.RootElement.GetProperty("type").GetInt32();
@@ -141,17 +142,40 @@ namespace Donatello.Interactions
             var responseBuffer = new ArrayBufferWriter<byte>();
             using var responseWriter = new Utf8JsonWriter(responseBuffer);
 
-            if (interactionType == 1) // Ping
-                responseWriter.WriteNumber("type", 1);
-            else if (interactionType == 2)
-                ExecuteCommand();
-            else if (interactionType == 3)
-                HandleComponent();
-            else
             {
-                response.StatusCode = 501;
-                response.StatusDescription = "Unknown interaction type.";
-                return;
+                if (interactionType == 1) // Ping
+                    responseWriter.WriteNumber("type", 1);
+
+                else if (interactionType == 2) // Command
+                {
+                    var data = payload.RootElement.GetProperty("data");
+                    var commandType = data.TryGetProperty("type", out var prop) ? prop.GetInt32() : 1;
+
+                    var name = data.GetProperty("name").GetString();
+                    var result = _commandService.FindCommands(name).FirstOrDefault();
+
+                    if (result is not null)
+                    {
+                        // Execute and return response.
+                    }
+                    else
+                    {
+                        response.StatusCode = 500;
+                        response.StatusDescription = "Command not found.";
+                    }
+                }
+
+                else if (interactionType == 3) // Component
+                {
+                    // ...
+                }
+
+                else
+                {
+                    response.StatusCode = 501;
+                    response.StatusDescription = "Unknown interaction type.";
+                    return;
+                }
             }
 
             if (responseWriter.BytesPending > 0)
@@ -160,45 +184,6 @@ namespace Donatello.Interactions
                 await response.OutputStream.WriteAsync(responseBuffer.WrittenMemory).ConfigureAwait(false);
 
                 response.StatusCode = 200;
-            }
-
-            void ExecuteCommand()
-            {
-                var data = payload.RootElement.GetProperty("data");
-                var name = data.GetProperty("name").GetString();
-
-                int commandType;
-                if (data.TryGetProperty("type", out var prop))
-                    commandType = prop.GetInt32();
-                else
-                    commandType = 1;
-
-                var result = _commandService.FindCommands(name).FirstOrDefault();
-                if (result is not null)
-                {
-                    foreach (var option in data.GetProperty("options").EnumerateArray())
-                    {
-
-                    }
-
-                    var context = new DiscordCommandContext() 
-                    { 
-                         Channel = 
-                    };
-
-                    var executionTask = result.Command.ExecuteAsync("", context);
-                    responseWriter.WriteNumber("type", 5);
-                }
-                else
-                {
-                    response.StatusCode = 500;
-                    response.StatusDescription = "Command not found.";
-                }
-            }
-
-            void HandleComponent()
-            {
-                throw new NotImplementedException();
             }
         }
 

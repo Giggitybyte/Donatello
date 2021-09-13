@@ -9,9 +9,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Entities\DiscordEmote.cs~RF29fe0f.TMP" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="NSec.Cryptography" Version="20.2.0" />
     <PackageReference Include="Qmmands" Version="4.0.1-nightly-00257" />
-    <PackageReference Include="System.Text.Json" Version="6.0.0-preview.7.21377.19" />
   </ItemGroup>
 
 </Project>

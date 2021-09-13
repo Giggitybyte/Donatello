@@ -13,42 +13,31 @@ namespace Donatello.Interactions.Entities
         public DiscordGuild(JsonElement json) : base(json) { }
 
         /// <summary></summary>
-        internal ReadOnlyList<string> Features
-            => new(Json.GetProperty("features").ToStringArray());
+        internal ReadOnlyList<string> Features => new(this.Json.GetProperty("features").ToStringArray());
 
         /// <summary></summary>
-        internal SystemChannelFlag SystemChannelFlags
-            => (SystemChannelFlag)Json.GetProperty("system_channel_flags").GetInt32();
+        internal SystemChannelFlag SystemChannelFlags => (SystemChannelFlag)this.Json.GetProperty("system_channel_flags").GetInt32();
 
         /// <summary>Guild name.</summary>
-        public string Name
-            => Json.GetProperty("name").GetString();
+        public string Name => this.Json.GetProperty("name").GetString();
 
         /// <summary>Guild verification level.</summary>
-        public GuildVerificationLevel VerificationLevel
-            => (GuildVerificationLevel)Json.GetProperty("verification_level").GetInt32();
+        public GuildVerificationLevel VerificationLevel => (GuildVerificationLevel)this.Json.GetProperty("verification_level").GetInt32();
 
         /// <summary></summary>
-        public GuildContentFilterLevel ContentFilterLevel
-            => (GuildContentFilterLevel)Json.GetProperty("explicit_content_filter").GetInt32();
+        public GuildContentFilterLevel ContentFilterLevel => (GuildContentFilterLevel)this.Json.GetProperty("explicit_content_filter").GetInt32();
 
         /// <summary>Amount of time a user must be idle before they are moved to the AFK channel.</summary>
-        public TimeSpan AfkTimeout
-            => TimeSpan.FromSeconds(Json.GetProperty("afk_timeout").GetInt32());
+        public TimeSpan AfkTimeout => TimeSpan.FromSeconds(this.Json.GetProperty("afk_timeout").GetInt32());
 
         /// <summary></summary>
-        public int BoostLevel
-            => Json.GetProperty("premium_tier").GetInt32();
+        public int BoostLevel => this.Json.GetProperty("premium_tier").GetInt32();
 
         /// <summary></summary>
-        public ReadOnlyList<DiscordRole> Roles
-            => new(Json.GetProperty("roles").ToEntityArray<DiscordRole>());
+        public ReadOnlyList<DiscordRole> Roles => new(this.Json.GetProperty("roles").ToEntityArray<DiscordRole>());
 
         /// <summary></summary>
-        public ReadOnlyList<DiscordEmote> Emotes
-            => new(Json.GetProperty("emojis").ToEntityArray<DiscordEmote>());
-
-        public ReadOnlyList<>
+        public ReadOnlyList<DiscordEmote> Emotes => new(this.Json.GetProperty("emojis").ToEntityArray<DiscordEmote>());
 
         /// <summary>Custom invite link, e.g. <c>https://discord.gg/wumpus-and-friends</c></summary>
         /// <remarks>May return <see langword="null"/> if the guild does not have a vanity URL.</remarks>
@@ -56,7 +45,7 @@ namespace Donatello.Interactions.Entities
         {
             get
             {
-                var code = Json.GetProperty("vanity_url_code").GetString();
+                var code = this.Json.GetProperty("vanity_url_code").GetString();
 
                 if (code is not null)
                     return $"https://discord.gg/{code}";
@@ -71,7 +60,7 @@ namespace Donatello.Interactions.Entities
         {
             get
             {
-                var iconHash = Json.GetProperty("icon").GetString();
+                var iconHash = this.Json.GetProperty("icon").GetString();
 
                 if (!string.IsNullOrEmpty(iconHash))
                 {
@@ -89,7 +78,7 @@ namespace Donatello.Interactions.Entities
         {
             get
             {
-                var bannerHash = Json.GetProperty("icon").GetString();
+                var bannerHash = this.Json.GetProperty("icon").GetString();
 
                 if (!string.IsNullOrEmpty(bannerHash))
                     return $"https://cdn.discordapp.com/banners/{this.Id}/{bannerHash}.png";
@@ -104,7 +93,7 @@ namespace Donatello.Interactions.Entities
         {
             get
             {
-                var splashHash = Json.GetProperty("splash").GetString();
+                var splashHash = this.Json.GetProperty("splash").GetString();
 
                 if (!string.IsNullOrEmpty(splashHash))
                     return $"https://cdn.discordapp.com/splashes/{this.Id}/{splashHash}.png";
@@ -115,24 +104,24 @@ namespace Donatello.Interactions.Entities
 
         public async ValueTask<DiscordUser> GetOwnerAsync()
         {
-            var id = Json.GetProperty("owner_id").GetString();
+            var id = this.Json.GetProperty("owner_id").GetString();
         }
 
         public async ValueTask<DiscordChannel> GetRulesChannelAsync()
         {
-            var id = Json.GetProperty("rules_channel_id").GetString();
+            var id = this.Json.GetProperty("rules_channel_id").GetString();
         }
 
         /// <summary></summary>
         public async ValueTask<DiscordChannel> GetAfkChannelAsync()
         {
-            var id = Json.GetProperty("afk_channel_id").GetString();
+            var id = this.Json.GetProperty("afk_channel_id").GetString();
         }
 
         /// <summary></summary>
         public async ValueTask<DiscordChannel> GetSystemChannelAsync()
         {
-            var id = Json.GetProperty("system_channel_id").GetString();
+            var id = this.Json.GetProperty("system_channel_id").GetString();
         }
     }
 }

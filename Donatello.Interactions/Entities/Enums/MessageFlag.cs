@@ -24,7 +24,7 @@ namespace Donatello.Interactions.Entities.Enums
         /// <summary>Message has a thread channel associated with it.</summary>
         HasThread = 1 << 5,
 
-        /// <summary>Message is only visible to its author</summary>
+        /// <summary>Message is only visible to its author.</summary>
         Ephemeral = 1 << 6,
 
         /// <summary>Message is a placeholder interaction response.</summary>
