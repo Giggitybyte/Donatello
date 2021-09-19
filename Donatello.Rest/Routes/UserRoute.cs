@@ -1,9 +1,8 @@
-﻿namespace Donatello.Rest.Endpoints
+﻿namespace Donatello.Rest.Routes;
+
+public class UserRoute : ApiRoute
 {
-    public class UserRoute : ApiRoute
-    {
-        internal UserRoute(DiscordHttpClient apiClient) : base(apiClient) { }
+    internal UserRoute(DiscordHttpClient apiClient) : base(apiClient) { }
 
 
-    }
 }

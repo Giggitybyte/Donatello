@@ -1,7 +1,6 @@
-﻿namespace Donatello.Rest.Endpoints
+﻿namespace Donatello.Rest.Routes;
+
+public class StickerRoute : ApiRoute
 {
-    public class StickerRoute : ApiRoute
-    {
-        internal StickerRoute(DiscordHttpClient apiClient) : base(apiClient) { }
-    }
+    internal StickerRoute(DiscordHttpClient apiClient) : base(apiClient) { }
 }

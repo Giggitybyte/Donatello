@@ -1,7 +1,6 @@
-﻿namespace Donatello.Rest.Endpoints
+﻿namespace Donatello.Rest.Routes;
+
+public class InviteRoute : ApiRoute
 {
-    public class InviteRoute : ApiRoute
-    {
-        internal InviteRoute(DiscordHttpClient apiClient) : base(apiClient) { }
-    }
+    internal InviteRoute(DiscordHttpClient apiClient) : base(apiClient) { }
 }

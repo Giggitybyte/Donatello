@@ -1,7 +1,6 @@
-﻿namespace Donatello.Rest.Endpoints
+﻿namespace Donatello.Rest.Routes;
+
+public class StageRoute : ApiRoute
 {
-    public class StageRoute : ApiRoute
-    {
-        internal StageRoute(DiscordHttpClient apiClient) : base(apiClient) { }
-    }
+    internal StageRoute(DiscordHttpClient apiClient) : base(apiClient) { }
 }

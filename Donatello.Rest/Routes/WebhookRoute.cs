@@ -1,9 +1,8 @@
-﻿namespace Donatello.Rest.Endpoints
+﻿namespace Donatello.Rest.Routes;
+
+public class WebhookRoute : ApiRoute
 {
-    public class WebhookRoute : ApiRoute
-    {
-        internal WebhookRoute(DiscordHttpClient apiClient) : base(apiClient) { }
+    internal WebhookRoute(DiscordHttpClient apiClient) : base(apiClient) { }
 
 
-    }
 }
