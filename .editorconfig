@@ -5,3 +5,6 @@ dotnet_diagnostic.CS0078.severity = none
 
 # IDE0003: Remove qualification
 dotnet_style_qualification_for_property = true:silent
+
+# IDE0044: Add readonly modifier
+dotnet_diagnostic.IDE0044.severity = silent

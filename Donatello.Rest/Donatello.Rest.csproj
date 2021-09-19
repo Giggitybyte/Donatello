@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Enums\" />
+    <None Remove="Routes\fjtzlyvg.tuf~" />
   </ItemGroup>
 
 </Project>

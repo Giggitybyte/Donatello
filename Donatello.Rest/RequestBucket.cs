@@ -1,50 +1,66 @@
 ﻿using System;
 using System.Linq;
 using System.Net.Http.Headers;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace Donatello.Rest.Ratelimit
+namespace Donatello.Rest
 {
     internal sealed class RequestBucket
     {
-        private int _limit, _remaining;
-        private DateTime _resetTime;
-        private SemaphoreSlim _semaphore;
+        private int _limit;
+        private int _remaining;
 
-        internal RequestBucket(string bucketId, int limit, int remaining, DateTime resetTime, bool isGlobal)
+        internal RequestBucket(string bucketId, int limit, int remaining, DateTime resetTime)
         {
             _limit = limit;
             _remaining = remaining;
-            _resetTime = resetTime;
-            _semaphore = new SemaphoreSlim(1);
 
             this.Id = bucketId;
-            this.IsGlobal = isGlobal;
+            this.ResetTime = resetTime;
         }
+
+        /// <summary></summary>
+        internal static RequestBucket Unlimited { get; } = new("unlimited", int.MaxValue, int.MaxValue, DateTime.MaxValue);
 
         /// <summary>Bucket ID.</summary>
         internal string Id { get; init; }
 
-        /// <summary>Whether this bucket is the global bucket.</summary>
-        internal bool IsGlobal { get; init; }
+        /// <summary></summary>
+        internal DateTime ResetTime { get; private set; }
 
         /// <summary>Decrements the number of requests remaining for this bucket.</summary>
-        internal async ValueTask<bool> TryUseAsync()
+        internal bool TryUse()
         {
-            try
+            lock (this)
             {
-                await _semaphore.WaitAsync().ConfigureAwait(false);
-
                 if (_remaining <= 0)
-                    return _resetTime < DateTime.Now;
+                {
+                    if (ResetTime < DateTime.Now)
+                        return false;
+                    else
+                        _remaining = _limit;
+                }
 
                 _remaining--;
                 return true;
             }
-            finally
+        }
+
+        /// <summary></summary>
+        internal void Update(HttpResponseHeaders headers)
+        {
+            lock (this)
             {
-                _semaphore.Release();
+                if (headers.TryGetValues("X-RateLimit-Limit", out var limitHeader))
+                    if (!int.TryParse(limitHeader.SingleOrDefault(), out var limit))
+                        _limit = limit;
+
+                if (headers.TryGetValues("X-RateLimit-Remaining", out var remainingHeader))
+                    if (!int.TryParse(remainingHeader.SingleOrDefault(), out var remaining))
+                        _remaining = remaining;
+
+                if (!headers.TryGetValues("X-RateLimit-Reset", out var resetHeader))
+                    if (!int.TryParse(resetHeader.SingleOrDefault(), out var resetTimestamp))
+                        ResetTime = DateTime.UnixEpoch + TimeSpan.FromSeconds(resetTimestamp);
             }
         }
 
@@ -84,10 +100,7 @@ namespace Donatello.Rest.Ratelimit
 
             var resetTime = DateTime.UnixEpoch + TimeSpan.FromSeconds(resetTimestamp);
 
-            // Global
-            var isGlobal = headers.Contains("X-RateLimit-Global");
-
-            bucket = new RequestBucket(id, limit, remaining, resetTime, isGlobal);
+            bucket = new RequestBucket(id, limit, remaining, resetTime);
             return true;
         }
     }
