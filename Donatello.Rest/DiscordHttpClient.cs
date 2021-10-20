@@ -9,14 +9,14 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-/// <summary>Simple HTTP client for the Discord REST API.</summary>
-internal class DiscordHttpClient
+/// <summary>HTTP client for the Discord REST API.</summary>
+public class DiscordHttpClient
 {
     private static HttpClient _client;
 
-    private KeyValuePair<string, string> _authHeader;
     private ConcurrentDictionary<Uri, RequestBucket> _requestBuckets;
-    private DateTime? _globalRatelimitResetTime;
+    private KeyValuePair<string, string> _authHeader;
+    private DateTime _globalRatelimitResetDate;
 
     static DiscordHttpClient()
     {
@@ -31,64 +31,83 @@ internal class DiscordHttpClient
         _client.DefaultRequestHeaders.Add("User-Agent", "Donatello.Rest 0.0.1 - thegiggitybyte#8099");
     }
 
-    internal DiscordHttpClient(string token, bool isBearer)
+    public DiscordHttpClient(string token, bool isBearer)
     {
         _authHeader = new("Authorization", $"{(isBearer ? "Bearer" : "Bot")} {token}");
         _requestBuckets = new ConcurrentDictionary<Uri, RequestBucket>();
     }
 
     /// <summary></summary>
-    internal Task<HttpResponse> SendRequestAsync(HttpMethod method, Uri route, string payload = null)
+    public async Task<HttpResponse> SendRequestAsync(HttpMethod method, Uri endpoint, string payload = null)
     {
-        var request = new HttpRequestMessage(method, route);
+        var request = new HttpRequestMessage(method, endpoint);
         request.Headers.Add(_authHeader.Key, _authHeader.Value);
 
-        if (payload is not null) request.Content = JsonContent.Create(payload);
+        if (payload is not null)
+            request.Content = JsonContent.Create(payload);
 
-        _requestBuckets.TryGetValue(route, out var bucket);
-        bucket ??= RequestBucket.Unlimited;
-
-        if (bucket.TryUse())
-            return SendRequest();
+        if (IsRatelimited(endpoint, out var delayTime))
+            return await DelayRequestAsync(request, delayTime);
         else
-            return Task.Run(ScheduleRequest);
+            return await ExecuteRequestAsync(request);
 
-        async Task<HttpResponse> SendRequest()
+
+        bool IsRatelimited(Uri endpoint, out TimeSpan delayTime)
         {
-            var response = await _client.SendAsync(request).ConfigureAwait(false);
-            using var responsePayload = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            using var responseJson = await JsonDocument.ParseAsync(responsePayload).ConfigureAwait(false);
-
-            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            if (_globalRatelimitResetDate > DateTime.Now)
             {
-                if (responseJson.RootElement.GetProperty("global").GetBoolean())
-                {
-
-                }
-                else
-                {
-
-                }
+                delayTime = DateTime.Now - _globalRatelimitResetDate;
+                return true;
             }
-            else if (_requestBuckets.TryGetValue(route, out var existingBucket))
-                existingBucket.Update(response.Headers);
-            else if (RequestBucket.TryParse(response.Headers, out var newBucket))
-                _requestBuckets.TryAdd(route, newBucket);
 
-            return new HttpResponse()
+            _requestBuckets.TryGetValue(endpoint, out var bucket);
+
+            if (bucket is null || bucket.TryUse())
             {
-                Status = response.StatusCode,
-                Payload = responseJson.RootElement.Clone()
-            };
+                delayTime = TimeSpan.Zero;
+                return false;
+            }
+            else
+            {
+                delayTime = DateTime.Now - bucket.ResetTime;
+                return true;
+            }
         }
+    }
 
-        async Task<HttpResponse> ScheduleRequest()
+    private async Task<HttpResponse> ExecuteRequestAsync(HttpRequestMessage request)
+    {
+        var response = await _client.SendAsync(request).ConfigureAwait(false);
+        using var responsePayload = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+        using var responseJson = await JsonDocument.ParseAsync(responsePayload).ConfigureAwait(false);
+
+        if (_requestBuckets.TryGetValue(request.RequestUri, out var existingBucket))
+            existingBucket.Update(response.Headers);
+        else if (RequestBucket.TryParse(response.Headers, out var newBucket))
+            _requestBuckets.TryAdd(request.RequestUri, newBucket);
+
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
         {
-            await Task.Delay(DateTime.Now - bucket.ResetTime).ConfigureAwait(false);
-            var response = await SendRequest().ConfigureAwait(false);
+            var retrySeconds = responseJson.RootElement.GetProperty("retry_after").GetSingle();
+            var retryTime = TimeSpan.FromSeconds(retrySeconds);
 
-            return response;
+            if (responseJson.RootElement.GetProperty("global").GetBoolean())
+                _globalRatelimitResetDate = DateTime.Now + retryTime;
+            else
+                return await DelayRequestAsync(request, retryTime); // make this better?
         }
+
+        return new HttpResponse()
+        {
+            Status = response.StatusCode,
+            Payload = responseJson.RootElement.Clone()
+        };
+    }
+
+    private async Task<HttpResponse> DelayRequestAsync(HttpRequestMessage request, TimeSpan delayTime)
+    {
+        await Task.Delay(delayTime).ConfigureAwait(false);
+        return await ExecuteRequestAsync(request).ConfigureAwait(false);
     }
 }
 

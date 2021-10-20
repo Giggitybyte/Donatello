@@ -2,14 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <LangVersion>10.0</LangVersion>
+    <LangVersion>preview</LangVersion>
     
     <Version>0.0.1</Version>
     <Authors>thegiggitybyte</Authors>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Remove="Routes\fjtzlyvg.tuf~" />
-  </ItemGroup>
 
 </Project>

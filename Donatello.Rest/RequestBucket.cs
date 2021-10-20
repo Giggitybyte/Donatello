@@ -18,9 +18,6 @@ internal sealed class RequestBucket
         this.ResetTime = resetTime;
     }
 
-    /// <summary></summary>
-    internal static RequestBucket Unlimited { get; } = new("unlimited", int.MaxValue, int.MaxValue, DateTime.MaxValue);
-
     /// <summary>Bucket ID.</summary>
     internal string Id { get; init; }
 
