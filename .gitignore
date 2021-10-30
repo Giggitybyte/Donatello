@@ -340,4 +340,4 @@ ASALocalRun/
 healthchecksdb
 
 # Project specific
-Donatello.Websocket.Test/
+Donatello.Test/

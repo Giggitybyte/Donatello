@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30907.101
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31808.319
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Gateway", "Donatello.Gateway\Donatello.Gateway.csproj", "{3E41E54B-FCF9-4568-802A-C2AAD1F3D2F8}"
 EndProject
@@ -12,7 +12,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Donatello.Rest", "Donatello.Rest\Donatello.Rest.csproj", "{4F854D6E-4836-4772-BB71-10DD0E75B3E5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Rest", "Donatello.Rest\Donatello.Rest.csproj", "{4F854D6E-4836-4772-BB71-10DD0E75B3E5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Donatello.Test", "Donatello.Test\Donatello.Test.csproj", "{C5A1E03B-2A0E-4334-8EFA-5B27EF82BF83}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -32,6 +34,10 @@ Global
 		{4F854D6E-4836-4772-BB71-10DD0E75B3E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4F854D6E-4836-4772-BB71-10DD0E75B3E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4F854D6E-4836-4772-BB71-10DD0E75B3E5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C5A1E03B-2A0E-4334-8EFA-5B27EF82BF83}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C5A1E03B-2A0E-4334-8EFA-5B27EF82BF83}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C5A1E03B-2A0E-4334-8EFA-5B27EF82BF83}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C5A1E03B-2A0E-4334-8EFA-5B27EF82BF83}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

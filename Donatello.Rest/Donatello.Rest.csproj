@@ -8,4 +8,8 @@
     <Authors>thegiggitybyte</Authors>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Folder Include="Extensions\Json\" />
+  </ItemGroup>
+
 </Project>
