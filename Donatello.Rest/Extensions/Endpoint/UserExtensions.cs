@@ -3,7 +3,7 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 
-/// <summary>Default implementations for user endpoints.</summary>
+/// <summary>Basic implementations for user endpoints.</summary>
 public static class UserExtensions
 {
     /// <summary>

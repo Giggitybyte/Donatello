@@ -5,7 +5,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-/// <summary>Default implementations for guild endpoints.</summary>
+/// <summary>Basic implementations for guild endpoints.</summary>
 public static class GuildExtensions
 {
     /// <summary>Returns the newly created <see href="https://discord.com/developers/docs/resources/guild#guild-object">guild</see>.</summary>
@@ -73,4 +73,12 @@ public static class GuildExtensions
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#modify-guild-member">Click to see valid payload parameters</see>.</remarks>
     public static Task<HttpResponse> ModifyGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, Action<Utf8JsonWriter> payload)
         => httpClient.SendRequestAsync(HttpMethod.Put, $"guilds/{guildId}/members/{userId}", payload);
+
+    /// <summary>Changes attributes of the current member; returns an updated <see href="https://discord.com/developers/docs/resources/guild#guild-member-object">guild member object</see>.</summary>
+    /// <remarks><see href="https://discord.com/developers/docs/resources/guild#modify-current-member">Click to see valid payload parameters</see>.</remarks>
+    public static Task<HttpResponse> ModifyGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> payload)
+        => httpClient.SendRequestAsync(HttpMethod.Put, $"guilds/{guildId}/members/@me", payload);
+
+    public static Task<HttpResponse> GrantGuildMemberRole(this DiscordHttpClient httpClient, ulong guildId, ulong userId, ulong roleId)
+        => httpClient.ModifyGuildMemberAsync()
 }
