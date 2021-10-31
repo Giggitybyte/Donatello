@@ -33,38 +33,39 @@ public class DiscordHttpClient
         _client.DefaultRequestHeaders.Add("User-Agent", "Donatello/0.0.0 (creator: thegiggitybyte#8099)");
     }
 
-    /// <summary></summary>
-    public DiscordHttpClient(string token, bool isBearer)
+    /// <param name="token">Discord token.</param>
+    /// <param name="isBearer"><see langword="true"/>: OAuth2 bearer token.<br/><see langword="false"/>: application bot token.</param>
+    public DiscordHttpClient(string token, bool isBearer = false)
     {
         _authHeader = new("Authorization", $"{(isBearer ? "Bearer" : "Bot")} {token}");
         _requestBuckets = new ConcurrentDictionary<string, RequestBucket>();
     }
 
-    /// <summary></summary>
+    /// <summary>Sends an HTTP request an endpoint.</summary>
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint)
         => SendRequestCoreAsync(method, endpoint);
 
-    /// <summary>Requests</summary>
+    /// <summary>Sends an HTTP request to an endpoint with a JSON payload.</summary>
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonBuilder)
-        => SendRequestCoreAsync(method, endpoint, jsonBuilder.ToContent());
+        => SendRequestCoreAsync(method, endpoint, jsonBuilder?.ToContent());
 
-    /// <summary></summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonParams, IEnumerable<Stream> attachments)
-        => SendMultipartRequestAsync(method, endpoint, jsonParams, attachments.Select(s => new StreamContent(s)));
+    /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonBuilder, IEnumerable<Stream> attachments)
+        => SendMultipartRequestAsync(method, endpoint, jsonBuilder, attachments.Select(s => new StreamContent(s)));
 
-    /// <summary></summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonParams, IEnumerable<byte[]> attachments)
-        => SendMultipartRequestAsync(method, endpoint, jsonParams, attachments.Select(b => new ByteArrayContent(b)));
+    /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonBuilder, IEnumerable<byte[]> attachments)
+        => SendMultipartRequestAsync(method, endpoint, jsonBuilder, attachments.Select(b => new ByteArrayContent(b)));
 
-    /// <summary></summary>
+    /// <summary>Sends an HTTP request to an endpoint with file attachments.</summary>
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, IEnumerable<Stream> attachments)
         => SendMultipartRequestAsync(method, endpoint, contents: attachments.Select(s => new StreamContent(s)));
 
-    /// <summary></summary>
+    /// <summary>Sends an HTTP request to an endpoint with file attachments.</summary>
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, IEnumerable<byte[]> attachments)
         => SendMultipartRequestAsync(method, endpoint, contents: attachments.Select(b => new ByteArrayContent(b)));
 
-    /// <summary></summary>
+    /// <summary>Sends a multi-part HTTP request to an endpoint.</summary>
     private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonParams = null, IEnumerable<HttpContent> contents = null)
     {
         var multipartContent = new MultipartFormDataContent();
@@ -78,7 +79,7 @@ public class DiscordHttpClient
         return SendRequestCoreAsync(method, endpoint, multipartContent);
     }
 
-    /// <summary></summary>
+    /// <summary>Sends an HTTP request</summary>
     private async Task<HttpResponse> SendRequestCoreAsync(HttpMethod method, string endpoint, HttpContent content = null)
     {
         endpoint = endpoint.Trim('/');
