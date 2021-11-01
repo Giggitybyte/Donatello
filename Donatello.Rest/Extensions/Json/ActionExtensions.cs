@@ -7,7 +7,7 @@ using System.Text;
 using System.Text.Json;
 
 /// <summary>Extensions for JSON builder functions (lambdas, method references).</summary>
-internal static class BuilderExtensions
+internal static class ActionExtensions
 {
     /// <summary>Converts the builder function to a <see cref="StringContent"/> object for REST requests.</summary>
     internal static StringContent ToContent(this Action<Utf8JsonWriter> jsonBuilder)

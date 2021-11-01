@@ -49,6 +49,10 @@ public class DiscordHttpClient
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonBuilder)
         => SendRequestCoreAsync(method, endpoint, jsonBuilder?.ToContent());
 
+    /// <summary>Sends an HTTP request to an endpoint with a JSON payload.</summary>
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject)
+        => SendRequestCoreAsync(method, endpoint, jsonObject.ToContent());
+
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonBuilder, IEnumerable<Stream> attachments)
         => SendMultipartRequestAsync(method, endpoint, jsonBuilder, attachments.Select(s => new StreamContent(s)));
@@ -91,9 +95,9 @@ public class DiscordHttpClient
             request.Content = content;
 
         if (IsRatelimited(endpoint, out var delayTime))
-            return await DelayRequestAsync(request, delayTime);
+            return await DelayRequestAsync(request, delayTime).ConfigureAwait(false);
         else
-            return await ExecuteRequestAsync(request);
+            return await ExecuteRequestAsync(request).ConfigureAwait(false);
 
         bool IsRatelimited(string endpoint, out TimeSpan delayTime)
         {
@@ -138,7 +142,7 @@ public class DiscordHttpClient
             if (responseJson.RootElement.GetProperty("global").GetBoolean()) // Global ratelimit.
                 _globalRatelimitResetDate = DateTime.Now + retryTime;
             else // Request ratelimit.
-                return await DelayRequestAsync(request, retryTime);
+                return await DelayRequestAsync(request, retryTime).ConfigureAwait(false);
 
             // TODO: Resource ratelimit.
         }
