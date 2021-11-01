@@ -1,17 +1,16 @@
-﻿using Qmmands;
+﻿namespace Donatello.Interactions.Commands;
 
-namespace Donatello.Interactions.Commands
+using Qmmands;
+
+/// <summary>The result of a Discord application command.</summary>
+public sealed class DiscordCommandResult : CommandResult
 {
-    /// <summary>The result of a Discord application command.</summary>
-    public sealed class DiscordCommandResult : CommandResult
+    private bool _interactionSuccessful;
+
+    internal DiscordCommandResult(bool interactionSuccessful)
     {
-        private bool _interactionSuccessful;
-
-        internal DiscordCommandResult(bool interactionSuccessful)
-        {
-            _interactionSuccessful = interactionSuccessful;
-        }
-
-        public override bool IsSuccessful => _interactionSuccessful;
+        _interactionSuccessful = interactionSuccessful;
     }
+
+    public override bool IsSuccessful => _interactionSuccessful;
 }

@@ -1,15 +1,14 @@
-﻿using System;
+﻿namespace Donatello.Interactions.Commands;
+
+using System;
 using System.Threading.Tasks;
 using Qmmands;
 
-namespace Donatello.Interactions.Commands
+/// <summary>Base command module with helper methods.</summary>
+public abstract class DiscordCommandModule : ModuleBase<DiscordCommandContext>
 {
-    /// <summary>Base command module with helper methods.</summary>
-    public abstract class DiscordCommandModule : ModuleBase<DiscordCommandContext>
+    protected ValueTask RespondAsync(in Func<>)
     {
-        protected ValueTask RespondAsync(in Func<>)
-        {
-            throw new NotImplementedException();
-        }
+        throw new NotImplementedException();
     }
 }

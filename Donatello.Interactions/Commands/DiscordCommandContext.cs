@@ -1,30 +1,29 @@
-﻿using System;
+﻿namespace Donatello.Interactions.Commands;
+
+using System;
 using Donatello.Interactions.Entities;
 using Qmmands;
 
-namespace Donatello.Interactions.Commands
+/// <summary>
+/// 
+/// </summary>
+public sealed class DiscordCommandContext : CommandContext
 {
-    /// <summary>
-    /// 
-    /// </summary>
-    public sealed class DiscordCommandContext : CommandContext
+    private readonly string _responseToken;
+    private readonly DateTime _tokenExpirationDate;
+
+    internal DiscordCommandContext(string responseToken, IServiceProvider serviceProvider = null) : base(serviceProvider)
     {
-        private readonly string _responseToken;
-        private readonly DateTime _tokenExpirationDate;
-
-        internal DiscordCommandContext(string responseToken, IServiceProvider serviceProvider = null) : base(serviceProvider)
-        {
-            _responseToken = responseToken;
-            _tokenExpirationDate = DateTime.Now + TimeSpan.FromMinutes(15);
-        }
-
-        /// <summary></summary>
-        public DiscordUser User { get; internal set; }
-
-        /// <summary></summary>
-        public DiscordGuild Guild { get; internal set; }
-
-        /// <summary></summary>
-        public DiscordChannel Channel { get; internal set; }
+        _responseToken = responseToken;
+        _tokenExpirationDate = DateTime.Now + TimeSpan.FromMinutes(15);
     }
+
+    /// <summary></summary>
+    public DiscordUser User { get; internal set; }
+
+    /// <summary></summary>
+    public DiscordGuild Guild { get; internal set; }
+
+    /// <summary></summary>
+    public DiscordChannel Channel { get; internal set; }
 }

@@ -1,20 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
-    <LangVersion>9.0</LangVersion>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
 
     <Version>0.0.1</Version>
     <Authors>thegiggitybyte</Authors>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Entities\DiscordEmote.cs~RF29fe0f.TMP" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="NSec.Cryptography" Version="20.2.0" />
-    <PackageReference Include="Qmmands" Version="4.0.1-nightly-00257" />
+    <PackageReference Include="Qmmands" Version="5.0.1" />
   </ItemGroup>
 
 </Project>

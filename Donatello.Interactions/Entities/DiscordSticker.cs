@@ -1,9 +1,8 @@
-﻿using System.Text.Json;
+﻿namespace Donatello.Interactions.Entities;
 
-namespace Donatello.Interactions.Entities
+using System.Text.Json;
+
+public sealed class DiscordSticker : DiscordEntity
 {
-    public sealed class DiscordSticker : DiscordEntity
-    {
-        public DiscordSticker(JsonElement json) : base(json) { }
-    }
+    public DiscordSticker(JsonElement json) : base(json) { }
 }

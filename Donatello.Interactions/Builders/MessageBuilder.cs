@@ -1,6 +1,6 @@
-﻿namespace Donatello.Interactions.Builders
+﻿namespace Donatello.Interactions.Builders;
+
+public class MessageBuilder
 {
-    public class MessageBuilder
-    {
-    }
+
 }

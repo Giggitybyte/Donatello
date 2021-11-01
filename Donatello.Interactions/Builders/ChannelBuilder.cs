@@ -1,7 +1,6 @@
-﻿namespace Donatello.Interactions.Builders
-{
-    public class ChannelBuilder
-    {
+﻿namespace Donatello.Interactions.Builders;
 
-    }
+public class ChannelBuilder
+{
+
 }

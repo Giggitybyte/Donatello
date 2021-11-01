@@ -1,7 +1,6 @@
-﻿namespace Donatello.Interactions.Builders
-{
-    public class EmbedBuilder
-    {
+﻿namespace Donatello.Interactions.Builders;
 
-    }
+public class EmbedBuilder
+{
+
 }
