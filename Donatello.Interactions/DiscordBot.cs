@@ -45,8 +45,8 @@ public sealed class DiscordBot
         );
 
         _commandService = new CommandService(CommandServiceConfiguration.Default);
-        _commandService.CommandExecuted += (e) => _commandExecutedEvent.InvokeAsync(e);
-        _commandService.CommandExecutionFailed += (e) => _commandExecutionFailedEvent.InvokeAsync(e);
+        _commandService.CommandExecuted += (s, e) => _commandExecutedEvent.InvokeAsync(this, e);
+        _commandService.CommandExecutionFailed += (s, e) => _commandExecutionFailedEvent.InvokeAsync(this, e);
     }
 
     /// <summary>Whether this instance is listening for interactions.</summary>
@@ -67,7 +67,7 @@ public sealed class DiscordBot
     }
 
     /// <summary>Submits all registered commands to Discord and begins listening for interactions.</summary>
-    public async ValueTask StartAsync(int port = 8080)
+    public async ValueTask Start(int port = 8080)
     {
         if (this.IsRunning)
             throw new InvalidOperationException("Instance is already active.");
@@ -142,40 +142,43 @@ public sealed class DiscordBot
         var responseBuffer = new ArrayBufferWriter<byte>();
         using var responseWriter = new Utf8JsonWriter(responseBuffer);
 
+        if (interactionType == 1) // Ping
+            responseWriter.WriteNumber("type", 1);
+
+        else if (interactionType == 2) // Command
         {
-            if (interactionType == 1) // Ping
-                responseWriter.WriteNumber("type", 1);
+            var data = payload.RootElement.GetProperty("data");
+            var commandType = data.TryGetProperty("type", out var prop) ? prop.GetInt32() : 1;
 
-            else if (interactionType == 2) // Command
+            var name = data.GetProperty("name").GetString();
+            var result = _commandService.FindCommands(name).FirstOrDefault();
+
+            if (result is not null)
             {
-                var data = payload.RootElement.GetProperty("data");
-                var commandType = data.TryGetProperty("type", out var prop) ? prop.GetInt32() : 1;
-
-                var name = data.GetProperty("name").GetString();
-                var result = _commandService.FindCommands(name).FirstOrDefault();
-
-                if (result is not null)
-                {
-                    // Execute and return response.
-                }
-                else
-                {
-                    response.StatusCode = 500;
-                    response.StatusDescription = "Command not found.";
-                }
+                // Execute and return response.
             }
-
-            else if (interactionType == 3) // Component
-            {
-                // ...
-            }
-
             else
             {
-                response.StatusCode = 501;
-                response.StatusDescription = "Unknown interaction type.";
-                return;
+                response.StatusCode = 500;
+                response.StatusDescription = "Command not found.";
             }
+        }
+
+        else if (interactionType == 3) // Component
+        {
+            throw new NotImplementedException();
+        }
+
+        else if (interactionType == 4) // Autocomplete
+        {
+            throw new NotImplementedException();
+        }
+
+        else
+        {
+            response.StatusCode = 501;
+            response.StatusDescription = "Unknown interaction type.";
+            return;
         }
 
         if (responseWriter.BytesPending > 0)
@@ -187,7 +190,7 @@ public sealed class DiscordBot
         }
     }
 
-    private static Task EventExceptionLogger(Exception exception)
+    private static void EventExceptionLogger(Exception exception)
     {
         // this.Logger.Log(...);
         throw new NotImplementedException();
