@@ -17,13 +17,14 @@ public sealed class DiscordShard
     private CancellationTokenSource _websocketCts, _heartbeatDelayCts;
     private ClientWebSocket _websocketClient;
 
-    private ChannelWriter<GatewayEvent> _eventChannelWriter;
+    private ChannelWriter<DiscordEvent> _eventChannelWriter;
 
     private int _heartbeatInvervalMs;
     private bool _receivedHeartbeatAck;
 
-    internal DiscordShard(ChannelWriter<GatewayEvent> eventChannelWriter)
+    internal DiscordShard(int shardId, ChannelWriter<DiscordEvent> eventChannelWriter)
     {
+        this.Id = shardId;
         _eventChannelWriter = eventChannelWriter;
 
         _websocketCts = new CancellationTokenSource();
@@ -43,7 +44,7 @@ public sealed class DiscordShard
     /// <summary>
     /// Zero-based shard ID number.
     /// </summary>
-    public int Id { get; internal set; }
+    public int Id { get; private init; }
 
     /// <summary>
     /// 
@@ -138,28 +139,23 @@ public sealed class DiscordShard
         jsonWriter.WriteStartObject();
         jsonWriter.WriteNumber("op", opcode);
 
-        switch (payloadType)
-        {
-            case JsonValueKind.String:
-                jsonWriter.WriteString("d", (string)payload);
-                break;
+        if (payloadType is JsonValueKind.String)
+            jsonWriter.WriteString("d", (string)payload);
 
-            case JsonValueKind.Number:
-                jsonWriter.WriteNumber("d", (int)payload);
-                break;
+        else if (payloadType is JsonValueKind.Number)
+            jsonWriter.WriteNumber("d", (int)payload);
 
-            case JsonValueKind.Null:
-                jsonWriter.WriteNull("d");
-                break;
+        else if (payloadType is JsonValueKind.Null)
+            jsonWriter.WriteNull("d");
 
-            case JsonValueKind.True:
-            case JsonValueKind.False:
-                jsonWriter.WriteBoolean("d", (bool)payload);
-                break;
+        else if (payload is JsonValueKind.True or JsonValueKind.False)
+            jsonWriter.WriteBoolean("d", (bool)payload);
 
-            default:
-                throw new JsonException("Invalid payload type.");
-        }
+        else
+            throw new JsonException("Invalid payload type.");
+
+        jsonWriter.WriteEndObject();
+        jsonWriter.Flush();
 
         return _websocketClient.SendAsync(buffer.WrittenMemory, WebSocketMessageType.Text, true, CancellationToken.None);
     }
@@ -211,7 +207,7 @@ public sealed class DiscordShard
 
             else // Not heartbeat related
             {
-                var gatewayEvent = new GatewayEvent(this.Id, payload.RootElement.Clone());
+                var gatewayEvent = new DiscordEvent(this.Id, payload.RootElement.Clone());
                 await _eventChannelWriter.WriteAsync(gatewayEvent);
             }
 

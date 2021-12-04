@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Rest;
 
-using Donatello.Rest.Extensions.Json;
+using Donatello.Rest.Extension.Json;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -30,7 +30,7 @@ public class DiscordHttpClient
 
         _client = new HttpClient(handler);
         _client.BaseAddress = new Uri("https://discord.com/api/v9");
-        _client.DefaultRequestHeaders.Add("User-Agent", "Donatello/0.0.0 (creator: thegiggitybyte#8099)");
+        _client.DefaultRequestHeaders.Add("User-Agent", "Donatello/0.0.0 (creator: 176477523717259264)");
     }
 
     /// <param name="token">Discord token.</param>
@@ -83,7 +83,7 @@ public class DiscordHttpClient
         return SendRequestCoreAsync(method, endpoint, multipartContent);
     }
 
-    /// <summary>Sends an HTTP request</summary>
+    /// <summary>Sends an HTTP request.</summary>
     private async Task<HttpResponse> SendRequestCoreAsync(HttpMethod method, string endpoint, HttpContent content = null)
     {
         endpoint = endpoint.Trim('/');
@@ -134,22 +134,23 @@ public class DiscordHttpClient
         else if (RequestBucket.TryParse(response.Headers, out var newBucket))
             _requestBuckets.TryAdd(request.RequestUri.ToString(), newBucket);
 
-        if (response.StatusCode == HttpStatusCode.TooManyRequests) // Ratelimited.
+        if (response.StatusCode is HttpStatusCode.TooManyRequests) // Ratelimited
         {
             var retrySeconds = responseJson.RootElement.GetProperty("retry_after").GetSingle();
             var retryTime = TimeSpan.FromSeconds(retrySeconds);
 
-            if (responseJson.RootElement.GetProperty("global").GetBoolean()) // Global ratelimit.
+            if (responseJson.RootElement.GetProperty("global").GetBoolean()) // Global ratelimit
                 _globalRatelimitResetDate = DateTime.Now + retryTime;
-            else // Request ratelimit.
+            else // Request ratelimit
                 return await DelayRequestAsync(request, retryTime).ConfigureAwait(false);
-
-            // TODO: Resource ratelimit.
         }
+        else if (response.StatusCode is not HttpStatusCode.OK or HttpStatusCode.NoContent)
+            throw new DiscordHttpException(response.StatusCode, response.ReasonPhrase);
 
         return new HttpResponse()
         {
             Status = response.StatusCode,
+            Message = response.ReasonPhrase,
             Payload = responseJson.RootElement.Clone()
         };
     }

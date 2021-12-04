@@ -13,4 +13,12 @@
     <PackageReference Include="Qmmands" Version="5.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Donatello.Rest\Donatello.Rest.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Command\Enum\" />
+  </ItemGroup>
+
 </Project>

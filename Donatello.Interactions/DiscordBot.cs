@@ -9,21 +9,24 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Donatello.Interactions.Entity;
+using Donatello.Interactions.Extension;
+using Donatello.Rest;
+using Donatello.Rest.Extension.Endpoint;
 using NSec.Cryptography;
 using Qmmands;
 using Qommon.Events;
 
 /// <summary>
-/// High-level client and bot framework for the Discord interaction model.<br/>
+/// High-level bot framework for the interaction model.<br/>
 /// Interactions are received from Discord through an integrated webhook listener.
 /// </summary>
 public sealed class DiscordBot
 {
-    private readonly string _apiToken;
     private readonly PublicKey _publicKey;
 
-    private Task _interactionListenerTask;
     private CommandService _commandService;
+    private Task _interactionListenerTask;
     private CancellationTokenSource _cts;
 
     private AsynchronousEvent<CommandExecutedEventArgs> _commandExecutedEvent = new(EventExceptionLogger);
@@ -36,7 +39,6 @@ public sealed class DiscordBot
         else if (string.IsNullOrWhiteSpace(publicKey))
             throw new ArgumentException("Public key cannot be empty.", nameof(publicKey));
 
-        _apiToken = apiToken;
         _publicKey = PublicKey.Import
         (
             SignatureAlgorithm.Ed25519,
@@ -44,13 +46,18 @@ public sealed class DiscordBot
             KeyBlobFormat.PkixPublicKeyText
         );
 
+        this.HttpClient = new DiscordHttpClient(apiToken);
+
         _commandService = new CommandService(CommandServiceConfiguration.Default);
         _commandService.CommandExecuted += (s, e) => _commandExecutedEvent.InvokeAsync(this, e);
         _commandService.CommandExecutionFailed += (s, e) => _commandExecutionFailedEvent.InvokeAsync(this, e);
     }
 
+    /// <summary>REST API wrapper instance.</summary>
+    internal DiscordHttpClient HttpClient { get; private init; }
+
     /// <summary>Whether this instance is listening for interactions.</summary>
-    public bool IsRunning { get => _interactionListenerTask.Status == TaskStatus.Running; }
+    public bool IsRunning => _interactionListenerTask.Status == TaskStatus.Running;
 
     /// <summary>Fired when a command successfully executes.</summary>
     public event AsynchronousEventHandler<CommandExecutedEventArgs> CommandExecuted
@@ -67,7 +74,7 @@ public sealed class DiscordBot
     }
 
     /// <summary>Submits all registered commands to Discord and begins listening for interactions.</summary>
-    public async ValueTask Start(int port = 8080)
+    public void Start(int port = 8080)
     {
         if (this.IsRunning)
             throw new InvalidOperationException("Instance is already active.");
@@ -90,6 +97,35 @@ public sealed class DiscordBot
 
         await _interactionListenerTask;
         _interactionListenerTask.Dispose();
+    }
+
+    /// <summary></summary>
+    public async Task<DiscordUser> GetUserAsync(ulong userId)
+    {
+        var response = await this.HttpClient.GetUserAsync(userId);
+        return new DiscordUser(this, response.Payload);
+    }
+
+    /// <summary></summary>
+    public async Task<DiscordGuild> GetGuildAsync(ulong guildId)
+    {
+        var response = await this.HttpClient.GetGuildAsync(guildId);
+        return new DiscordGuild(this, response.Payload);
+    }
+
+    public async Task<DiscordChannel> GetChannelAsync(ulong channelId)
+    {
+        var response = await this.HttpClient.GetChannelAsync(channelId);
+
+
+
+        return response.Payload.Clone().ToEntity<DiscordChannel>(this);
+    }
+
+    public async Task<DiscordChannel> GetChannelAsync(ulong guildId, ulong channelId)
+    {
+        var response = await this.HttpClient.GetGuildChannelsAsync(guildId);
+        re
     }
 
     /// <summary>Webhook listener.</summary>
@@ -142,6 +178,7 @@ public sealed class DiscordBot
         var responseBuffer = new ArrayBufferWriter<byte>();
         using var responseWriter = new Utf8JsonWriter(responseBuffer);
 
+
         if (interactionType == 1) // Ping
             responseWriter.WriteNumber("type", 1);
 
@@ -181,6 +218,7 @@ public sealed class DiscordBot
             return;
         }
 
+
         if (responseWriter.BytesPending > 0)
         {
             await responseWriter.FlushAsync().ConfigureAwait(false);
@@ -196,3 +234,4 @@ public sealed class DiscordBot
         throw new NotImplementedException();
     }
 }
+

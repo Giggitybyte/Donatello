@@ -1,6 +1,7 @@
 ﻿namespace Donatello.Gateway;
 
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
@@ -8,7 +9,7 @@ using System.Text.Json;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Donatello.Gateway.Command;
-using Donatello.Gateway.Entity.Enum;
+using Donatello.Gateway.Entity.Enumeration;
 using Donatello.Rest;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -26,7 +27,7 @@ public sealed partial class DiscordBot
     private ILoggerFactory _loggerFactory;
     private DiscordHttpClient _httpClient;
     private CommandService _commandService;
-    private Channel<GatewayEvent> _eventChannel;
+    private Channel<DiscordEvent> _eventChannel;
     private Task _eventProcessingTask;
     private DiscordShard[] _shards;
 
@@ -43,21 +44,19 @@ public sealed partial class DiscordBot
         _httpClient = new DiscordHttpClient(_apiToken);
         
         _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;        
-        _eventChannel = Channel.CreateUnbounded<GatewayEvent>();        
+        _eventChannel = Channel.CreateUnbounded<DiscordEvent>();        
 
         var commandConfig = CommandServiceConfiguration.Default;
         // commandConfig.CooldownBucketKeyGenerator ??= ...;
 
         _commandService = new CommandService(commandConfig);
-        _commandService.CommandExecuted += (e) => _commandExecutedEvent.InvokeAsync(e);
-        _commandService.CommandExecutionFailed += (e) => _commandExecutionFailedEvent.InvokeAsync(e);
+        _commandService.CommandExecuted += (s, e) => _commandExecutedEvent.InvokeAsync(this, e);
+        _commandService.CommandExecutionFailed += (s, e) => _commandExecutionFailedEvent.InvokeAsync(this, e);
 
         _shards = Array.Empty<DiscordShard>();
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
+    /// <summary></summary>
     internal ReadOnlyList<DiscordShard> Shards { get => new(_shards); }
 
     /// <summary>Searches the provided assembly for classes which inherit from <see cref="DiscordCommandModule"/> and registers each of their commands.</summary>
@@ -69,11 +68,11 @@ public sealed partial class DiscordBot
         => _commandService.AddModule(typeof(T));
 
     /// <summary>Adds an addon to this instance.</summary>
-    public void LoadAddon<T>() // where T : BaseExtension
+    public void LoadAddon<T>() // where T : DonatelloAddon
         => throw new NotImplementedException();
 
     /// <summary>Removes an addon from this instance.</summary>
-    public async ValueTask UnloadAddonAsync<T>() // where T : BaseExtension
+    public async ValueTask UnloadAddonAsync<T>() // where T : DonatelloAddon
         => throw new NotImplementedException();
 
     /// <summary>Connects to the Discord gateway.</summary>
@@ -83,17 +82,16 @@ public sealed partial class DiscordBot
 
         var websocketUrl = payload.GetProperty("url").GetString();
         var shardCount = payload.GetProperty("shards").GetInt32();
-        // var batchSize = payload.GetProperty("session_start_limit").GetProperty("max_concurrency").GetInt32();
+        var batchSize = payload.GetProperty("session_start_limit").GetProperty("max_concurrency").GetInt32();
 
         _shards = new DiscordShard[shardCount];
         _eventProcessingTask = ProcessIncomingEventsAsync(_eventChannel.Reader);
 
         for (int shardId = 0; shardId < shardCount; shardId++)
         {
-            var shard = new DiscordShard(_eventChannel.Writer) { Id = shardId };
-            await shard.ConnectAsync(websocketUrl);
-
+            var shard = new DiscordShard(shardId, _eventChannel.Writer);
             _shards[shardId] = shard;
+            await shard.ConnectAsync(websocketUrl);
         }
     }
 
@@ -123,11 +121,11 @@ public sealed partial class DiscordBot
         if (response.Status != HttpStatusCode.OK)
             throw new HttpRequestException("Could not retreive shard metadata.", null, response.Status);
 
-        return response.Payload.Value;
+        return response.Payload.GetValueOrDefault();
     }
 
     /// <summary>Receives gateway event payloads from each connected <see cref="DiscordShard"/> and determines how to respond based on the payload opcode.</summary>
-    private async Task ProcessIncomingEventsAsync(ChannelReader<GatewayEvent> channelReader)
+    private async Task ProcessIncomingEventsAsync(ChannelReader<DiscordEvent> channelReader)
     {
         await foreach (var gatewayEvent in channelReader.ReadAllAsync())
         {
@@ -194,7 +192,9 @@ public sealed partial class DiscordBot
             }
 
             else
-                throw new NotImplementedException($"Unknown opcode received: {opcode}");
+            {
+                throw new NotImplementedException($"Invalid opcode received: {opcode}");
+            }
         }
 
         async Task ReconnectAsync(DiscordShard shard)
@@ -205,5 +205,11 @@ public sealed partial class DiscordBot
             await shard.DisconnectAsync();
             await shard.ConnectAsync(url);
         }
+    }
+
+    /// <summary></summary>
+    private async Task DispatchEventAsync(DiscordEvent discordEvent)
+    {
+        throw new NotImplementedException();
     }
 }

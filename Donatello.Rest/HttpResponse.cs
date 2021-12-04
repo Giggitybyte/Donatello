@@ -1,4 +1,5 @@
 ﻿namespace Donatello.Rest;
+
 using System.Net;
 using System.Text.Json;
 
@@ -8,5 +9,8 @@ public readonly struct HttpResponse
     public HttpStatusCode Status { get; internal init; }
 
     /// <summary></summary>
-    public JsonElement? Payload { get; internal init; }
+    public string Message { get; internal init; }
+
+    /// <summary></summary>
+    public JsonElement Payload { get; internal init; }
 }

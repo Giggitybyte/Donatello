@@ -1,7 +1,6 @@
 ﻿namespace Donatello.Gateway;
 
 using System;
-using System.Threading.Tasks;
 using Donatello.Gateway.Event;
 using Qmmands;
 using Qommon.Events;
@@ -24,13 +23,13 @@ public sealed partial class DiscordBot
     }
 
     private AsynchronousEvent<MessageReceivedEventContext> _gatewayMessageReceivedEvent = new(EventExceptionLogger);
-    public event AsynchronousEventHandler<CommandExecutionFailedEventArgs> MessageReceived
+    public event AsynchronousEventHandler<MessageReceivedEventContext> MessageReceived
     {
-        add => _commandExecutionFailedEvent.Hook(value);
-        remove => _commandExecutionFailedEvent.Unhook(value);
+        add => _gatewayMessageReceivedEvent.Hook(value);
+        remove => _gatewayMessageReceivedEvent.Unhook(value);
     }
 
-    private static Task EventExceptionLogger(Exception exception)
+    private static void EventExceptionLogger(Exception exception)
     {
         // this.Logger.Log(...);
         throw new NotImplementedException();

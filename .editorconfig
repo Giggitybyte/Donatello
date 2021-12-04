@@ -8,3 +8,9 @@ dotnet_style_qualification_for_property = true:silent
 
 # IDE0044: Add readonly modifier
 dotnet_diagnostic.IDE0044.severity = silent
+
+# IDE0065: Misplaced using directive
+csharp_using_directive_placement = inside_namespace
+
+# IDE0160: Convert to block scoped namespace
+csharp_style_namespace_declarations = file_scoped
