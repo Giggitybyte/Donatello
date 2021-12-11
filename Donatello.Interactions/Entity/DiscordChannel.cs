@@ -23,22 +23,17 @@ public abstract class DiscordChannel : DiscordEntity
     internal ChannelType Type { get; private init; }
 }
 
-/// <summary>Text channel between two or more users.</summary>
+/// <summary>Private text channel between you and a user.</summary>
 public sealed class DiscordDirectChannel : DiscordChannel
 {
     public DiscordDirectChannel(DiscordBot bot, JsonElement json) : base(bot, json) { }
 
-    /// <summary>Channel icon URL.</summary>
-    /// <remarks>May return <see cref="string.Empty"/> if this channel does not have an icon.</remarks>
-    public string IconUrl => this.Json.TryGetProperty("icon", out var prop) ? $"https://cdn.discordapp.com/channel-icons/{this.Id}/{prop.GetString()}.png" : string.Empty;
+    /// <summary></summary>
+    public DiscordUser Recipient => this.Json.GetProperty("recipients").ToEntityArray<DiscordUser>(this.Bot)[0];
 
-    public ReadOnlyList<DiscordUser> Users
+    public ReadOnlyList<DiscordMessage> GetMessagesAsync()
     {
-        get
-        {
-            var user = this.Json.GetProperty("").ToEntityArray<DiscordUser>(this.Bot);
-            return new ReadOnlyList<DiscordUser>(user);
-        }
+        this.Bot.HttpClient.getCh
     }
 }
 

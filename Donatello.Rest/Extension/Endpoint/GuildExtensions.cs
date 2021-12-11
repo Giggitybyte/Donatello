@@ -11,8 +11,8 @@ public static class GuildExtensions
 {
     /// <summary>Creates a new guild owned by the current user. Returns the newly created <see href="https://discord.com/developers/docs/resources/guild#guild-object">guild</see>.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#create-guild">Click to see valid JSON payload parameters</see>.</remarks>
-    public static Task<HttpResponse> CreateGuildAsync(this DiscordHttpClient httpClient, Action<Utf8JsonWriter> jsonBuilder)
-        => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds", jsonBuilder);
+    public static Task<HttpResponse> CreateGuildAsync(this DiscordHttpClient httpClient, Action<Utf8JsonWriter> json)
+        => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds", json);
 
     /// <summary>Returns a <see href="https://discord.com/developers/docs/resources/guild#guild-object">guild object</see> for the provided ID.</summary>
     public static Task<HttpResponse> GetGuildAsync(this DiscordHttpClient httpClient, ulong guildId)
@@ -24,8 +24,8 @@ public static class GuildExtensions
 
     /// <summary>Changes the settings for the guild; returns an updated <see href="https://discord.com/developers/docs/resources/guild#guild-object">guild object</see>.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#modify-guild-json-params">Click to see valid JSON payload parameters</see>.</remarks>
-    public static Task<HttpResponse> ModifyGuildAsync(this DiscordHttpClient httpClient, ulong id, Action<Utf8JsonWriter> jsonBuilder)
-        => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{id}", jsonBuilder);
+    public static Task<HttpResponse> ModifyGuildAsync(this DiscordHttpClient httpClient, ulong id, Action<Utf8JsonWriter> json)
+        => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{id}", json);
 
     /// <summary>Permanently deletes the guild.</summary>
     /// <remarks>The user associated with the token must be the owner of the guild.</remarks>
@@ -38,13 +38,13 @@ public static class GuildExtensions
 
     /// <summary>Returns the newly created <see href="https://discord.com/developers/docs/resources/channel#channel-object">channel</see>.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#create-guild-channel-json-params">Click to see valid JSON payload parameters</see>.</remarks>
-    public static Task<HttpResponse> CreateGuildChannelAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonBuilder)
-        => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/channels", jsonBuilder);
+    public static Task<HttpResponse> CreateGuildChannelAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> json)
+        => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/channels", json);
 
     /// <summary>Changes the position of the provided channel.</summary>
     /// <remarks>Accepts an array; <see href="https://discord.com/developers/docs/resources/guild#modify-guild-channel-positions">click to see valid JSON payload parameters</see>.</remarks>
-    public static Task<HttpResponse> ModifyChannelPositionAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonBuilder)
-        => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/channels", jsonBuilder);
+    public static Task<HttpResponse> ModifyChannelPositionAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> json)
+        => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/channels", json);
 
     /// <summary>Fetches all active threads in the guild, including private and public threads.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#list-active-threads">Click to see the fields of the returned object</see>.</remarks>
@@ -74,18 +74,18 @@ public static class GuildExtensions
     /// Requires an OAuth2 access token and a bot user within the guild.
     /// <see href="https://discord.com/developers/docs/resources/guild#add-guild-member">Click to read more and see valid JSON payload parameters</see>.
     /// </remarks>
-    public static Task<HttpResponse> AddGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, Action<Utf8JsonWriter> jsonBuilder)
-        => httpClient.SendRequestAsync(HttpMethod.Put, $"guilds/{guildId}/members/{userId}", jsonBuilder);
+    public static Task<HttpResponse> AddGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, Action<Utf8JsonWriter> json)
+        => httpClient.SendRequestAsync(HttpMethod.Put, $"guilds/{guildId}/members/{userId}", json);
 
     /// <summary>Changes attributes of a guild member; returns an updated <see href="https://discord.com/developers/docs/resources/guild#guild-member-object">guild member object</see>.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#modify-guild-member">Click to see valid JSON payload parameters</see>.</remarks>
-    public static Task<HttpResponse> ModifyGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, Action<Utf8JsonWriter> jsonBuilder)
-        => httpClient.SendRequestAsync(HttpMethod.Put, $"guilds/{guildId}/members/{userId}", jsonBuilder);
+    public static Task<HttpResponse> ModifyGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, Action<Utf8JsonWriter> json)
+        => httpClient.SendRequestAsync(HttpMethod.Put, $"guilds/{guildId}/members/{userId}", json);
 
     /// <summary>Changes attributes of the current member; returns an updated <see href="https://discord.com/developers/docs/resources/guild#guild-member-object">guild member object</see>.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#modify-current-member">Click to see valid JSON payload parameters</see>.</remarks>
-    public static Task<HttpResponse> ModifyGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonBuilder)
-        => httpClient.SendRequestAsync(HttpMethod.Put, $"guilds/{guildId}/members/@me", jsonBuilder);
+    public static Task<HttpResponse> ModifyGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> json)
+        => httpClient.SendRequestAsync(HttpMethod.Put, $"guilds/{guildId}/members/@me", json);
 
     /// <summary>Adds a role to a guild member.</summary>
     public static Task<HttpResponse> GrantGuildMemberRoleAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, ulong roleId)
@@ -109,8 +109,8 @@ public static class GuildExtensions
 
     /// <summary>Permanently bans a user from a guild.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#create-guild-ban">Click to see valid JSON payload parameters</see>.</remarks>
-    public static Task<HttpResponse> CreateGuildBanAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, Action<Utf8JsonWriter> jsonBuilder = null)
-        => httpClient.SendRequestAsync(HttpMethod.Put, $"/guilds/{guildId}/bans/{userId}", jsonBuilder);
+    public static Task<HttpResponse> CreateGuildBanAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, Action<Utf8JsonWriter> json = null)
+        => httpClient.SendRequestAsync(HttpMethod.Put, $"/guilds/{guildId}/bans/{userId}", json);
 
     /// <summary>Removes a guild ban for a user.</summary>
     public static Task<HttpResponse> DeleteGuildBanAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId)
@@ -122,18 +122,18 @@ public static class GuildExtensions
 
     /// <summary>Creates a new role for the guild; returns a <see href="https://discord.com/developers/docs/topics/permissions#role-object">role object</see>.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#create-guild-role">Click to see valid JSON parameters</see>.</remarks>
-    public static Task<HttpResponse> CreateGuildRoleAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonBuilder = null)
-        => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/roles");
+    public static Task<HttpResponse> CreateGuildRoleAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> json = null)
+        => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/roles", json);
 
     /// <summary>Changes the <see href="https://discord.com/developers/docs/topics/permissions#permission-hierarchy">position</see> of the roles provided in your JSON payload.</summary>
     /// <remarks>Accepts an array; <see href="https://discord.com/developers/docs/resources/guild#modify-guild-role-positions">click to see JSON object structure</see>.</remarks>
-    public static Task<HttpResponse> ModifyGuildRolePositionAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonBuilder)
-        => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/roles", jsonBuilder);
+    public static Task<HttpResponse> ModifyGuildRolePositionAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> json)
+        => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/roles", json);
 
     /// <summary>Changes the attributes of a role; returns an updated <see href="https://discord.com/developers/docs/resources/guild#role-object">role object</see>.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#modify-guild-role">Click to see valid JSON payload parameters</see>.</remarks>
-    public static Task<HttpResponse> ModifyGuildRoleAsync(this DiscordHttpClient httpClient, ulong guildId, ulong roleId, Action<Utf8JsonWriter> jsonBuilder)
-        => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/roles/{roleId}", jsonBuilder);
+    public static Task<HttpResponse> ModifyGuildRoleAsync(this DiscordHttpClient httpClient, ulong guildId, ulong roleId, Action<Utf8JsonWriter> json)
+        => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/roles/{roleId}", json);
 
     /// <summary>Permanently deletes a role.</summary>
     public static Task<HttpResponse> DeleteGuildRoleAsync(this DiscordHttpClient httpClient, ulong guildId, ulong roleId)

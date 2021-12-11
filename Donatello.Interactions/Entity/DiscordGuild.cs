@@ -34,39 +34,15 @@ public sealed class DiscordGuild : DiscordEntity
     public int BoostLevel => this.Json.GetProperty("premium_tier").GetInt32();
 
     /// <summary></summary>
-    public ReadOnlyList<DiscordRole> Roles
-    {
-        get
-        {
-            var roles = this.Json.GetProperty("roles").ToEntityArray<DiscordRole>(this.Bot);
-            return new ReadOnlyList<DiscordRole>(roles);
-        }
-    }
+    public ReadOnlyList<DiscordRole> Roles => new(this.Json.GetProperty("roles").ToEntityArray<DiscordRole>(this.Bot));
 
     /// <summary></summary>
-    public ReadOnlyList<DiscordEmote> Emotes
-    {
-        get
-        {
-            var emotes = this.Json.GetProperty("emojis").ToEntityArray<DiscordEmote>(this.Bot);
-            return new ReadOnlyList<DiscordEmote>(emotes);
-        }
-    }
+    public ReadOnlyList<DiscordEmote> Emotes => new(this.Json.GetProperty("emojis").ToEntityArray<DiscordEmote>(this.Bot));
 
     /// <summary>Custom invite link, e.g. <c>https://discord.gg/wumpus-and-friends</c></summary>
     /// <remarks>May return <see cref="string.Empty"/> if the guild does not have a vanity URL.</remarks>
-    public string VanityInviteUrl
-    {
-        get
-        {
-            var code = this.Json.GetProperty("vanity_url_code").GetString();
+    public string VanityInviteUrl => this.Json.TryGetProperty("vanity_url_code", out var prop) ? $"https://discord.gg/{prop.GetString()}" : string.Empty;
 
-            if (code is not null)
-                return $"https://discord.gg/{code}";
-            else
-                return string.Empty;
-        }
-    }
 
     /// <summary>Guild icon URL.</summary>
     /// <remarks>May return <see cref="string.Empty"/> if an icon has not been uploaded.</remarks>
@@ -88,33 +64,11 @@ public sealed class DiscordGuild : DiscordEntity
 
     /// <summary>Guild banner URL.</summary>
     /// <remarks>May return <see cref="string.Empty"/> if the guild does not have a banner.</remarks>
-    public string BannerUrl
-    {
-        get
-        {
-            var bannerHash = this.Json.GetProperty("banner").GetString();
-
-            if (!string.IsNullOrEmpty(bannerHash))
-                return $"https://cdn.discordapp.com/banners/{this.Id}/{bannerHash}.png";
-            else
-                return string.Empty;
-        }
-    }
+    public string BannerUrl => this.Json.TryGetProperty("banner", out var prop) ? $"https://cdn.discordapp.com/banners/{this.Id}/{prop.GetString()}.png" : string.Empty;
 
     /// <summary>Splash image URL.</summary>
     /// <remarks>May return <see cref="string.Empty"/> if a splash image has not been uploaded.</remarks>
-    public string InviteSplashUrl
-    {
-        get
-        {
-            var splashHash = this.Json.GetProperty("splash").GetString();
-
-            if (!string.IsNullOrEmpty(splashHash))
-                return $"https://cdn.discordapp.com/splashes/{this.Id}/{splashHash}.png";
-            else
-                return string.Empty;
-        }
-    }
+    public string InviteSplashUrl => this.Json.TryGetProperty("splash", out var prop) ? $"https://cdn.discordapp.com/splashes/{this.Id}/{prop.GetString()}.png" : string.Empty;
 
     /// <summary></summary>
     public Task<DiscordUser> GetOwnerAsync()
