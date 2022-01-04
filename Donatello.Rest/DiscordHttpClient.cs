@@ -1,6 +1,8 @@
 ﻿namespace Donatello.Rest;
 
 using Donatello.Rest.Extension.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -34,12 +36,17 @@ public class DiscordHttpClient
     }
 
     /// <param name="token">Discord token.</param>
-    /// <param name="isBearer"><see langword="true"/>: OAuth2 bearer token.<br/><see langword="false"/>: application bot token.</param>
-    public DiscordHttpClient(string token, bool isBearer = false)
+    /// <param name="isBearerToken"><see langword="true"/>: OAuth2 bearer token.<br/><see langword="false"/>: application bot token.</param>
+    public DiscordHttpClient(string token, bool isBearerToken = false, ILogger logger = null)
     {
-        _authHeader = new("Authorization", $"{(isBearer ? "Bearer" : "Bot")} {token}");
+        _authHeader = new("Authorization", $"{(isBearerToken ? "Bearer" : "Bot")} {token}");
         _requestBuckets = new ConcurrentDictionary<string, RequestBucket>();
+
+        this.Logger = logger ?? NullLogger.Instance;
     }
+
+    /// <summary></summary>
+    internal ILogger Logger { get; private init; }
 
     /// <summary>Sends an HTTP request an endpoint.</summary>
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint)
@@ -94,11 +101,6 @@ public class DiscordHttpClient
         if (content is not null)
             request.Content = content;
 
-        if (IsRatelimited(endpoint, out var delayTime))
-            return await DelayRequestAsync(request, delayTime).ConfigureAwait(false);
-        else
-            return await ExecuteRequestAsync(request).ConfigureAwait(false);
-
         bool IsRatelimited(string endpoint, out TimeSpan delayTime)
         {
             if (_globalRatelimitResetDate > DateTime.Now)
@@ -120,12 +122,18 @@ public class DiscordHttpClient
                 return true;
             }
         }
+
+        if (IsRatelimited(endpoint, out var delayTime))
+            return await DelayRequestAsync(request, delayTime).ConfigureAwait(false);
+        else
+            return await ExecuteRequestAsync(request).ConfigureAwait(false);
     }
 
     /// <summary></summary>
     private async Task<HttpResponse> ExecuteRequestAsync(HttpRequestMessage request)
     {
         var response = await _client.SendAsync(request).ConfigureAwait(false);
+
         using var responsePayload = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
         using var responseJson = await JsonDocument.ParseAsync(responsePayload).ConfigureAwait(false);
 
@@ -136,16 +144,20 @@ public class DiscordHttpClient
 
         if (response.StatusCode is HttpStatusCode.TooManyRequests) // Ratelimited
         {
-            var retrySeconds = responseJson.RootElement.GetProperty("retry_after").GetSingle();
+            var retrySeconds = int.Parse(response.Headers.GetValues("X-RateLimit-Reset-After").First());
             var retryTime = TimeSpan.FromSeconds(retrySeconds);
 
-            if (responseJson.RootElement.GetProperty("global").GetBoolean()) // Global ratelimit
+            var scope = response.Headers.GetValues("X-RateLimit-Scope").First();
+
+            if (scope is "global")
                 _globalRatelimitResetDate = DateTime.Now + retryTime;
-            else // Request ratelimit
+            else if (scope is "shared" or "user")
                 return await DelayRequestAsync(request, retryTime).ConfigureAwait(false);
+            else
+                throw new NotImplementedException();
         }
         else if (response.StatusCode is not HttpStatusCode.OK or HttpStatusCode.NoContent)
-            throw new DiscordHttpException(response.StatusCode, response.ReasonPhrase);
+            throw new DiscordHttpException(response.StatusCode, response.ReasonPhrase, responseJson.RootElement.Clone());
 
         return new HttpResponse()
         {

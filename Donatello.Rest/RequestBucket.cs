@@ -19,47 +19,10 @@ internal sealed class RequestBucket
     }
 
     /// <summary>Bucket ID.</summary>
-    internal string Id { get; init; }
+    internal string Id { get; private init; }
 
     /// <summary></summary>
     internal DateTime ResetTime { get; private set; }
-
-    /// <summary>Decrements the number of requests remaining for this bucket.</summary>
-    internal bool TryUse()
-    {
-        lock (this)
-        {
-            if (_remaining <= 0)
-            {
-                if (ResetTime < DateTime.Now)
-                    return false;
-                else
-                    _remaining = _limit;
-            }
-
-            _remaining--;
-            return true;
-        }
-    }
-
-    /// <summary></summary>
-    internal void Update(HttpResponseHeaders headers)
-    {
-        lock (this)
-        {
-            if (headers.TryGetValues("X-RateLimit-Limit", out var limitHeader))
-                if (!int.TryParse(limitHeader.SingleOrDefault(), out var limit))
-                    _limit = limit;
-
-            if (headers.TryGetValues("X-RateLimit-Remaining", out var remainingHeader))
-                if (!int.TryParse(remainingHeader.SingleOrDefault(), out var remaining))
-                    _remaining = remaining;
-
-            if (!headers.TryGetValues("X-RateLimit-Reset", out var resetHeader))
-                if (!int.TryParse(resetHeader.SingleOrDefault(), out var resetTimestamp))
-                    ResetTime = DateTime.UnixEpoch + TimeSpan.FromSeconds(resetTimestamp);
-        }
-    }
 
     /// <summary>Attempts to create a new <see cref="RequestBucket"/> from the provided <see cref="HttpResponseHeaders"/>.</summary>
     internal static bool TryParse(HttpResponseHeaders headers, out RequestBucket bucket)
@@ -99,6 +62,43 @@ internal sealed class RequestBucket
 
         bucket = new RequestBucket(id, limit, remaining, resetTime);
         return true;
+    }
+
+    /// <summary>Decrements the number of requests remaining for this bucket.</summary>
+    internal bool TryUse()
+    {
+        lock (this)
+        {
+            if (_remaining <= 0)
+            {
+                if (this.ResetTime >= DateTime.Now)
+                    _remaining = _limit;
+                else
+                    return false;
+            }
+
+            _remaining--;
+            return true;
+        }
+    }
+
+    /// <summary></summary>
+    internal void Update(HttpResponseHeaders headers)
+    {
+        lock (this)
+        {
+            if (headers.TryGetValues("X-RateLimit-Limit", out var limitHeader))
+                if (!int.TryParse(limitHeader.SingleOrDefault(), out var limit))
+                    _limit = limit;
+
+            if (headers.TryGetValues("X-RateLimit-Remaining", out var remainingHeader))
+                if (!int.TryParse(remainingHeader.SingleOrDefault(), out var remaining))
+                    _remaining = remaining;
+
+            if (!headers.TryGetValues("X-RateLimit-Reset", out var resetHeader))
+                if (!int.TryParse(resetHeader.SingleOrDefault(), out var resetTimestamp))
+                    this.ResetTime = DateTime.UnixEpoch + TimeSpan.FromSeconds(resetTimestamp);
+        }
     }
 }
 
