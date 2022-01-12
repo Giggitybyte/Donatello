@@ -65,7 +65,6 @@ public class DiscordTextChannel : DiscordChannel
     {
         var id = this.Json.GetProperty("last_message_id").AsUInt64();
         return this.Bot.GetChannelAsync(id);
-
     }
 
     /// <summary></summary>

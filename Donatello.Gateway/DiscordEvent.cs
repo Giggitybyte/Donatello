@@ -14,8 +14,6 @@ internal readonly struct DiscordEvent
     /// <summary>Shard which received the event payload.</summary>
     internal DiscordShard Shard { get; }
 
-    /// <summary>
-    /// JSON event payload.
-    /// </summary>
+    /// <summary>Event payload JSON.</summary>
     internal JsonElement Payload { get; }
 }

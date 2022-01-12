@@ -1,11 +1,7 @@
 ﻿namespace Donatello.Gateway;
 
 using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Net.Http;
 using System.Reflection;
-using System.Text.Json;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Donatello.Gateway.Command;
@@ -18,23 +14,23 @@ using Qommon.Collections;
 
 /// <summary>
 /// High-level bot framework for the Discord API.<br/>
-/// Receives events from the API through a websocket connection and sends requests to the API through REST requests.
+/// Receives events from the API through a websocket connection and sends requests to the API through HTTP REST requests.
 /// </summary>
 public sealed partial class DiscordBot
 {
     private string _apiToken;
     private DiscordIntent _intents;
-    private ILoggerFactory _loggerFactory;
     private DiscordHttpClient _httpClient;
     private CommandService _commandService;
+    private Channel<DiscordShard> _identifyChannel;
     private Channel<DiscordEvent> _eventChannel;
     private Task _eventProcessingTask;
     private DiscordShard[] _shards;
 
     /// <param name="apiToken"></param>
     /// <param name="intents"></param>
-    /// <param name="loggerFactory"></param>
-    public DiscordBot(string apiToken, DiscordIntent intents = DiscordIntent.Unprivileged, ILoggerFactory loggerFactory = null)
+    /// <param name="logger"></param>
+    public DiscordBot(string apiToken, DiscordIntent intents = DiscordIntent.Unprivileged, ILogger logger = null)
     {
         if (string.IsNullOrWhiteSpace(apiToken))
             throw new ArgumentException("Token cannot be empty.");
@@ -42,9 +38,10 @@ public sealed partial class DiscordBot
         _apiToken = apiToken;
         _intents = intents;
         _httpClient = new DiscordHttpClient(_apiToken);
-        
-        _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;        
-        _eventChannel = Channel.CreateUnbounded<DiscordEvent>();        
+        _identifyChannel = Channel.CreateUnbounded<DiscordShard>();
+        _eventChannel = Channel.CreateUnbounded<DiscordEvent>();
+
+        this.Logger = logger ?? NullLogger.Instance;
 
         var commandConfig = CommandServiceConfiguration.Default;
         // commandConfig.CooldownBucketKeyGenerator ??= ...;
@@ -55,6 +52,9 @@ public sealed partial class DiscordBot
 
         _shards = Array.Empty<DiscordShard>();
     }
+
+    /// <summary></summary>
+    internal ILogger Logger { get; private set; }
 
     /// <summary></summary>
     internal ReadOnlyList<DiscordShard> Shards { get => new(_shards); }
@@ -78,30 +78,32 @@ public sealed partial class DiscordBot
     /// <summary>Connects to the Discord gateway.</summary>
     public async Task StartAsync()
     {
-        var payload = await GetGatewayInfoAsync();
+        var payload = await _httpClient.GetGatewayMetadataAsync();
 
         var websocketUrl = payload.GetProperty("url").GetString();
         var shardCount = payload.GetProperty("shards").GetInt32();
         var batchSize = payload.GetProperty("session_start_limit").GetProperty("max_concurrency").GetInt32();
 
         _shards = new DiscordShard[shardCount];
-        _eventProcessingTask = ProcessIncomingEventsAsync(_eventChannel.Reader);
+        _eventProcessingTask = ProcessEventsAsync(_eventChannel.Reader);
 
         for (int shardId = 0; shardId < shardCount; shardId++)
         {
-            var shard = new DiscordShard(shardId, _eventChannel.Writer);
+            var shard = new DiscordShard(shardId, _identifyChannel.Writer, _eventChannel.Writer, this.Logger);
+            await shard.ConnectAsync();
+
             _shards[shardId] = shard;
-            await shard.ConnectAsync(websocketUrl);
         }
     }
 
     /// <summary>Closes all websocket connections and unloads all extensions.</summary>
     public async Task StopAsync()
     {
-        if (_eventProcessingTask is null)
+        if (_shards.Length is 0 | _eventProcessingTask is null)
             throw new InvalidOperationException("This instance is not currently connected to Discord.");
 
         var disconnectTasks = new Task[_shards.Length];
+
         foreach (var shard in _shards)
             disconnectTasks[shard.Id] = shard.DisconnectAsync();
 
@@ -113,103 +115,57 @@ public sealed partial class DiscordBot
         Array.Clear(_shards, 0, _shards.Length);
     }
 
-    /// <summary>Fetches up-to-date gateway connection information from the Discord REST API.</summary>
-    private async Task<JsonElement> GetGatewayInfoAsync()
+    /// <summary></summary>
+    private async Task ProcessIdentifyAsync(ChannelReader<DiscordShard> identifyChannelReader)
     {
-        var response = await _httpClient.SendRequestAsync(HttpMethod.Get, $"gateway/bot");
-
-        if (response.Status != HttpStatusCode.OK)
-            throw new HttpRequestException("Could not retreive shard metadata.", null, response.Status);
-
-        return response.Payload.GetValueOrDefault();
-    }
-
-    /// <summary>Receives gateway event payloads from each connected <see cref="DiscordShard"/> and determines how to respond based on the payload opcode.</summary>
-    private async Task ProcessIncomingEventsAsync(ChannelReader<DiscordEvent> channelReader)
-    {
-        await foreach (var gatewayEvent in channelReader.ReadAllAsync())
+        await foreach (var shard in identifyChannelReader.ReadAllAsync())
         {
-            var opcode = gatewayEvent.Payload.GetProperty("op").GetInt32();
-
-            if (opcode == 0) // Guild, channel, or user event
-                await DispatchEventAsync(gatewayEvent); // DiscordBot.Dispatch
-
-            else if (opcode == 7) // Reconnect request
-                await ReconnectAsync(_shards[gatewayEvent.ShardId]);
-
-            else if (opcode == 9) // Invalid session
+            if (string.IsNullOrEmpty(shard.SessionId))
             {
-                var shard = _shards[gatewayEvent.ShardId];
-                var resumeable = gatewayEvent.Payload.GetProperty("d").GetBoolean();
-
-                if (!resumeable)
+                // Identify
+                await shard.SendPayloadAsync(2, (writer) =>
                 {
-                    shard.SessionId = string.Empty;
-                    shard.LastSequenceNumber = 0;
-                }
+                    writer.WriteString("token", _apiToken);
 
-                await ReconnectAsync(shard);
+                    writer.WriteStartObject("properties");
+                    writer.WriteString("$os", Environment.OSVersion.ToString());
+                    writer.WriteString("$browser", "Donatello");
+                    writer.WriteString("$device", "Donatello");
+                    writer.WriteEndObject();
+
+                    writer.WriteNumber("large_threshold", 250);
+
+                    writer.WriteStartArray("shard");
+                    writer.WriteNumberValue(shard.Id);
+                    writer.WriteNumberValue(_shards.Length);
+                    writer.WriteEndArray();
+
+                    writer.WriteNumber("intents", (int)_intents);
+                });
             }
-
-            else if (opcode == 10) // Hello
-            {
-                var shard = _shards[gatewayEvent.ShardId];
-                var interval = gatewayEvent.Payload.GetProperty("d").GetProperty("heartbeat_interval").GetInt32();
-
-                shard.StartHeartbeat(interval);
-
-                if (string.IsNullOrEmpty(shard.SessionId))
-                {
-                    await shard.SendPayloadAsync(2, (writer) =>
-                    {
-                        writer.WriteString("token", _apiToken);
-
-                        writer.WriteStartObject("properties");
-                        writer.WriteString("$os", Environment.OSVersion.ToString());
-                        writer.WriteString("$browser", "Donatello");
-                        writer.WriteString("$device", "Donatello");
-                        writer.WriteEndObject();
-
-                        writer.WriteNumber("large_threshold", 250);
-
-                        writer.WriteStartArray("shard");
-                        writer.WriteNumberValue(shard.Id);
-                        writer.WriteNumberValue(_shards.Length);
-                        writer.WriteEndArray();
-
-                        writer.WriteNumber("intents", (int)_intents);
-                    });
-                }
-                else
-                {
-                    await shard.SendPayloadAsync(6, (writer) =>
-                    {
-                        writer.WriteString("token", _apiToken);
-                        writer.WriteString("session_id", shard.SessionId);
-                        writer.WriteNumber("seq", shard.LastSequenceNumber);
-                    });
-                }
-            }
-
             else
             {
-                throw new NotImplementedException($"Invalid opcode received: {opcode}");
+                // Resume
+                await shard.SendPayloadAsync(6, (writer) =>
+                {
+                    writer.WriteString("token", _apiToken);
+                    writer.WriteString("session_id", shard.SessionId);
+                    writer.WriteNumber("seq", shard.EventSequenceNumber);
+                });
             }
-        }
-
-        async Task ReconnectAsync(DiscordShard shard)
-        {
-            var connectionInfo = await GetGatewayInfoAsync();
-            var url = connectionInfo.GetProperty("url").GetString();
-
-            await shard.DisconnectAsync();
-            await shard.ConnectAsync(url);
         }
     }
 
-    /// <summary></summary>
-    private async Task DispatchEventAsync(DiscordEvent discordEvent)
+    /// <summary>Receives gateway event payloads from each connected <see cref="DiscordShard"/>.</summary>
+    private async Task ProcessEventsAsync(ChannelReader<DiscordEvent> eventChannelReader)
     {
-        throw new NotImplementedException();
+        await foreach (var gatewayEvent in eventChannelReader.ReadAllAsync())
+        {
+            var shard = gatewayEvent.Shard;
+            var eventName = gatewayEvent.Payload.GetProperty("t").GetString();
+            var eventData = gatewayEvent.Payload.GetProperty("d");
+
+
+        }
     }
 }

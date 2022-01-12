@@ -13,6 +13,8 @@ using Donatello.Interactions.Entity;
 using Donatello.Interactions.Extension;
 using Donatello.Rest;
 using Donatello.Rest.Extension.Endpoint;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSec.Cryptography;
 using Qmmands;
 using Qommon.Events;
@@ -29,10 +31,10 @@ public sealed class DiscordBot
     private Task _interactionListenerTask;
     private CancellationTokenSource _cts;
 
-    private AsynchronousEvent<CommandExecutedEventArgs> _commandExecutedEvent = new(EventExceptionLogger);
-    private AsynchronousEvent<CommandExecutionFailedEventArgs> _commandExecutionFailedEvent = new(EventExceptionLogger);
+    private AsynchronousEvent<CommandExecutedEventArgs> _commandExecutedEvent;
+    private AsynchronousEvent<CommandExecutionFailedEventArgs> _commandExecutionFailedEvent;
 
-    public DiscordBot(string apiToken, string publicKey)
+    public DiscordBot(string apiToken, string publicKey, ILogger logger = null)
     {
         if (string.IsNullOrWhiteSpace(apiToken))
             throw new ArgumentException("Token cannot be empty.", nameof(apiToken));
@@ -47,6 +49,10 @@ public sealed class DiscordBot
         );
 
         this.HttpClient = new DiscordHttpClient(apiToken);
+        this.Logger = logger ?? NullLogger.Instance;
+
+        _commandExecutedEvent = new AsynchronousEvent<CommandExecutedEventArgs>(EventExceptionLogger);
+        _commandExecutionFailedEvent = new AsynchronousEvent<CommandExecutionFailedEventArgs>(EventExceptionLogger);
 
         _commandService = new CommandService(CommandServiceConfiguration.Default);
         _commandService.CommandExecuted += (s, e) => _commandExecutedEvent.InvokeAsync(this, e);
@@ -55,6 +61,9 @@ public sealed class DiscordBot
 
     /// <summary>REST API wrapper instance.</summary>
     internal DiscordHttpClient HttpClient { get; private init; }
+
+    /// <summary></summary>
+    internal ILogger Logger { get; private set; }
 
     /// <summary>Whether this instance is listening for interactions.</summary>
     public bool IsRunning => _interactionListenerTask.Status == TaskStatus.Running;
@@ -116,9 +125,6 @@ public sealed class DiscordBot
     public async Task<DiscordChannel> GetChannelAsync(ulong channelId)
     {
         var response = await this.HttpClient.GetChannelAsync(channelId);
-
-
-
         return response.Payload.Clone().ToEntity<DiscordChannel>(this);
     }
 
@@ -167,71 +173,65 @@ public sealed class DiscordBot
         }
 
         listener.Stop();
-    }
-
-    /// <summary>Interaction client implementation.</summary>
-    private async Task ProcessInteractionAsync(string rawData, HttpListenerResponse response)
-    {
-        using var payload = JsonDocument.Parse(rawData);
-        var interactionType = payload.RootElement.GetProperty("type").GetInt32();
-
-        var responseBuffer = new ArrayBufferWriter<byte>();
-        using var responseWriter = new Utf8JsonWriter(responseBuffer);
 
 
-        if (interactionType == 1) // Ping
-            responseWriter.WriteNumber("type", 1);
-
-        else if (interactionType == 2) // Command
+        async Task ProcessInteractionAsync(string stringData, HttpListenerResponse response)
         {
-            var data = payload.RootElement.GetProperty("data");
-            var commandType = data.TryGetProperty("type", out var prop) ? prop.GetInt32() : 1;
+            using var payload = JsonDocument.Parse(stringData);
+            var interactionJson = payload.RootElement;
+            var interactionType = interactionJson.GetProperty("type").GetInt32();
 
-            var name = data.GetProperty("name").GetString();
-            var result = _commandService.FindCommands(name).FirstOrDefault();
+            var responseBuffer = new ArrayBufferWriter<byte>();
+            using var responseWriter = new Utf8JsonWriter(responseBuffer);
 
-            if (result is not null)
+            if (interactionType == 1) // Ping
+                responseWriter.WriteNumber("type", 1);
+
+            else if (interactionType == 2) // Command
             {
-                // Execute and return response.
+                var data = interactionJson.GetProperty("data");
+                var commandType = data.TryGetProperty("type", out var prop) ? prop.GetInt32() : 1;
+
+                var name = data.GetProperty("name").GetString();
+                var result = _commandService.FindCommands(name).FirstOrDefault();
+
+                if (result is not null)
+                {
+                    // Execute and return response.
+                }
+                else
+                {
+                    response.StatusCode = 500;
+                    response.StatusDescription = "Command not found.";
+                }
+            }
+            else if (interactionType == 3) // Component
+            {
+                throw new NotImplementedException();
+            }
+            else if (interactionType == 4) // Autocomplete
+            {
+                throw new NotImplementedException();
             }
             else
             {
-                response.StatusCode = 500;
-                response.StatusDescription = "Command not found.";
+                response.StatusCode = 501;
+                response.StatusDescription = "Unknown interaction type.";
+                return;
+            }
+
+
+            if (responseWriter.BytesPending > 0)
+            {
+                await responseWriter.FlushAsync().ConfigureAwait(false);
+                await response.OutputStream.WriteAsync(responseBuffer.WrittenMemory).ConfigureAwait(false);
+
+                response.StatusCode = 200;
             }
         }
-
-        else if (interactionType == 3) // Component
-        {
-            throw new NotImplementedException();
-        }
-
-        else if (interactionType == 4) // Autocomplete
-        {
-            throw new NotImplementedException();
-        }
-
-        else
-        {
-            response.StatusCode = 501;
-            response.StatusDescription = "Unknown interaction type.";
-            return;
-        }
-
-
-        if (responseWriter.BytesPending > 0)
-        {
-            await responseWriter.FlushAsync().ConfigureAwait(false);
-            await response.OutputStream.WriteAsync(responseBuffer.WrittenMemory).ConfigureAwait(false);
-
-            response.StatusCode = 200;
-        }
     }
 
-    private static void EventExceptionLogger(Exception exception)
-    {
-        // this.Logger.Log(...);
-        throw new NotImplementedException();
-    }
+    private void EventExceptionLogger(Exception exception) 
+        => this.Logger.LogError(exception, "An event handler threw an exception.");
 }
 

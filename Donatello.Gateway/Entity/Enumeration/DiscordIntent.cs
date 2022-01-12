@@ -2,95 +2,62 @@
 
 namespace Donatello.Gateway.Entity.Enumeration
 {
-    /// <summary>
-    /// Represents one or more gateway intents.
-    /// </summary>
+    /// <summary>Represents one or more gateway intents.</summary>
     [Flags]
     public enum DiscordIntent
     {
-        /// <summary>
-        /// All privileged and non-privileged events.
-        /// </summary>
-        All = Unprivileged | GuildMembers | GuildPresences,
+        /// <summary>All privileged and non-privileged events.</summary>
+        All = Unprivileged | Privileged,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
+        Privileged = GuildMembers | GuildPresences,
+
+        /// <summary></summary>
         Unprivileged = Guilds | GuildBans | GuildEmojis | GuildIntegrations | GuildWebhooks | GuildInvites | GuildVoiceStates | GuildMessages | GuildMessageReactions | GuildMessageTyping | DirectMessages | DirectMessageReactions | DirectMessageTyping,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         Guilds = 1 << 0,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         GuildMembers = 1 << 1,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         GuildBans = 1 << 2,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         GuildEmojis = 1 << 3,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         GuildIntegrations = 1 << 4,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         GuildWebhooks = 1 << 5,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         GuildInvites = 1 << 6,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         GuildVoiceStates = 1 << 7,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         GuildPresences = 1 << 8,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         GuildMessages = 1 << 9,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         GuildMessageReactions = 1 << 10,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         GuildMessageTyping = 1 << 11,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         DirectMessages = 1 << 12,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         DirectMessageReactions = 1 << 13,
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary></summary>
         DirectMessageTyping = 1 << 14
     }
 }

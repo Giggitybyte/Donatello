@@ -11,13 +11,14 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 /// <summary>HTTP client wrapper for the Discord REST API.</summary>
 public class DiscordHttpClient
 {
     private static HttpClient _client;
-
+    private ConcurrentDictionary<Uri, string> _bucketIds;
     private ConcurrentDictionary<string, RequestBucket> _requestBuckets;
     private KeyValuePair<string, string> _authHeader;
     private DateTime _globalRatelimitResetDate;
@@ -40,6 +41,7 @@ public class DiscordHttpClient
     public DiscordHttpClient(string token, bool isBearerToken = false, ILogger logger = null)
     {
         _authHeader = new("Authorization", $"{(isBearerToken ? "Bearer" : "Bot")} {token}");
+        _bucketIds = new ConcurrentDictionary<Uri, string>();
         _requestBuckets = new ConcurrentDictionary<string, RequestBucket>();
 
         this.Logger = logger ?? NullLogger.Instance;
@@ -101,6 +103,12 @@ public class DiscordHttpClient
         if (content is not null)
             request.Content = content;
 
+        if (IsRatelimited(endpoint, out var delayTime))
+            return await DelayRequestAsync(request, delayTime).ConfigureAwait(false);
+        else
+            return await ExecuteRequestAsync(request).ConfigureAwait(false);
+
+
         bool IsRatelimited(string endpoint, out TimeSpan delayTime)
         {
             if (_globalRatelimitResetDate > DateTime.Now)
@@ -123,55 +131,61 @@ public class DiscordHttpClient
             }
         }
 
-        if (IsRatelimited(endpoint, out var delayTime))
-            return await DelayRequestAsync(request, delayTime).ConfigureAwait(false);
-        else
-            return await ExecuteRequestAsync(request).ConfigureAwait(false);
-    }
-
-    /// <summary></summary>
-    private async Task<HttpResponse> ExecuteRequestAsync(HttpRequestMessage request)
-    {
-        var response = await _client.SendAsync(request).ConfigureAwait(false);
-
-        using var responsePayload = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-        using var responseJson = await JsonDocument.ParseAsync(responsePayload).ConfigureAwait(false);
-
-        if (_requestBuckets.TryGetValue(request.RequestUri.ToString(), out var existingBucket))
-            existingBucket.Update(response.Headers);
-        else if (RequestBucket.TryParse(response.Headers, out var newBucket))
-            _requestBuckets.TryAdd(request.RequestUri.ToString(), newBucket);
-
-        if (response.StatusCode is HttpStatusCode.TooManyRequests) // Ratelimited
+        async Task<HttpResponse> ExecuteRequestAsync(HttpRequestMessage request)
         {
-            var retrySeconds = int.Parse(response.Headers.GetValues("X-RateLimit-Reset-After").First());
-            var retryTime = TimeSpan.FromSeconds(retrySeconds);
+            this.Logger.LogTrace("Sending {Method} request to {Uri}", request.Method.Method, request.RequestUri);
 
-            var scope = response.Headers.GetValues("X-RateLimit-Scope").First();
+            var response = await _client.SendAsync(request).ConfigureAwait(false);
+            using var responsePayload = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+            using var responseJson = await JsonDocument.ParseAsync(responsePayload).ConfigureAwait(false);
 
-            if (scope is "global")
-                _globalRatelimitResetDate = DateTime.Now + retryTime;
-            else if (scope is "shared" or "user")
-                return await DelayRequestAsync(request, retryTime).ConfigureAwait(false);
-            else
-                throw new NotImplementedException();
+            if (_requestBuckets.TryGetValue(request.RequestUri.ToString(), out var existingBucket))
+            {
+                existingBucket.Update(response.Headers);
+                this.Logger.LogTrace("Updated existing ratelimit bucket for {Uri}", request.RequestUri.AbsolutePath);
+            }
+            else if (RequestBucket.TryParse(response.Headers, out var newBucket))
+            {
+                this.Logger.LogTrace("Created new ratelimit bucket for {Uri}", request.RequestUri.AbsolutePath);
+                _requestBuckets.TryAdd(request.RequestUri.ToString(), newBucket);
+            }
+
+            if (response.StatusCode is HttpStatusCode.TooManyRequests)
+            {
+                var retrySeconds = int.Parse(response.Headers.GetValues("X-RateLimit-Reset-After").First());
+                var retryTime = TimeSpan.FromSeconds(retrySeconds);
+
+                var scope = response.Headers.GetValues("X-RateLimit-Scope").First();
+
+                if (scope is "global")
+                {
+                    _globalRatelimitResetDate = DateTime.Now + retryTime;
+                    this.Logger.LogWarning("Global ratelimit hit; reset at {Date}", _globalRatelimitResetDate);
+                }
+                else if (scope is "shared" or "user")
+                {
+
+                    return await DelayRequestAsync(request, retryTime).ConfigureAwait(false);
+                }
+                else
+                    this.Logger.LogWarning("Unknown ratelimit scope '{Scope}'", scope);
+            }
+
+            return new HttpResponse()
+            {
+                Status = response.StatusCode,
+                Message = response.ReasonPhrase,
+                Payload = responseJson.RootElement.Clone()
+            };
         }
-        else if (response.StatusCode is not HttpStatusCode.OK or HttpStatusCode.NoContent)
-            throw new DiscordHttpException(response.StatusCode, response.ReasonPhrase, responseJson.RootElement.Clone());
 
-        return new HttpResponse()
+        async Task<HttpResponse> DelayRequestAsync(HttpRequestMessage request, TimeSpan delayTime)
         {
-            Status = response.StatusCode,
-            Message = response.ReasonPhrase,
-            Payload = responseJson.RootElement.Clone()
-        };
-    }
+            this.Logger.LogDebug("Request to {Uri} delayed until {Time}", request.RequestUri.AbsolutePath, DateTime.Now + delayTime);
 
-    /// <summary></summary>
-    private async Task<HttpResponse> DelayRequestAsync(HttpRequestMessage request, TimeSpan delayTime)
-    {
-        await Task.Delay(delayTime).ConfigureAwait(false);
-        return await ExecuteRequestAsync(request).ConfigureAwait(false);
+            await Task.Delay(delayTime);
+            return await ExecuteRequestAsync(request);
+        }
     }
 }
 
