@@ -30,7 +30,7 @@ public abstract class DiscordTextChannel : DiscordChannel
     }
 
     /// <summary></summary>
-    public Task<DiscordMessage> GetMessageAsync()
+    public Task<DiscordMessage> GetMessageAsync(ulong messageId)
     {
 
     }

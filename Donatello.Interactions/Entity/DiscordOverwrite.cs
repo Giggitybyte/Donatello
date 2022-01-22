@@ -4,7 +4,7 @@ using Donatello.Interactions.Entity.Enumeration;
 using System.Text.Json;
 
 /// <summary></summary>
-public class DiscordOverwrite : DiscordEntity
+public abstract class DiscordOverwrite : DiscordEntity
 {
     public DiscordOverwrite(DiscordBot bot, JsonElement json) : base(bot, json) { }
 

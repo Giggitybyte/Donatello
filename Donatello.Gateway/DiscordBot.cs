@@ -67,6 +67,10 @@ public sealed partial class DiscordBot
     public void LoadCommandModule<T>() where T : DiscordCommandModule
         => _commandService.AddModule(typeof(T));
 
+    /// <summary></summary>
+    public void LoadCommandModule(Action<ModuleBuilder> moduleBuilder) 
+        => _commandService.AddModule(moduleBuilder);
+
     /// <summary>Adds an addon to this instance.</summary>
     public void LoadAddon<T>() // where T : DonatelloAddon
         => throw new NotImplementedException();

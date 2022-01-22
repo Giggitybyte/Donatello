@@ -5,10 +5,12 @@ using System.Buffers;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Donatello.Interactions.Command.Module;
 using Donatello.Interactions.Entity;
 using Donatello.Interactions.Extension;
 using Donatello.Rest;
@@ -82,8 +84,16 @@ public sealed class DiscordBot
     /// <summary>Whether this instance is listening for interactions.</summary>
     public bool IsRunning => _interactionListenerTask.Status == TaskStatus.Running;
 
+    /// <summary>Searches the provided assembly for classes which inherit from <see cref="DiscordCommandModule"/> and registers each of their commands.</summary>
+    public void LoadCommandModules(Assembly assembly)
+        => _commandService.AddModules(assembly);
+
+    /// <summary>Registers all commands found in the provided command module type with the command framework.</summary>
+    public void LoadCommandModule<T>() where T : DiscordCommandModule
+        => _commandService.AddModule(typeof(T));
+
     /// <summary>Submits all registered commands to Discord and begins listening for interactions.</summary>
-    public void Start(int port = 8080)
+    public void Start(ushort port = 8080)
     {
         if (this.IsRunning)
             throw new InvalidOperationException("Instance is already active.");
@@ -118,14 +128,14 @@ public sealed class DiscordBot
     /// <summary></summary>
     public async Task<DiscordGuild> GetGuildAsync(ulong guildId)
     {
-        var response = await this.HttpClient.GetGuildAsync(guildId);
+        var response = await this.HttpClient.GetGuildAsync(guildId).ConfigureAwait(false);
         return new DiscordGuild(this, response.Payload);
     }
 
     public async Task<DiscordChannel> GetChannelAsync(ulong channelId)
     {
         var response = await this.HttpClient.GetChannelAsync(channelId);
-        return response.Payload.Clone().ToEntity<DiscordChannel>(this);
+        return response.Payload.ToEntity<DiscordChannel>(this);
     }
 
     public async Task<DiscordChannel> GetChannelAsync(ulong guildId, ulong channelId)

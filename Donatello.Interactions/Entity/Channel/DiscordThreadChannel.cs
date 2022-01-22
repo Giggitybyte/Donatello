@@ -14,7 +14,7 @@ public sealed class DiscordThreadChannel : DiscordGuildTextChannel
     /// <summary>Thread-specific channel fields that are not used by other channel types.</summary>
     internal JsonElement Metadata { get => this.Json.GetProperty("thread_metadata"); }
 
-    /// <summary>Whether this is a private invite-only thread.</summary>
+    /// <summary>Whether this is a private thread viewable only by invited (<c>@mentioned</c>) users.</summary>
     public bool IsPrivate { get => this.Type is ChannelType.PrivateThread; }
 
     /// <summary>Whether the thread has been locked.</summary>
@@ -27,7 +27,7 @@ public sealed class DiscordThreadChannel : DiscordGuildTextChannel
     /// <summary>When the thread's archive status was last changed.</summary>
     public DateTime ArchiveTimestamp { get => this.Metadata.GetProperty("archive_timestamp").GetDateTime(); }
 
-    /// <summary>Length of time it'll take for a thread to be automatically archived after recent activity.</summary>
+    /// <summary>Length of time it'll take for a thread to be automatically archived after the last message was sent.</summary>
     public TimeSpan ArchiveTimeout { get => TimeSpan.FromMinutes(this.Metadata.GetProperty("auto_archive_duration").GetInt32()); }
 
     /// <summary>Fetches the user which started this thread.</summary>
@@ -37,9 +37,10 @@ public sealed class DiscordThreadChannel : DiscordGuildTextChannel
         return await this.Bot.GetUserAsync(id);
     }
 
+    /// <summary>Fetches the text channel which contains this thread channel.</summary>
     public async Task<DiscordGuildTextChannel> GetParentChannel()
     {
         var id = this.Json.GetProperty("parent_id").AsUInt64();
-        return await this.Bot.GetChannelAsync(id);
+        return await this.Bot.GetChannelAsync(id) as DiscordGuildTextChannel;
     }
 }
