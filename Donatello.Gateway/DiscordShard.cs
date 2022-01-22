@@ -20,19 +20,19 @@ public sealed class DiscordShard
     private Task _wsReceieveTask, _wsHeartbeatTask;
     private CancellationTokenSource _websocketCts, _heartbeatDelayCts;
     private ChannelWriter<DiscordShard> _identifyChannelWriter;
-    private ChannelWriter<DiscordEvent> _eventChannelWriter;    
+    private ChannelWriter<DiscordEvent> _eventChannelWriter;
     private ClientWebSocket _websocketClient;
     private DiscordHttpClient _httpClient;
     private ILogger _logger;
     private bool _receivedHeartbeatAck;
 
-    internal DiscordShard(int shardId, ChannelWriter<DiscordShard> identifyChannelWriter, ChannelWriter<DiscordEvent> eventChannelWriter, DiscordHttpClient httpClient, ILogger logger)
+    internal DiscordShard(ChannelWriter<DiscordShard> identifyWriter, ChannelWriter<DiscordEvent> eventWriter, DiscordHttpClient httpClient, ILogger logger)
     {
         _websocketCts = new CancellationTokenSource();
         _heartbeatDelayCts = new CancellationTokenSource();
 
-        _identifyChannelWriter = identifyChannelWriter;
-        _eventChannelWriter = eventChannelWriter;
+        _identifyChannelWriter = identifyWriter;
+        _eventChannelWriter = eventWriter;
         _httpClient = httpClient;
         _logger = logger;
 
@@ -187,7 +187,6 @@ public sealed class DiscordShard
             if (opcode == 0) // Guild, channel, or user event
             {
                 this.EventSequenceNumber = json.GetProperty("s").GetInt32();
-
                 var gatewayEvent = new DiscordEvent(this, json.Clone());
                 await _eventChannelWriter.WriteAsync(gatewayEvent);
             }
@@ -216,7 +215,7 @@ public sealed class DiscordShard
                 var intervalMs = json.GetProperty("d").GetProperty("heartbeat_interval").GetInt32();
                 _wsHeartbeatTask = WebsocketHeartbeatLoop(intervalMs, cancelToken, _heartbeatDelayCts.Token);
 
-                _identifyChannelWriter.WriteAsync(this);
+                await _identifyChannelWriter.WriteAsync(this);
             }
 
             else if (opcode == 11) // Heartbeat ack

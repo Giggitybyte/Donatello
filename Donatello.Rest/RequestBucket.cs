@@ -9,12 +9,25 @@ internal sealed class RequestBucket
     private int _limit;
     private int _remaining;
 
-    internal RequestBucket(string bucketId, int limit, int remaining, DateTime resetTime)
+    /// <summary>Creates a new <see cref="RequestBucket"/> from the provided <see cref="HttpResponseHeaders"/>.</summary>
+    internal RequestBucket(HttpResponseHeaders headers)
     {
+        var id = headers.GetValues("X-RateLimit-Bucket").SingleOrDefault();
+
+        var limitHeader = headers.GetValues("X-RateLimit-Limit");
+        var limit = int.Parse(limitHeader.SingleOrDefault());
+
+        var remainingHeader = headers.GetValues("X-RateLimit-Remaining");
+        var remaining = int.Parse(remainingHeader.SingleOrDefault());
+
+        var resetHeader = headers.GetValues("X-RateLimit-Reset");
+        var resetTimestamp = int.Parse(resetHeader.SingleOrDefault());
+        var resetTime = DateTime.UnixEpoch + TimeSpan.FromSeconds(resetTimestamp);
+
         _limit = limit;
         _remaining = remaining;
 
-        this.Id = bucketId;
+        this.Id = id;
         this.ResetTime = resetTime;
     }
 
@@ -23,46 +36,6 @@ internal sealed class RequestBucket
 
     /// <summary></summary>
     internal DateTime ResetTime { get; private set; }
-
-    /// <summary>Attempts to create a new <see cref="RequestBucket"/> from the provided <see cref="HttpResponseHeaders"/>.</summary>
-    internal static bool TryParse(HttpResponseHeaders headers, out RequestBucket bucket)
-    {
-        bucket = null;
-
-        // Bucket ID
-        if (!headers.TryGetValues("X-RateLimit-Bucket", out var bucketIdHeader))
-            return false;
-
-        var id = bucketIdHeader.SingleOrDefault();
-        if (id is null)
-            return false;
-
-        // Limit
-        if (!headers.TryGetValues("X-RateLimit-Limit", out var limitHeader))
-            return false;
-
-        if (!int.TryParse(limitHeader.SingleOrDefault(), out var limit))
-            return false;
-
-        // Remaining
-        if (!headers.TryGetValues("X-RateLimit-Remaining", out var remainingHeader))
-            return false;
-
-        if (!int.TryParse(remainingHeader.SingleOrDefault(), out var remaining))
-            return false;
-
-        // Reset time
-        if (!headers.TryGetValues("X-RateLimit-Reset", out var resetHeader))
-            return false;
-
-        if (!int.TryParse(resetHeader.SingleOrDefault(), out var resetTimestamp))
-            return false;
-
-        var resetTime = DateTime.UnixEpoch + TimeSpan.FromSeconds(resetTimestamp);
-
-        bucket = new RequestBucket(id, limit, remaining, resetTime);
-        return true;
-    }
 
     /// <summary>Decrements the number of requests remaining for this bucket.</summary>
     internal bool TryUse()
@@ -87,17 +60,16 @@ internal sealed class RequestBucket
     {
         lock (this)
         {
-            if (headers.TryGetValues("X-RateLimit-Limit", out var limitHeader))
-                if (!int.TryParse(limitHeader.SingleOrDefault(), out var limit))
-                    _limit = limit;
+            var limitHeader = headers.GetValues("X-RateLimit-Limit");
+            _limit = int.Parse(limitHeader.SingleOrDefault());
 
-            if (headers.TryGetValues("X-RateLimit-Remaining", out var remainingHeader))
-                if (!int.TryParse(remainingHeader.SingleOrDefault(), out var remaining))
-                    _remaining = remaining;
+            var remainingHeader = headers.GetValues("X-RateLimit-Remaining");
+            var remaining = int.Parse(remainingHeader.SingleOrDefault());
+            _remaining = remaining;
 
-            if (!headers.TryGetValues("X-RateLimit-Reset", out var resetHeader))
-                if (!int.TryParse(resetHeader.SingleOrDefault(), out var resetTimestamp))
-                    this.ResetTime = DateTime.UnixEpoch + TimeSpan.FromSeconds(resetTimestamp);
+            var resetHeader = headers.GetValues("X-RateLimit-Reset");
+            var resetTimestamp = int.Parse(resetHeader.SingleOrDefault());
+            this.ResetTime = DateTime.UnixEpoch + TimeSpan.FromSeconds(resetTimestamp);
         }
     }
 }

@@ -115,51 +115,20 @@ public sealed partial class DiscordBot
         Array.Clear(_shards, 0, _shards.Length);
     }
 
-    /// <summary></summary>
-    private async Task ProcessIdentifyAsync(ChannelReader<DiscordShard> identifyChannelReader)
+    /// <summary>Handles</summary>
+    private async Task ProcessIdentifyAsync(ChannelReader<DiscordShard> identifyReader)
     {
-        await foreach (var shard in identifyChannelReader.ReadAllAsync())
+        // I don't like this.
+        await foreach (var shard in identifyReader.ReadAllAsync())
         {
-            if (string.IsNullOrEmpty(shard.SessionId))
-            {
-                // Identify
-                await shard.SendPayloadAsync(2, (writer) =>
-                {
-                    writer.WriteString("token", _apiToken);
-
-                    writer.WriteStartObject("properties");
-                    writer.WriteString("$os", Environment.OSVersion.ToString());
-                    writer.WriteString("$browser", "Donatello");
-                    writer.WriteString("$device", "Donatello");
-                    writer.WriteEndObject();
-
-                    writer.WriteNumber("large_threshold", 250);
-
-                    writer.WriteStartArray("shard");
-                    writer.WriteNumberValue(shard.Id);
-                    writer.WriteNumberValue(_shards.Length);
-                    writer.WriteEndArray();
-
-                    writer.WriteNumber("intents", (int)_intents);
-                });
-            }
-            else
-            {
-                // Resume
-                await shard.SendPayloadAsync(6, (writer) =>
-                {
-                    writer.WriteString("token", _apiToken);
-                    writer.WriteString("session_id", shard.SessionId);
-                    writer.WriteNumber("seq", shard.EventSequenceNumber);
-                });
-            }
+           
         }
     }
 
     /// <summary>Receives gateway event payloads from each connected <see cref="DiscordShard"/>.</summary>
-    private async Task ProcessEventsAsync(ChannelReader<DiscordEvent> eventChannelReader)
+    private async Task ProcessEventsAsync(ChannelReader<DiscordEvent> eventReader)
     {
-        await foreach (var gatewayEvent in eventChannelReader.ReadAllAsync())
+        await foreach (var gatewayEvent in eventReader.ReadAllAsync())
         {
             var shard = gatewayEvent.Shard;
             var eventName = gatewayEvent.Payload.GetProperty("t").GetString();

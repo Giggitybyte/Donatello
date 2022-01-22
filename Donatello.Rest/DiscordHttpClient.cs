@@ -11,7 +11,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 
 /// <summary>HTTP client wrapper for the Discord REST API.</summary>
@@ -144,10 +143,10 @@ public class DiscordHttpClient
                 existingBucket.Update(response.Headers);
                 this.Logger.LogTrace("Updated existing ratelimit bucket for {Uri}", request.RequestUri.AbsolutePath);
             }
-            else if (RequestBucket.TryParse(response.Headers, out var newBucket))
+            else
             {
+                _requestBuckets.TryAdd(request.RequestUri.ToString(), new RequestBucket(response.Headers));
                 this.Logger.LogTrace("Created new ratelimit bucket for {Uri}", request.RequestUri.AbsolutePath);
-                _requestBuckets.TryAdd(request.RequestUri.ToString(), newBucket);
             }
 
             if (response.StatusCode is HttpStatusCode.TooManyRequests)
@@ -162,13 +161,10 @@ public class DiscordHttpClient
                     _globalRatelimitResetDate = DateTime.Now + retryTime;
                     this.Logger.LogWarning("Global ratelimit hit; reset at {Date}", _globalRatelimitResetDate);
                 }
-                else if (scope is "shared" or "user")
-                {
-
-                    return await DelayRequestAsync(request, retryTime).ConfigureAwait(false);
-                }
-                else
+                else if (scope is not "shared" or "user")
                     this.Logger.LogWarning("Unknown ratelimit scope '{Scope}'", scope);
+
+                return await DelayRequestAsync(request, retryTime).ConfigureAwait(false);
             }
 
             return new HttpResponse()

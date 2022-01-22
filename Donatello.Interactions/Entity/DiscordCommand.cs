@@ -4,7 +4,7 @@ using Donatello.Interactions.Entity.Enumeration;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-internal class DiscordCommand : DiscordEntity
+internal sealed class DiscordCommand : DiscordEntity
 {
     public DiscordCommand(DiscordBot bot, JsonElement json) : base(bot, json) { }
 

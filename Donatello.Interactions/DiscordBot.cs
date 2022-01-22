@@ -59,15 +59,6 @@ public sealed class DiscordBot
         _commandService.CommandExecutionFailed += (s, e) => _commandExecutionFailedEvent.InvokeAsync(this, e);
     }
 
-    /// <summary>REST API wrapper instance.</summary>
-    internal DiscordHttpClient HttpClient { get; private init; }
-
-    /// <summary></summary>
-    internal ILogger Logger { get; private set; }
-
-    /// <summary>Whether this instance is listening for interactions.</summary>
-    public bool IsRunning => _interactionListenerTask.Status == TaskStatus.Running;
-
     /// <summary>Fired when a command successfully executes.</summary>
     public event AsynchronousEventHandler<CommandExecutedEventArgs> CommandExecuted
     {
@@ -81,6 +72,15 @@ public sealed class DiscordBot
         add => _commandExecutionFailedEvent.Hook(value);
         remove => _commandExecutionFailedEvent.Unhook(value);
     }
+
+    /// <summary>REST API wrapper instance.</summary>
+    internal DiscordHttpClient HttpClient { get; private init; }
+
+    /// <summary></summary>
+    internal ILogger Logger { get; private init; }
+
+    /// <summary>Whether this instance is listening for interactions.</summary>
+    public bool IsRunning => _interactionListenerTask.Status == TaskStatus.Running;
 
     /// <summary>Submits all registered commands to Discord and begins listening for interactions.</summary>
     public void Start(int port = 8080)
@@ -131,11 +131,26 @@ public sealed class DiscordBot
     public async Task<DiscordChannel> GetChannelAsync(ulong guildId, ulong channelId)
     {
         var response = await this.HttpClient.GetGuildChannelsAsync(guildId);
-        re
+        DiscordChannel channel = null;
+
+        foreach (var guildChannel in response.Payload.EnumerateArray())
+        {
+            var guildChannelId = ulong.Parse(guildChannel.GetProperty("id").GetString());
+            if (guildChannelId == channelId)
+            {
+                channel = guildChannel.ToEntity<DiscordChannel>(this);
+                break;
+            }
+        }
+
+        if (channel is not null)
+            return channel;
+        else
+            throw new Exception("Invalid channel ID.");
     }
 
     /// <summary>Webhook listener.</summary>
-    private async Task InteractionListenerLoop(int port, CancellationToken token)
+    private async Task InteractionListenerLoop(ushort port, CancellationToken token)
     {
         using var listener = new HttpListener();
         listener.Prefixes.Add($"https://*:{port}/");
@@ -144,13 +159,13 @@ public sealed class DiscordBot
 
         while (!token.IsCancellationRequested)
         {
-            var httpContext = await listener.GetContextAsync().ConfigureAwait(false);
+            var httpContext = await listener.GetContextAsync();
             var request = httpContext.Request;
             var response = httpContext.Response;
 
             using var streamReader = new StreamReader(request.InputStream, Encoding.UTF8);
 
-            var data = await streamReader.ReadToEndAsync().ConfigureAwait(false);
+            var data = await streamReader.ReadToEndAsync();
             var signature = request.Headers.Get("X-Signature-Ed25519");
             var timestamp = request.Headers.Get("X-Signature-Timestamp");
 
@@ -162,7 +177,7 @@ public sealed class DiscordBot
             );
 
             if (isValidSignature)
-                await ProcessInteractionAsync(data, response).ConfigureAwait(false);
+                await ProcessInteractionAsync(data, response);
             else
             {
                 response.StatusCode = 401;
@@ -197,7 +212,7 @@ public sealed class DiscordBot
 
                 if (result is not null)
                 {
-                    // Execute and return response.
+                    result.Command.
                 }
                 else
                 {
@@ -231,7 +246,7 @@ public sealed class DiscordBot
         }
     }
 
-    private void EventExceptionLogger(Exception exception) 
+    private void EventExceptionLogger(Exception exception)
         => this.Logger.LogError(exception, "An event handler threw an exception.");
 }
 

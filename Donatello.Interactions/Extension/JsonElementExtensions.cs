@@ -16,7 +16,7 @@ internal static class JsonElementExtensions
             DiscordChannel channel = type switch
             {
                 0 or 5 => new DiscordTextChannel(botInstance, jsonObject),
-                1 => new DiscordDirectChannel(botInstance, jsonObject),
+                1 => new DiscordDirectTextChannel(botInstance, jsonObject),
                 2 => new DiscordVoiceChannel(botInstance, jsonObject),
                 3 => throw new NotSupportedException("Bot accounts cannot be in group DMs."),
                 4 => new DiscordCategoryChannel(botInstance, jsonObject),
@@ -36,9 +36,9 @@ internal static class JsonElementExtensions
     {
         if (jsonArray.ValueKind is not JsonValueKind.Array)
             throw new JsonException($"Expected an array, got {jsonArray.ValueKind} instead.");
-
-        var index = 0;
+        
         var array = new T[jsonArray.GetArrayLength()];
+        int index = 0;
 
         foreach (var jsonElement in jsonArray.EnumerateArray())
             array[index++] = jsonElement.ToEntity<T>(botInstance);
