@@ -58,6 +58,7 @@ internal sealed class RequestBucket
     }
 
     /// <summary>Attempts to decrement the number of requests available for this bucket.</summary>
+    /// <remarks>When <see langword="false"/> is returned, a local rate limit should be applied.</remarks>
     internal bool TryUse()
     {
         lock (this)

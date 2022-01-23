@@ -102,18 +102,14 @@ public class DiscordHttpClient
         if (content is not null)
             request.Content = content;
 
-        // Should we apply a local rate limit?
+        // Should we apply a delay to sending this request?
         var currentDate = DateTime.Now;
         var delayTime = TimeSpan.Zero;
 
         if (_globalRatelimitResetDate > currentDate)
-        {
             delayTime = _globalRatelimitResetDate - currentDate;
-        }
-        else if (_bucketIds.TryGetValue(request.RequestUri, out var bucketId) && _requestBuckets.TryGetValue(bucketId, out var bucket))
-        {
+        else if (_bucketIds.TryGetValue(request.RequestUri, out var bucketId) && _requestBuckets.TryGetValue(bucketId, out var bucket) && bucket.TryUse())
             delayTime = bucket.ResetDate - currentDate;
-        }
 
         if (delayTime == TimeSpan.Zero) // No.
             return await ExecuteRequestAsync(request).ConfigureAwait(false);
@@ -125,37 +121,30 @@ public class DiscordHttpClient
         {
             this.Logger.LogTrace("Sending {Method} request to {Uri}", request.Method.Method, request.RequestUri);
 
-            var response = await _client.SendAsync(request).ConfigureAwait(false);
+            using var response = await _client.SendAsync(request).ConfigureAwait(false);
             using var responsePayload = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
             using var responseJson = await JsonDocument.ParseAsync(responsePayload).ConfigureAwait(false);
 
-            var bucketId = response.Headers.GetValues("X-RateLimit-Bucket").SingleOrDefault();
 
-            RequestBucket bucket;
-            if (_requestBuckets.TryGetValue(bucketId, out bucket))
+            if (response.Headers.TryGetValues("X-RateLimit-Bucket", out var headers)) // Update bucket
             {
-                bucket.Update(response.Headers);
-                this.Logger.LogTrace("Updated existing ratelimit bucket for {Uri}", request.RequestUri.AbsolutePath);
-            }
-            else
-            {
-                _bucketIds.TryAdd(request.RequestUri, bucketId);
-
-                bucket = new RequestBucket(response.Headers);
-                _requestBuckets.TryAdd(bucketId, bucket);
-                this.Logger.LogTrace("Created new ratelimit bucket for {Uri}", request.RequestUri.AbsolutePath);
-            }
-
-            if (response.StatusCode is not HttpStatusCode.TooManyRequests && bucket.TryUse())
-            {
-                return new HttpResponse()
+                var bucketId = headers.FirstOrDefault();
+                if (_requestBuckets.TryGetValue(bucketId, out var bucket))
                 {
-                    Status = response.StatusCode,
-                    Message = response.ReasonPhrase,
-                    Payload = responseJson.RootElement.Clone()
-                };
+                    bucket.Update(response.Headers);
+                    this.Logger.LogTrace("Updated existing ratelimit bucket for {Uri}", request.RequestUri.AbsolutePath);
+                }
+                else
+                {
+                    _bucketIds.TryAdd(request.RequestUri, bucketId);
+
+                    bucket = new RequestBucket(response.Headers);
+                    _requestBuckets.TryAdd(bucketId, bucket);
+                    this.Logger.LogTrace("Created new ratelimit bucket for {Uri}", request.RequestUri.AbsolutePath);
+                }
             }
-            else // Rate limited.
+
+            if (response.StatusCode is HttpStatusCode.TooManyRequests) // Handle rate limit
             {
                 var retrySeconds = int.Parse(response.Headers.GetValues("Retry-After").First());
                 var retryTime = TimeSpan.FromSeconds(retrySeconds);
@@ -173,9 +162,15 @@ public class DiscordHttpClient
                 else
                     this.Logger.LogWarning("Unknown ratelimit scope '{Scope}'", scope);
 
-
                 return await DelayRequestAsync(request, retryTime).ConfigureAwait(false);
             }
+
+            return new HttpResponse()
+            {
+                Status = response.StatusCode,
+                Message = response.ReasonPhrase,
+                Payload = responseJson.RootElement.Clone()
+            };
         }
 
         async Task<HttpResponse> DelayRequestAsync(HttpRequestMessage request, TimeSpan delayTime)
