@@ -1,5 +1,6 @@
-﻿namespace Donatello.Rest.Extension.Endpoint;
+﻿namespace Donatello.Rest.Endpoint;
 
+using Donatello.Rest.Transport;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;

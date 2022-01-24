@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Rest;
 
-using Donatello.Rest.Extension;
+using Donatello.Rest.Transport;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -88,7 +88,7 @@ public class DiscordHttpClient
     /// <summary>Sends an HTTP request.</summary>
     private async Task<HttpResponse> SendRequestCoreAsync(HttpMethod method, string endpoint, HttpContent content = null)
     {
-        endpoint = endpoint.TrimEnd('/');
+        endpoint = endpoint.Trim('/');
 
         var request = new HttpRequestMessage(method, endpoint);
         request.Headers.Add(_authHeader.Key, _authHeader.Value);

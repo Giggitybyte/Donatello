@@ -14,7 +14,7 @@ using Donatello.Interactions.Command.Module;
 using Donatello.Interactions.Entity;
 using Donatello.Interactions.Extension;
 using Donatello.Rest;
-using Donatello.Rest.Extension.Endpoint;
+using Donatello.Rest.Endpoint;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSec.Cryptography;

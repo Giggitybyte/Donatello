@@ -12,4 +12,7 @@ public sealed class DiscordVoiceChannel : DiscordChannel
 
     /// <summary></summary>
     public int Bitrate => this.Json.GetProperty("bitrate").GetInt32();
+
+    /// <summary></summary>
+    public int Position => this.Json.GetProperty("position").GetInt32();
 }

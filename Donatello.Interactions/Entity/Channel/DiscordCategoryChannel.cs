@@ -1,7 +1,7 @@
 ﻿namespace Donatello.Interactions.Entity;
 
 using Donatello.Interactions.Extension;
-using Donatello.Rest.Extension.Endpoint;
+using Donatello.Rest.Endpoint;
 using Qommon.Collections;
 using System.Text.Json;
 using System.Threading.Tasks;

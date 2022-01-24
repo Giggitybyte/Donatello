@@ -1,9 +1,9 @@
-﻿namespace Donatello.Rest;
+﻿namespace Donatello.Rest.Transport;
 
 using System.IO;
 using System.Net.Http;
 
-public sealed class FileAttachment 
+public sealed class FileAttachment
 {
     internal FileAttachment(string name, HttpContent content)
     {

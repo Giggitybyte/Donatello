@@ -1,4 +1,4 @@
-﻿namespace Donatello.Rest;
+﻿namespace Donatello.Rest.Transport;
 
 using System.Net;
 using System.Text.Json;
