@@ -1,7 +1,6 @@
 ﻿namespace Donatello.Interactions.Entity;
 
-using Donatello.Interactions.Builder;
-using System;
+using Donatello.Rest.Endpoint;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -12,14 +11,10 @@ public sealed class DiscordAnnouncementChannel : DiscordGuildTextChannel
 
     /// <summary>Send a message in this channel to all following channels.</summary>
     public Task CrosspostMessageAsync(DiscordMessage message)
-    {
-        throw new NotImplementedException();
-    }
+        => this.Bot.HttpClient.CrosspostMessageAsync(message.ChannelId, message.Id);
 
     /// <summary>Adds the provided <paramref name="channel"/> as a follower to this channel.</summary>
     /// <remarks>Requires the <c>MANAGE_WEBHOOKS</c> permission in the <paramref name="channel"/>.</remarks>
     public Task AddFollowerAsync(DiscordChannel channel)
-    {
-        throw new NotImplementedException();
-    }
+        => this.Bot.HttpClient.FollowNewsChannelAsync(this.Id, channel.Id);
 }

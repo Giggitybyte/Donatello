@@ -1,5 +1,6 @@
 ﻿namespace Donatello.Interactions.Entity;
 
+using Donatello.Rest.Endpoint;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -27,6 +28,10 @@ public class DiscordGuildTextChannel : DiscordTextChannel
     /// <summary></summary>
     public Task BulkDeleteMessagesAsync(IEnumerable<DiscordMessage> messages)
     {
-        this.Bot.HttpClient.
+        var messageIds = new List<ulong>();
+        foreach (var msg in messages)
+            messageIds.Add(msg.Id);
+
+        return this.Bot.HttpClient.BulkDeleteMessagesAsync(this.Id, messageIds);
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Interactions.Entity;
 
-using Donatello.Interactions.Extension;
+using Donatello.Interactions;
 using Donatello.Rest.Endpoint;
 using Qommon.Collections;
 using System.Text.Json;
@@ -11,6 +11,7 @@ public sealed class DiscordCategoryChannel : DiscordChannel
 {
     internal DiscordCategoryChannel(DiscordBot bot, JsonElement json) : base(bot, json) { }
 
+    /// <summary>Fetches all channels contained in this category.</summary>
     public async Task<ReadOnlyList<DiscordChannel>> GetChildChannelsAsync()
     {
         var guildId = this.Json.GetProperty("guild_id").AsUInt64();
@@ -21,7 +22,7 @@ public sealed class DiscordCategoryChannel : DiscordChannel
 
         foreach (var channel in guildChannels.Payload.EnumerateArray())
         {
-            if (channel.TryGetProperty("parent_id", out var prop) && (prop.AsUInt64() == this.Id))
+            if (channel.TryGetProperty("parent_id", out var prop) && prop.AsUInt64() == this.Id)
                 childChannels[arrayIndex++] = channel.ToEntity<DiscordChannel>(this.Bot);
         }
 

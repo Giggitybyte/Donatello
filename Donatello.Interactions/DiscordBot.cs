@@ -12,7 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Donatello.Interactions.Command.Module;
 using Donatello.Interactions.Entity;
-using Donatello.Interactions.Extension;
+using Donatello.Interactions.Entity.Channel;
 using Donatello.Rest;
 using Donatello.Rest.Endpoint;
 using Microsoft.Extensions.Logging;
@@ -44,12 +44,7 @@ public sealed class DiscordBot
         else if (string.IsNullOrWhiteSpace(publicKey))
             throw new ArgumentException("Public key cannot be empty.", nameof(publicKey));
 
-        _publicKey = PublicKey.Import
-        (
-            SignatureAlgorithm.Ed25519,
-            Convert.FromHexString(publicKey),
-            KeyBlobFormat.PkixPublicKeyText
-        );
+        _publicKey = PublicKey.Import(SignatureAlgorithm.Ed25519, Convert.FromHexString(publicKey), KeyBlobFormat.PkixPublicKeyText);
 
         this.HttpClient = new DiscordHttpClient(apiToken, logger: logger);
         this.Logger = logger ?? NullLogger.Instance;

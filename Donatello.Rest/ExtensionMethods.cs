@@ -12,7 +12,7 @@ internal static class ExtensionMethods
 {
     /// <summary>Converts the JSON object to a <see cref="StringContent"/> object for REST requests.</summary>
     internal static StringContent ToContent(this JsonElement jsonObject)
-        => new(jsonObject.ToString());
+        => new StringContent(jsonObject.ToString());
 
     /// <summary>Converts the builder function to a <see cref="StringContent"/> object for REST requests.</summary>
     internal static StringContent ToContent(this Action<Utf8JsonWriter> jsonBuilder)
@@ -38,15 +38,13 @@ internal static class ExtensionMethods
     /// <summary>Converts the key-value pairs in this dictionary to a URL query parameter string.</summary>
     internal static string ToParamString(this IDictionary<string, string> dictionary)
     {
-        if (dictionary is null)
+        if (dictionary is null || dictionary.Count is 0)
             return string.Empty;
 
         var builder = new StringBuilder();
-        var index = 0;
-
         foreach (var param in dictionary)
         {
-            if (index++ == 0)
+            if (builder.Length == 0)
                 builder.Append('?');
             else
                 builder.Append('&');

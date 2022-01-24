@@ -3,8 +3,9 @@
 using System;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Donatello.Interactions;
+using Donatello.Interactions.Entity.Channel;
 using Donatello.Interactions.Entity.Enumeration;
-using Donatello.Interactions.Extension;
 using Qommon.Collections;
 
 /// <summary>A collection of channels and users.</summary>

@@ -2,6 +2,7 @@
 
 using System;
 using Donatello.Interactions.Entity;
+using Donatello.Interactions.Entity.Channel;
 using Qmmands;
 
 /// <summary>

@@ -2,7 +2,7 @@
 
 using System;
 using System.Text.Json;
-using Donatello.Interactions.Extension;
+using Donatello.Interactions;
 using Qommon.Collections;
 
 /// <summary></summary>

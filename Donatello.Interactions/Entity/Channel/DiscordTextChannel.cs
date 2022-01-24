@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Interactions.Entity;
 
-using Donatello.Interactions.Builder;
+using Donatello.Interactions.Model.Builder;
 using Qommon.Collections;
 using System;
 using System.Text.Json;

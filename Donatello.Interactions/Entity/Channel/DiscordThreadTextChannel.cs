@@ -1,7 +1,8 @@
 ﻿namespace Donatello.Interactions.Entity;
 
+using Donatello.Interactions;
+
 using Donatello.Interactions.Entity.Enumeration;
-using Donatello.Interactions.Extension;
 using System;
 using System.Text.Json;
 using System.Threading.Tasks;

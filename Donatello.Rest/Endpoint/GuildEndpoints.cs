@@ -54,7 +54,7 @@ public static class GuildEndpoints
         => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/channels", json);
 
     /// <summary>Fetches all active threads in the guild, including private and public threads.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/resources/guild#list-active-threads">Click to see the fields of the returned object</see>.</remarks>
+    /// <returns><see href="https://discord.com/developers/docs/resources/guild#list-active-threads-response-body">active threads object</see></returns>
     public static Task<HttpResponse> GetActiveThreadsAsync(this DiscordHttpClient httpClient, ulong guildId)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/threads/active");
 

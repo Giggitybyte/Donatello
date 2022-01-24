@@ -71,10 +71,8 @@ public class DiscordHttpClient
     /// <summary>Sends a multi-part HTTP request to an endpoint.</summary>
     private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, StringContent jsonContent, IList<FileAttachment> attachments)
     {
-        var multipartContent = new MultipartFormDataContent()
-        {
-            { jsonContent, "payload_json" }
-        };
+        var multipartContent = new MultipartFormDataContent();
+        multipartContent.Add(jsonContent, "payload_json");
 
         for (int index = 0; index < attachments.Count; index++)
         {
@@ -144,8 +142,6 @@ public class DiscordHttpClient
                 var retryTime = TimeSpan.FromSeconds(retrySeconds);
 
                 var scope = response.Headers.GetValues("X-RateLimit-Scope").First();
-                var message = string.Empty;
-
                 if (scope is "global")
                 {
                     _globalRatelimitResetDate = DateTime.Now + retryTime;
@@ -158,6 +154,8 @@ public class DiscordHttpClient
 
                 return await DelayRequestAsync(request, retryTime).ConfigureAwait(false);
             }
+
+            this.Logger.LogTrace("Request to {Url} got {Status} response from Discord.", request.RequestUri.AbsolutePath, response.StatusCode);
 
             return new HttpResponse()
             {
