@@ -1,12 +1,11 @@
 ﻿namespace Donatello.Rest;
 
-using Donatello.Rest.Extension.Json;
+using Donatello.Rest.Extension;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -62,31 +61,26 @@ public class DiscordHttpClient
         => SendRequestCoreAsync(method, endpoint, jsonObject.ToContent());
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonBuilder, IEnumerable<Stream> attachments)
-        => SendMultipartRequestAsync(method, endpoint, jsonBuilder, attachments.Select(s => new StreamContent(s)));
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonBuilder, IList<FileAttachment> attachments)
+        => SendMultipartRequestAsync(method, endpoint, jsonBuilder?.ToContent(), attachments);
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonBuilder, IEnumerable<byte[]> attachments)
-        => SendMultipartRequestAsync(method, endpoint, jsonBuilder, attachments.Select(b => new ByteArrayContent(b)));
-
-    /// <summary>Sends an HTTP request to an endpoint with file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, IEnumerable<Stream> attachments)
-        => SendMultipartRequestAsync(method, endpoint, contents: attachments.Select(s => new StreamContent(s)));
-
-    /// <summary>Sends an HTTP request to an endpoint with file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, IEnumerable<byte[]> attachments)
-        => SendMultipartRequestAsync(method, endpoint, contents: attachments.Select(b => new ByteArrayContent(b)));
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, IList<FileAttachment> attachments)
+        => SendMultipartRequestAsync(method, endpoint, jsonObject.ToContent(), attachments);
 
     /// <summary>Sends a multi-part HTTP request to an endpoint.</summary>
-    private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonParams = null, IEnumerable<HttpContent> contents = null)
+    private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, StringContent jsonContent, IList<FileAttachment> attachments)
     {
-        var multipartContent = new MultipartFormDataContent();
+        var multipartContent = new MultipartFormDataContent()
+        {
+            { jsonContent, "payload_json" }
+        };
 
-        if (jsonParams is not null)
-            multipartContent.Add(jsonParams.ToContent());
-
-        foreach (var content in contents)
-            multipartContent.Add(content);
+        for (int index = 0; index < attachments.Count; index++)
+        {
+            var attachment = attachments[index];
+            multipartContent.Add(attachment.Content, $"files[{index}]", attachment.Name);
+        }
 
         return SendRequestCoreAsync(method, endpoint, multipartContent);
     }

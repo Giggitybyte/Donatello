@@ -19,6 +19,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSec.Cryptography;
 using Qmmands;
+using Qommon.Collections;
 using Qommon.Events;
 
 /// <summary>
@@ -50,7 +51,7 @@ public sealed class DiscordBot
             KeyBlobFormat.PkixPublicKeyText
         );
 
-        this.HttpClient = new DiscordHttpClient(apiToken);
+        this.HttpClient = new DiscordHttpClient(apiToken, logger: logger);
         this.Logger = logger ?? NullLogger.Instance;
 
         _commandExecutedEvent = new AsynchronousEvent<CommandExecutedEventArgs>(EventExceptionLogger);
@@ -132,31 +133,24 @@ public sealed class DiscordBot
         return new DiscordGuild(this, response.Payload);
     }
 
+    /// <summary></summary>
     public async Task<DiscordChannel> GetChannelAsync(ulong channelId)
     {
         var response = await this.HttpClient.GetChannelAsync(channelId);
         return response.Payload.ToEntity<DiscordChannel>(this);
     }
 
-    public async Task<DiscordChannel> GetChannelAsync(ulong guildId, ulong channelId)
+    /// <summary></summary>
+    public async Task<ReadOnlyList<DiscordChannel>> GetChannelsAsync(ulong guildId)
     {
         var response = await this.HttpClient.GetGuildChannelsAsync(guildId);
-        DiscordChannel channel = null;
+        var channels = new DiscordChannel[response.Payload.GetArrayLength()];
 
+        int index = 0;
         foreach (var guildChannel in response.Payload.EnumerateArray())
-        {
-            var guildChannelId = ulong.Parse(guildChannel.GetProperty("id").GetString());
-            if (guildChannelId == channelId)
-            {
-                channel = guildChannel.ToEntity<DiscordChannel>(this);
-                break;
-            }
-        }
+            channels[index++] = guildChannel.ToEntity<DiscordChannel>(this);
 
-        if (channel is not null)
-            return channel;
-        else
-            throw new Exception("Invalid channel ID.");
+        return new ReadOnlyList<DiscordChannel>(channels);
     }
 
     /// <summary>Webhook listener.</summary>

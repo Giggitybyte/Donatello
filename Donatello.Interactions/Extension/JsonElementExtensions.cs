@@ -15,12 +15,13 @@ internal static class JsonElementExtensions
 
             DiscordChannel channel = type switch
             {
-                0 or 5 => new DiscordTextChannel(botInstance, jsonObject),
+                0 => new DiscordGuildTextChannel(botInstance, jsonObject),
                 1 => new DiscordDirectTextChannel(botInstance, jsonObject),
                 2 => new DiscordVoiceChannel(botInstance, jsonObject),
                 3 => throw new NotSupportedException("Bot accounts cannot be in group DMs."),
                 4 => new DiscordCategoryChannel(botInstance, jsonObject),
-                10 or 11 or 12 => new DiscordThreadChannel(botInstance, jsonObject),
+                5 =>
+                10 or 11 or 12 => new DiscordThreadTextChannel(botInstance, jsonObject),
                 13 => new DiscordStageChannel(botInstance, jsonObject),
                 _ => throw new JsonException("Unknown channel type.")
             };

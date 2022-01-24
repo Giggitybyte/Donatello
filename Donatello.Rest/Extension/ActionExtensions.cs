@@ -1,4 +1,4 @@
-﻿namespace Donatello.Rest.Extension.Json;
+﻿namespace Donatello.Rest.Extension;
 
 using System;
 using System.IO;

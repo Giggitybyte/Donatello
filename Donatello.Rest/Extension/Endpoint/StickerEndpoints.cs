@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Rest.Extension.Endpoint;
 
-internal class StageExtensions
+public static class StickerEndpoints
 {
 
 }

@@ -27,6 +27,6 @@ public class DiscordGuildTextChannel : DiscordTextChannel
     /// <summary></summary>
     public Task BulkDeleteMessagesAsync(IEnumerable<DiscordMessage> messages)
     {
-
+        this.Bot.HttpClient.
     }
 }
