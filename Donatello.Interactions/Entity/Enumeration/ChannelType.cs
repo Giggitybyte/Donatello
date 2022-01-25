@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Interactions.Entity.Enumeration;
 
-internal enum ChannelType
+public enum ChannelType
 {
     /// <summary>Text channel within a guild.</summary>
     Text = 0,

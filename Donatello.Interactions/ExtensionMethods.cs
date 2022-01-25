@@ -3,7 +3,6 @@
 using System;
 using System.Text.Json;
 using Donatello.Interactions.Entity;
-using Donatello.Interactions.Entity.Channel;
 
 internal static class ExtensionMethods
 {

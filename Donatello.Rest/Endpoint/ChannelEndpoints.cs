@@ -39,13 +39,13 @@ public static class ChannelEndpoints
     /// <summary>Posts a message to a channel.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/channel#create-message-jsonform-params">Click here to see valid JSON parameters</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message object</see></returns>
-    public static Task<HttpResponse> PostMessageAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> json)
+    public static Task<HttpResponse> CreateMessageAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> json)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/messages", json);
 
     /// <summary>Posts a message to a channel.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/channel#create-message-jsonform-params">Click here to see valid JSON parameters</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message object</see></returns>
-    public static Task<HttpResponse> PostMessageAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> json, IList<FileAttachment> attachments)
+    public static Task<HttpResponse> CreateMessageAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> json, IList<FileAttachment> attachments)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/messages", json, attachments);
 
     /// <summary>Crosspost a message in a news channel to following channels. </summary>

@@ -1,6 +1,7 @@
 ﻿namespace Donatello.Interactions.Entity;
 
 using Donatello.Interactions.Model.Builder;
+using Donatello.Rest.Endpoint;
 using Qommon.Collections;
 using System;
 using System.Text.Json;
@@ -12,15 +13,25 @@ public abstract class DiscordTextChannel : DiscordChannel
     internal DiscordTextChannel(DiscordBot bot, JsonElement json) : base(bot, json) { }
 
     /// <summary></summary>
-    public Task<DiscordMessage> SendMessageAsync(string content)
+    public async Task<DiscordMessage> SendMessageAsync(string content)
     {
-        throw new NotImplementedException();
+        if (content.Length > 2000)
+            throw new ArgumentException("Message content cannot be longer than 2,000 characters.", nameof(content));
+
+        var response = await this.Bot.HttpClient.CreateMessageAsync(this.Id, (json) => json.WriteString("content", content));
+        var message = response.Payload.ToEntity<DiscordMessage>(this.Bot);
+
+        return message;
     }
 
     /// <summary></summary>
     public Task<DiscordMessage> SendMessageAsync(Action<MessageBuilder> message)
     {
-        throw new NotImplementedException();
+        var builder = new MessageBuilder();
+        message(builder);
+
+        
+
     }
 
     /// <summary></summary>
