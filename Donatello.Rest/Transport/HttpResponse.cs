@@ -3,7 +3,7 @@
 using System.Net;
 using System.Text.Json;
 
-public readonly struct HttpResponse
+public sealed class HttpResponse
 {
     /// <summary></summary>
     public HttpStatusCode Status { get; internal init; }

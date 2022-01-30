@@ -138,10 +138,10 @@ public class DiscordHttpClient
 
             if (response.StatusCode is HttpStatusCode.TooManyRequests) // Handle rate limit
             {
-                var retrySeconds = int.Parse(response.Headers.GetValues("Retry-After").First());
-                var retryTime = TimeSpan.FromSeconds(retrySeconds);
-
                 var scope = response.Headers.GetValues("X-RateLimit-Scope").First();
+                var retrySeconds = int.Parse(response.Headers.GetValues("Retry-After").First());
+                var retryTime = TimeSpan.FromSeconds(retrySeconds);                
+
                 if (scope is "global")
                 {
                     _globalRatelimitResetDate = DateTime.Now + retryTime;

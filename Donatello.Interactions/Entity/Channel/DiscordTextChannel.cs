@@ -25,13 +25,13 @@ public abstract class DiscordTextChannel : DiscordChannel
     }
 
     /// <summary></summary>
-    public Task<DiscordMessage> SendMessageAsync(Action<MessageBuilder> message)
+    public async Task<DiscordMessage> SendMessageAsync(Action<MessageBuilder> message)
     {
         var builder = new MessageBuilder();
         message(builder);
 
-        
-
+        var response = await this.Bot.HttpClient.CreateMessageAsync(this.Id, builder.Build);
+        return new DiscordMessage(this.Bot, response.Payload);
     }
 
     /// <summary></summary>

@@ -62,16 +62,13 @@ internal static class ExtensionMethods
 
             array[index++] = jsonElement.GetString();
         }
-
+        
         return array;
     }
 
     /// <summary>Deserializes the JSON property as string and converts the value to <see langword="ulong"/>.</summary>
     internal static ulong AsUInt64(this JsonElement jsonProperty)
-    {
-        if (jsonProperty.ValueKind is not JsonValueKind.String)
-            throw new JsonException($"Expected a string, got {jsonProperty.ValueKind} instead.");
-
-        return ulong.Parse(jsonProperty.GetString());
-    }
+        => jsonProperty.ValueKind is JsonValueKind.String
+            ? ulong.Parse(jsonProperty.GetString())
+            : throw new JsonException($"Expected a string, got {jsonProperty.ValueKind} instead.");
 }

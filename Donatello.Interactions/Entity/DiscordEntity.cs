@@ -17,5 +17,5 @@ public abstract class DiscordEntity
     protected JsonElement Json { get; private init; }
 
     /// <summary>(Mostly) unique Discord ID.</summary>
-    public ulong Id => ulong.Parse(this.Json.GetProperty("id").GetString());
+    public ulong Id => this.Json.GetProperty("id").AsUInt64();
 }
