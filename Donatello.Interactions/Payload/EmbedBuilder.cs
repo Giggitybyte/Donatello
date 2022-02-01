@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Model.Builder;
+﻿namespace Donatello.Interactions.Payload;
 
 using Donatello.Rest.Transport;
 using System;
@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 
 /// <summary></summary>
-public sealed class EmbedBuilder : EntityBuilder
+public sealed class EmbedBuilder : PayloadWriter
 {
     private List<Field> _fields;
 
@@ -15,10 +15,15 @@ public sealed class EmbedBuilder : EntityBuilder
         _fields = new List<Field>(25);
     }
 
+    internal override void WritePayload(Utf8JsonWriter json)
+    {
+        throw new NotImplementedException();
+    }
+
     /// <summary></summary>
     public EmbedBuilder AppendField(string title, string content, bool inline = false)
     {
-        if ((_fields.Count + 1) > _fields.Capacity)
+        if (_fields.Count + 1 > _fields.Capacity)
             throw new InvalidOperationException($"Embed can only contain {_fields.Capacity} fields.");
 
         _fields.Add(new Field
@@ -63,11 +68,6 @@ public sealed class EmbedBuilder : EntityBuilder
 
     /// <summary></summary>
     public EmbedBuilder SetImage(Uri imageUrl)
-    {
-        throw new NotImplementedException();
-    }
-
-    internal override void Build(Utf8JsonWriter json)
     {
         throw new NotImplementedException();
     }

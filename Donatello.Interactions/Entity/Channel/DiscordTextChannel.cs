@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Interactions.Entity;
 
-using Donatello.Interactions.Model.Builder;
+using Donatello.Interactions.Payload;
 using Donatello.Rest.Endpoint;
 using Qommon.Collections;
 using System;
@@ -30,7 +30,7 @@ public abstract class DiscordTextChannel : DiscordChannel
         var builder = new MessageBuilder();
         message(builder);
 
-        var response = await this.Bot.HttpClient.CreateMessageAsync(this.Id, builder.Build);
+        var response = await this.Bot.HttpClient.CreateMessageAsync(this.Id, builder.WritePayload, builder.Attachments);
         return new DiscordMessage(this.Bot, response.Payload);
     }
 
