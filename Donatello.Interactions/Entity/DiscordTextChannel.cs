@@ -1,6 +1,6 @@
-﻿namespace Donatello.Interactions.Entity.Channel;
+﻿namespace Donatello.Interactions.Entity;
 
-using Donatello.Interactions.Payload;
+using Donatello.Interactions.Writer;
 using Donatello.Rest.Endpoint;
 using Qommon.Collections;
 using System;

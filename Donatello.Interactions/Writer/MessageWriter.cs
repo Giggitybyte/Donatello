@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Payload;
+﻿namespace Donatello.Interactions.Writer;
 
 using Donatello.Interactions.Entity;
 using Donatello.Rest.Transport;
@@ -8,36 +8,50 @@ using System.Text.Json;
 
 public sealed class MessageWriter : PayloadWriter
 {
-    private DiscordMessage _messageReference;
-    private MentionConfiguration _mentionConfiguration;
-    private List<string> _stickerIds;
-    private List<EmbedWriter> embeds;
     private string _content;
     private bool _tts;
+    private List<EmbedWriter> _embeds;
+    private List<FileAttachment> _attachments;
+    private List<string> _stickerIds;
+    private DiscordMessage _messageReference;
+    private MentionConfiguration _mentionConfiguration;
 
     internal MessageWriter()
     {
-        embeds = new List<EmbedWriter>(10);
-        this.Attachments = new List<FileAttachment>(10);
+        _embeds = new List<EmbedWriter>(10);
+        _attachments = new List<FileAttachment>(10);
     }
 
     /// <summary></summary>
-    internal List<FileAttachment> Attachments { get; private init; }
+    internal List<FileAttachment> Attachments { get => _attachments; }
 
     internal override void WritePayload(Utf8JsonWriter json)
     {
-        if (this.Attachments.Count is 0 & embeds.Count is 0 & _content is null & _stickerIds.Count is 0)
-            throw new Exception();
+        if (_embeds.Count is 0 && _attachments.Count is 0 && _content is null && _stickerIds.Count is 0)
+            throw new FormatException("A message requires an embed, file, sticker, or text content.");
 
         json.WriteString("content", _content);
         json.WriteBoolean("tts", _tts);
 
         json.WriteStartArray("embeds");
 
-        foreach (var embedBuilder in embeds)
+        foreach (var embedBuilder in _embeds)
             embedBuilder.WritePayload(json);
 
         json.WriteEndArray();
+    }
+
+    /// <summary>Add an embed to the message.</summary>
+    public MessageWriter AppendEmbed(Action<EmbedWriter> embed)
+    {
+        if (_embeds.Count + 1 > _embeds.Capacity)
+            throw new InvalidOperationException($"Message cannot have more than {_embeds.Capacity} embeds.");
+
+        var builder = new EmbedWriter();
+        embed(builder);
+        _embeds.Add(builder);
+
+        return this;
     }
 
     /// <summary></summary>
@@ -61,19 +75,6 @@ public sealed class MessageWriter : PayloadWriter
     public MessageWriter SetReply(DiscordMessage message)
     {
         _messageReference = message;
-        return this;
-    }
-
-    /// <summary>Append an embed to the message.</summary>
-    public MessageWriter AddEmbed(Action<EmbedWriter> embed)
-    {
-        if (embeds.Count + 1 > embeds.Capacity)
-            throw new InvalidOperationException($"Message cannot have more than {embeds.Capacity} embeds.");
-
-        var builder = new EmbedWriter();
-        embed(builder);
-        embeds.Add(builder);
-
         return this;
     }
 

@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Payload;
+﻿namespace Donatello.Interactions.Writer;
 
 using System.Text.Json;
 

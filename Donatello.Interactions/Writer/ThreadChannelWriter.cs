@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Payload;
+﻿namespace Donatello.Interactions.Writer;
 public sealed class ThreadChannelWriter : PayloadWriter
 {
 }

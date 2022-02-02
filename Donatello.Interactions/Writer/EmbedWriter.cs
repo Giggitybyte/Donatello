@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Payload;
+﻿namespace Donatello.Interactions.Writer;
 
 using Donatello.Rest.Transport;
 using System;
@@ -8,6 +8,7 @@ using System.Text.Json;
 /// <summary></summary>
 public sealed class EmbedWriter : PayloadWriter
 {
+    private string _title, _description;
     private List<Field> _fields;
 
     internal EmbedWriter()
@@ -39,13 +40,21 @@ public sealed class EmbedWriter : PayloadWriter
     /// <summary></summary>
     public EmbedWriter SetTitle(string title)
     {
-        throw new NotImplementedException();
+        if (title.Length > 256)
+            throw new ArgumentOutOfRangeException(nameof(title), "Title cannot be greater than 256 characters.");
+
+        _title = title;
+        return this;
     }
 
     /// <summary></summary>
-    public EmbedWriter SetDescription(string title)
+    public EmbedWriter SetDescription(string description)
     {
-        throw new NotImplementedException();
+        if (description.Length > 4096)
+            throw new ArgumentOutOfRangeException(nameof(description), "Description cannot be greater than 4096 characters.");
+
+        _description = description;
+        return this;
     }
 
     /// <summary></summary>

@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Interactions.Entity;
 
-using Donatello.Interactions.Payload;
+using Donatello.Interactions.Writer;
 using System;
 using System.Text.Json;
 using System.Threading.Tasks;

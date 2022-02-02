@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Entity.Channel;
+﻿namespace Donatello.Interactions.Entity;
 
 using System.Text.Json;
 
