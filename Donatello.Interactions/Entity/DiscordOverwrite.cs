@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Interactions.Entity;
 
-using Donatello.Interactions.Entity.Enumeration;
+using Donatello.Interactions.Enumeration;
 using System.Text.Json;
 
 /// <summary></summary>

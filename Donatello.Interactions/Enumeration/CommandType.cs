@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Entity.Enumeration;
+﻿namespace Donatello.Interactions.Enumeration;
 
 /// <summary>The interaction method of a command.</summary>
 public enum CommandType

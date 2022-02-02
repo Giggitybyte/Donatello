@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Entity;
+﻿namespace Donatello.Interactions.Entity.Channel;
 
 using Donatello.Interactions.Payload;
 using Donatello.Rest.Endpoint;
@@ -25,9 +25,9 @@ public abstract class DiscordTextChannel : DiscordChannel
     }
 
     /// <summary></summary>
-    public async Task<DiscordMessage> SendMessageAsync(Action<MessageBuilder> message)
+    public async Task<DiscordMessage> SendMessageAsync(Action<MessageWriter> message)
     {
-        var builder = new MessageBuilder();
+        var builder = new MessageWriter();
         message(builder);
 
         var response = await this.Bot.HttpClient.CreateMessageAsync(this.Id, builder.WritePayload, builder.Attachments);

@@ -6,18 +6,18 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 
-public sealed class MessageBuilder : PayloadWriter
+public sealed class MessageWriter : PayloadWriter
 {
     private DiscordMessage _messageReference;
     private MentionConfiguration _mentionConfiguration;
     private List<string> _stickerIds;
-    private List<EmbedBuilder> embeds;
+    private List<EmbedWriter> embeds;
     private string _content;
     private bool _tts;
 
-    internal MessageBuilder()
+    internal MessageWriter()
     {
-        embeds = new List<EmbedBuilder>(10);
+        embeds = new List<EmbedWriter>(10);
         this.Attachments = new List<FileAttachment>(10);
     }
 
@@ -41,7 +41,7 @@ public sealed class MessageBuilder : PayloadWriter
     }
 
     /// <summary></summary>
-    public MessageBuilder SetContent(string content)
+    public MessageWriter SetContent(string content)
     {
         if (content.Length > 2000)
             throw new ArgumentException("Content cannot be greater than 2,000 characters", nameof(content));
@@ -51,26 +51,26 @@ public sealed class MessageBuilder : PayloadWriter
     }
 
     /// <summary>Whether the message should be spoken aloud in the client using text-to-speech.</summary>
-    public MessageBuilder SetTts(bool value)
+    public MessageWriter SetTts(bool value)
     {
         _tts = value;
         return this;
     }
 
     /// <summary></summary>
-    public MessageBuilder SetReply(DiscordMessage message)
+    public MessageWriter SetReply(DiscordMessage message)
     {
         _messageReference = message;
         return this;
     }
 
     /// <summary>Append an embed to the message.</summary>
-    public MessageBuilder AddEmbed(Action<EmbedBuilder> embed)
+    public MessageWriter AddEmbed(Action<EmbedWriter> embed)
     {
         if (embeds.Count + 1 > embeds.Capacity)
             throw new InvalidOperationException($"Message cannot have more than {embeds.Capacity} embeds.");
 
-        var builder = new EmbedBuilder();
+        var builder = new EmbedWriter();
         embed(builder);
         embeds.Add(builder);
 
@@ -78,7 +78,7 @@ public sealed class MessageBuilder : PayloadWriter
     }
 
     /// <summary></summary>
-    public MessageBuilder ConfigureMentions(Action<MentionConfiguration> config)
+    public MessageWriter ConfigureMentions(Action<MentionConfiguration> config)
     {
         _mentionConfiguration ??= new MentionConfiguration();
         throw new NotImplementedException();

@@ -1,8 +1,7 @@
 ﻿namespace Donatello.Interactions.Entity;
 
 using System.Text.Json;
-using Donatello.Interactions.Entity.Enumeration;
-
+using Donatello.Interactions.Enumeration;
 using RoleColor = System.Drawing.Color;
 
 public sealed class DiscordRole : DiscordEntity

@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Entity.Enumeration;
+﻿namespace Donatello.Interactions.Enumeration;
 
 /// <summary>Explicit content filter.</summary>
 public enum GuildContentFilterLevel

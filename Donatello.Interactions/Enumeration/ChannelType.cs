@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Entity.Enumeration;
+﻿namespace Donatello.Interactions.Enumeration;
 
 internal enum ChannelType
 {

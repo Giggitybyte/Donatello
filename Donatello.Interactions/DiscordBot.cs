@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Donatello.Interactions.Command.Module;
 using Donatello.Interactions.Entity;
+using Donatello.Interactions.Entity.Channel;
 using Donatello.Rest;
 using Donatello.Rest.Endpoint;
 using Microsoft.Extensions.Logging;

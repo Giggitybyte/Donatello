@@ -2,7 +2,7 @@
 
 using System.Drawing;
 using System.Text.Json;
-using Donatello.Interactions.Entity.Enumeration;
+using Donatello.Interactions.Enumeration;
 
 /// <summary></summary>
 public sealed class DiscordUser : DiscordEntity
