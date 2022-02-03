@@ -11,7 +11,6 @@ public sealed class MessageWriter : PayloadWriter
     private string _content;
     private bool _tts;
     private List<EmbedWriter> _embeds;
-    private List<FileAttachment> _attachments;
     private List<string> _stickerIds;
     private DiscordMessage _messageReference;
     private MentionConfiguration _mentionConfiguration;
@@ -19,11 +18,7 @@ public sealed class MessageWriter : PayloadWriter
     internal MessageWriter()
     {
         _embeds = new List<EmbedWriter>(10);
-        _attachments = new List<FileAttachment>(10);
     }
-
-    /// <summary></summary>
-    internal List<FileAttachment> Attachments { get => _attachments; }
 
     internal override void WritePayload(Utf8JsonWriter json)
     {

@@ -8,13 +8,11 @@ using System.Text.Json;
 /// <summary></summary>
 public sealed class EmbedWriter : PayloadWriter
 {
-    private string _title, _description;
+    private string _title, _description, _footer;
     private List<Field> _fields;
 
-    internal EmbedWriter()
-    {
-        _fields = new List<Field>(25);
-    }
+    internal EmbedWriter() 
+        => _fields = new List<Field>(25);
 
     internal override void WritePayload(Utf8JsonWriter json)
     {
@@ -56,6 +54,22 @@ public sealed class EmbedWriter : PayloadWriter
         _description = description;
         return this;
     }
+
+    public EmbedWriter SetFooter(string footer)
+    {
+
+    }
+
+    public EmbedWriter SetFooter(string footer, FileAttachment icon)
+    {
+
+    }
+
+    public EmbedWriter SetFooter(string footer, Uri iconUrl)
+    {
+
+    }
+
 
     /// <summary></summary>
     public EmbedWriter SetThumbnail(FileAttachment image)
