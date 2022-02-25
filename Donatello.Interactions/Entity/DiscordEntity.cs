@@ -1,9 +1,6 @@
 ﻿namespace Donatello.Interactions.Entity;
 
-using Donatello.Interactions.Writer;
-using System;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 public abstract class DiscordEntity
 {
@@ -21,7 +18,4 @@ public abstract class DiscordEntity
 
     /// <summary>(Mostly) unique Discord ID.</summary>
     public ulong Id => this.Json.GetProperty("id").AsUInt64();
-
-    /// <summary></summary>
-    public abstract Task ModifyAsync(Action<PayloadWriter> builder)
 }

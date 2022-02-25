@@ -8,28 +8,23 @@ using Donatello.Interactions.Entity.Channel;
 internal static class ExtensionMethods
 {
     /// <summary></summary>
-    internal static T ToEntity<T>(this JsonElement jsonObject, DiscordBot botInstance) where T : DiscordEntity
+    internal static DiscordChannel ToChannel(this JsonElement jsonObject, DiscordBot botInstance)
     {
-        if (typeof(T) == typeof(DiscordChannel))
+        var type = jsonObject.GetProperty("type").GetInt32();
+
+        DiscordChannel channel = type switch
         {
-            var type = jsonObject.GetProperty("type").GetInt32();
+            0 => new DiscordGuildTextChannel(botInstance, jsonObject),
+            1 => new DiscordDirectTextChannel(botInstance, jsonObject),
+            2 or 13 => new DiscordVoiceChannel(botInstance, jsonObject),
+            3 => throw new NotSupportedException("Bot accounts cannot be in group DMs."),
+            4 => new DiscordCategoryChannel(botInstance, jsonObject),
+            5 => new DiscordAnnouncementChannel(botInstance, jsonObject),
+            10 or 11 or 12 => new DiscordThreadTextChannel(botInstance, jsonObject),
+            _ => throw new JsonException("Unknown channel type.")
+        };
 
-            DiscordChannel channel = type switch
-            {
-                0 => new DiscordGuildTextChannel(botInstance, jsonObject),
-                1 => new DiscordDirectTextChannel(botInstance, jsonObject),
-                2 or 13 => new DiscordVoiceChannel(botInstance, jsonObject),
-                3 => throw new NotSupportedException("Bot accounts cannot be in group DMs."),
-                4 => new DiscordCategoryChannel(botInstance, jsonObject),
-                5 => new DiscordAnnouncementChannel(botInstance, jsonObject),
-                10 or 11 or 12 => new DiscordThreadTextChannel(botInstance, jsonObject),
-                _ => throw new JsonException("Unknown channel type.")
-            };
-
-            return channel as T;
-        }
-        else
-            return Activator.CreateInstance(typeof(T), botInstance, jsonObject) as T;
+        return channel;
     }
 
     /// <summary>Converts the JSON token to an array of Discord entities.</summary>

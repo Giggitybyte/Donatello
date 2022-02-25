@@ -10,6 +10,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 /// <summary>HTTP client wrapper for the Discord REST API.</summary>
@@ -35,10 +36,10 @@ public class DiscordHttpClient
     }
 
     /// <param name="token">Discord token.</param>
-    /// <param name="isBearerToken"><see langword="true"/>: OAuth2 bearer token.<br/><see langword="false"/>: application bot token.</param>
-    public DiscordHttpClient(string token, bool isBearerToken = false, ILogger logger = null)
+    /// <param name="isBotToken"><see langword="true"/>: OAuth2 bearer token.<br/><see langword="false"/>: application bot token.</param>
+    public DiscordHttpClient(string token, bool isBotToken = true, ILogger logger = null)
     {
-        _authHeader = new("Authorization", $"{(isBearerToken ? "Bearer" : "Bot")} {token}");
+        _authHeader = new("Authorization", $"{(isBotToken ? "Bot" : "Bearer")} {token}");
         _bucketIds = new ConcurrentDictionary<Uri, string>();
         _requestBuckets = new ConcurrentDictionary<string, RequestBucket>();
 
@@ -48,28 +49,30 @@ public class DiscordHttpClient
     /// <summary></summary>
     internal ILogger Logger { get; private init; }
 
+    public ev
+
     /// <summary>Sends an HTTP request to an endpoint.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint)
-        => SendRequestCoreAsync(method, endpoint);
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, CancellationToken? cancelToken = null)
+        => SendRequestCoreAsync(method, endpoint, cancelToken);
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonBuilder)
-        => SendRequestCoreAsync(method, endpoint, jsonBuilder?.ToContent());
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonBuilder, CancellationToken? cancelToken = null)
+        => SendRequestCoreAsync(method, endpoint, cancelToken, jsonBuilder?.ToContent());
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject)
-        => SendRequestCoreAsync(method, endpoint, jsonObject.ToContent());
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, CancellationToken? cancelToken = null)
+        => SendRequestCoreAsync(method, endpoint, cancelToken, jsonObject.ToContent());
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonBuilder, IList<FileAttachment> attachments)
-        => SendMultipartRequestAsync(method, endpoint, jsonBuilder?.ToContent(), attachments);
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonBuilder, IList<FileAttachment> attachments, CancellationToken? cancelToken = null)
+        => SendMultipartRequestAsync(method, endpoint, jsonBuilder?.ToContent(), cancelToken, attachments);
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, IList<FileAttachment> attachments)
-        => SendMultipartRequestAsync(method, endpoint, jsonObject.ToContent(), attachments);
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, IList<FileAttachment> attachments, CancellationToken? cancelToken = null)
+        => SendMultipartRequestAsync(method, endpoint, jsonObject.ToContent(), cancelToken, attachments);
 
     /// <summary>Sends a multi-part HTTP request to an endpoint.</summary>
-    private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, StringContent jsonContent, IList<FileAttachment> attachments)
+    private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, StringContent jsonContent, CancellationToken? cancelToken, IList<FileAttachment> attachments)
     {
         var multipartContent = new MultipartFormDataContent();
         multipartContent.Add(jsonContent, "payload_json");
@@ -80,51 +83,62 @@ public class DiscordHttpClient
             multipartContent.Add(attachment.Content, $"files[{index}]", attachment.Name);
         }
 
-        return SendRequestCoreAsync(method, endpoint, multipartContent);
+        return SendRequestCoreAsync(method, endpoint, cancelToken, multipartContent);
     }
 
     /// <summary>Sends an HTTP request.</summary>
-    private async Task<HttpResponse> SendRequestCoreAsync(HttpMethod method, string endpoint, HttpContent content = null)
+    private Task<HttpResponse> SendRequestCoreAsync(HttpMethod method, string endpoint, CancellationToken? cancelToken, HttpContent content = null)
     {
         endpoint = endpoint.Trim('/');
+        cancelToken ??= CancellationToken.None;
 
+        var currentDate = DateTime.Now;
         var request = new HttpRequestMessage(method, endpoint);
         request.Headers.Add(_authHeader.Key, _authHeader.Value);
 
         if (content is not null)
             request.Content = content;
 
-        // Should we apply a delay to sending this request?
-        var currentDate = DateTime.Now;
-        var delayTime = TimeSpan.Zero;
-
         if (_globalRatelimitResetDate > currentDate)
-            delayTime = _globalRatelimitResetDate - currentDate;
-        else if (_bucketIds.TryGetValue(request.RequestUri, out var bucketId) && _requestBuckets.TryGetValue(bucketId, out var bucket) && bucket.TryUse())
-            delayTime = bucket.ResetDate - currentDate;
-
-        if (delayTime == TimeSpan.Zero) // No.
-            return await ExecuteRequestAsync(request).ConfigureAwait(false);
-        else // Yes.
-            return await DelayRequestAsync(request, delayTime).ConfigureAwait(false);
-
-
-        async Task<HttpResponse> ExecuteRequestAsync(HttpRequestMessage request)
         {
-            this.Logger.LogTrace("Sending {Method} request to {Uri}", request.Method.Method, request.RequestUri);
+            return DelayRequestAsync(request, _globalRatelimitResetDate - currentDate);
+        }
+        else if (_bucketIds.TryGetValue(request.RequestUri, out var bucketId)
+            && _requestBuckets.TryGetValue(bucketId, out var bucket)
+            && bucket.TryUse())
+        {
+            return DelayRequestAsync(request, bucket.ResetDate - currentDate);
+        }
+        else
+        {
+            return DispatchRequestAsync(request);
+        }
 
-            using var response = await _client.SendAsync(request).ConfigureAwait(false);
-            using var responsePayload = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            using var responseJson = await JsonDocument.ParseAsync(responsePayload).ConfigureAwait(false);
+        async Task<HttpResponse> DelayRequestAsync(HttpRequestMessage request, TimeSpan delayTime, CancellationToken cancelToken)
+        {
+            this.Logger.LogWarning("Request to {Uri} delayed until {Time}", request.RequestUri.AbsolutePath, DateTime.Now + delayTime);
 
+            await Task.Delay(delayTime, cancelToken);
+            return await DispatchRequestAsync(request, cancelToken);
+        }
 
-            if (response.Headers.TryGetValues("X-RateLimit-Bucket", out var headers)) // Update bucket
+        async Task<HttpResponse> DispatchRequestAsync(HttpRequestMessage request, CancellationToken cancelToken)
+        {
+            this.Logger.LogDebug("Sending {Method} request to {Uri}", request.Method.Method, request.RequestUri);
+
+            using var response = await _client.SendAsync(request, cancelToken.Value);
+            using var responsePayload = await response.Content.ReadAsStreamAsync();
+            using var responseJson = await JsonDocument.ParseAsync(responsePayload);
+
+            this.Logger.LogDebug("Request to {Url} got {Status} response from Discord.", request.RequestUri.AbsolutePath, response.StatusCode);
+
+            if (response.Headers.TryGetValues("X-RateLimit-Bucket", out var headers))
             {
                 var bucketId = headers.FirstOrDefault();
                 if (_requestBuckets.TryGetValue(bucketId, out var bucket))
                 {
                     bucket.Update(response.Headers);
-                    this.Logger.LogTrace("Updated existing ratelimit bucket for {Uri}", request.RequestUri.AbsolutePath);
+                    this.Logger.LogTrace("Updated existing ratelimit bucket {Id}", bucketId);
                 }
                 else
                 {
@@ -132,15 +146,15 @@ public class DiscordHttpClient
 
                     bucket = new RequestBucket(response.Headers);
                     _requestBuckets.TryAdd(bucketId, bucket);
-                    this.Logger.LogTrace("Created new ratelimit bucket for {Uri}", request.RequestUri.AbsolutePath);
+                    this.Logger.LogTrace("Created new ratelimit bucket {Id}", bucketId);
                 }
             }
 
-            if (response.StatusCode is HttpStatusCode.TooManyRequests) // Handle rate limit
+            if (response.StatusCode is HttpStatusCode.TooManyRequests)
             {
                 var scope = response.Headers.GetValues("X-RateLimit-Scope").First();
                 var retrySeconds = int.Parse(response.Headers.GetValues("Retry-After").First());
-                var retryTime = TimeSpan.FromSeconds(retrySeconds);                
+                var retryTime = TimeSpan.FromSeconds(retrySeconds);
 
                 if (scope is "global")
                 {
@@ -152,10 +166,8 @@ public class DiscordHttpClient
                 else
                     this.Logger.LogWarning("Unknown ratelimit scope '{Scope}'", scope);
 
-                return await DelayRequestAsync(request, retryTime).ConfigureAwait(false);
+                return await DelayRequestAsync(request, retryTime);
             }
-
-            this.Logger.LogTrace("Request to {Url} got {Status} response from Discord.", request.RequestUri.AbsolutePath, response.StatusCode);
 
             return new HttpResponse()
             {
@@ -164,14 +176,9 @@ public class DiscordHttpClient
                 Payload = responseJson.RootElement.Clone()
             };
         }
-
-        async Task<HttpResponse> DelayRequestAsync(HttpRequestMessage request, TimeSpan delayTime)
-        {
-            this.Logger.LogDebug("Request to {Uri} delayed until {Time}", request.RequestUri.AbsolutePath, DateTime.Now + delayTime);
-
-            await Task.Delay(delayTime);
-            return await ExecuteRequestAsync(request);
-        }
     }
+
+    private void EventExceptionLogger(Exception exception) 
+        => this.Logger.LogWarning("An event handler threw an exception:", exception);
 }
 

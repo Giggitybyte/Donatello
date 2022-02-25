@@ -14,7 +14,7 @@ public sealed class EmbedWriter : PayloadWriter
     internal EmbedWriter() 
         => _fields = new List<Field>(25);
 
-    internal override void WritePayload(Utf8JsonWriter json)
+    internal override void WriteJson(Utf8JsonWriter json)
     {
         throw new NotImplementedException();
     }

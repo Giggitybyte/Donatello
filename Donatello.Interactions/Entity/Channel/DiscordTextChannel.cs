@@ -19,7 +19,9 @@ public abstract class DiscordTextChannel : DiscordChannel
             throw new ArgumentException("Message content cannot be longer than 2,000 characters.", nameof(content));
 
         var response = await this.Bot.HttpClient.CreateMessageAsync(this.Id, (json) => json.WriteString("content", content));
-        var message = response.Payload.ToEntity<DiscordMessage>(this.Bot);
+        var message = response.Payload.ToChannel(this.Bot);
+
+        var channel = new DiscordDirectTextChannel(this.Bot, )
 
         return message;
     }
@@ -30,7 +32,7 @@ public abstract class DiscordTextChannel : DiscordChannel
         var builder = new MessageWriter();
         message(builder);
 
-        var response = await this.Bot.HttpClient.CreateMessageAsync(this.Id, builder.WritePayload, builder.Attachments);
+        var response = await this.Bot.HttpClient.CreateMessageAsync(this.Id, builder.WriteJson, builder.Attachments);
         return new DiscordMessage(this.Bot, response.Payload);
     }
 
