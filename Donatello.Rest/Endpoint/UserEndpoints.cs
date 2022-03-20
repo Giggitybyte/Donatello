@@ -22,8 +22,8 @@ public static class UserEndpoints
 
     /// <summary>Changes user account settings.</summary>
     /// <returns>Updated <see href="https://discord.com/developers/docs/resources/user#user-object">user object</see>.</returns>
-    public static Task<HttpResponse> ModifySelfAsync(this DiscordHttpClient httpClient, Action<Utf8JsonWriter> jsonBuilder)
-        => httpClient.SendRequestAsync(HttpMethod.Patch, "users/@me", jsonBuilder);
+    public static Task<HttpResponse> ModifySelfAsync(this DiscordHttpClient httpClient, Action<Utf8JsonWriter> jsonWriter)
+        => httpClient.SendRequestAsync(HttpMethod.Patch, "users/@me", jsonWriter);
 
     /// <summary>Fetchs all guilds that the current user is a member of.</summary>
     /// <remarks>Requires the OAuth2 <c>guilds</c> scope when using a bearer token.</remarks>

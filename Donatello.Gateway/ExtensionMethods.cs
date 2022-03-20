@@ -30,7 +30,6 @@ internal static class ExtensionMethods
         int itemsToCopy = Math.Min(array.Length, newSize);
 
         Array.Copy(array, 0, newArray, 0, itemsToCopy);
-
         pool.Return(array, true);
 
         array = newArray;

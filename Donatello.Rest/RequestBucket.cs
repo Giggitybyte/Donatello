@@ -6,7 +6,7 @@ using System.Net.Http.Headers;
 
 internal sealed class RequestBucket
 {
-    /// <summary>Creates a new <see cref="RequestBucket"/> using an existing instance of <see cref="HttpResponseHeaders"/>.</summary>
+    /// <summary>Creates a new bucket using HTTP response headers.</summary>
     internal RequestBucket(HttpResponseHeaders headers)
     {
         var id = headers.GetValues("X-RateLimit-Bucket").SingleOrDefault();
@@ -39,6 +39,8 @@ internal sealed class RequestBucket
     /// <summary>Date when the requests remaining for this bucket will be reset.</summary>
     internal DateTime ResetDate { get; private set; }
 
+
+
     /// <summary>Updates ratelimit information using the provided instance of <see cref="HttpResponseHeaders"/>.</summary>
     internal void Update(HttpResponseHeaders headers)
     {
@@ -58,14 +60,10 @@ internal sealed class RequestBucket
     }
 
     /// <summary>Attempts to decrement the number of requests available for this bucket.</summary>
-    /// <remarks>When <see langword="false"/> is returned, a local rate limit should be applied.</remarks>
-    internal bool TryUse()
+    internal bool TryUse() // TODO: rework this to support refunding this bucket in the event of a shared ratelimit
     {
         lock (this)
         {
-            if (DateTime.Now >= this.ResetDate)
-                this.Remaining = this.Limit;
-
             if (this.Remaining - 1 < 0)
                 return false;
             else

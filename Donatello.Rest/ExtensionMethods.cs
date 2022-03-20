@@ -10,18 +10,18 @@ using System.Text.Json;
 /// <summary>Internal helper methods.</summary>
 internal static class ExtensionMethods
 {
-    /// <summary>Converts the JSON object to a <see cref="StringContent"/> object for REST requests.</summary>
+    /// <summary>Converts a JSON object to a <see cref="StringContent"/> object for REST requests.</summary>
     internal static StringContent ToContent(this JsonElement jsonObject)
         => new StringContent(jsonObject.ToString());
 
-    /// <summary>Converts the builder function to a <see cref="StringContent"/> object for REST requests.</summary>
-    internal static StringContent ToContent(this Action<Utf8JsonWriter> jsonBuilder)
+    /// <summary>Converts the contents of a JSON writer to a <see cref="StringContent"/> object for REST requests.</summary>
+    internal static StringContent ToContent(this Action<Utf8JsonWriter> jsonWriter)
     {
         using var jsonStream = new MemoryStream();
-        var writer = new Utf8JsonWriter(jsonStream);
+        using var writer = new Utf8JsonWriter(jsonStream);
 
         writer.WriteStartObject();
-        jsonBuilder(writer);
+        jsonWriter(writer);
         writer.WriteEndObject();
 
         writer.Flush();
@@ -44,10 +44,10 @@ internal static class ExtensionMethods
         var builder = new StringBuilder();
         foreach (var param in dictionary)
         {
-            if (builder.Length == 0)
-                builder.Append('?');
-            else
+            if (builder.Length > 0)
                 builder.Append('&');
+            else
+                builder.Append('?');
 
             builder.Append(param.Key);
             builder.Append('=');

@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Writer;
+﻿namespace Donatello.Interactions.Builder;
 
 using Donatello.Rest.Transport;
 using System;
@@ -6,21 +6,21 @@ using System.Collections.Generic;
 using System.Text.Json;
 
 /// <summary></summary>
-public sealed class EmbedWriter : PayloadWriter
+public sealed class EmbedPayloadBuilder : PayloadBuilder
 {
     private string _title, _description, _footer;
     private List<Field> _fields;
 
-    internal EmbedWriter() 
+    internal EmbedPayloadBuilder() 
         => _fields = new List<Field>(25);
 
-    internal override void WriteJson(Utf8JsonWriter json)
+    internal override void Build(Utf8JsonWriter json)
     {
         throw new NotImplementedException();
     }
 
     /// <summary></summary>
-    public EmbedWriter AppendField(string title, string content, bool inline = false)
+    public EmbedPayloadBuilder AppendField(string title, string content, bool inline = false)
     {
         if (_fields.Count + 1 > _fields.Capacity)
             throw new InvalidOperationException($"Embed can only contain {_fields.Capacity} fields.");
@@ -36,7 +36,7 @@ public sealed class EmbedWriter : PayloadWriter
     }
 
     /// <summary></summary>
-    public EmbedWriter SetTitle(string title)
+    public EmbedPayloadBuilder SetTitle(string title)
     {
         if (title.Length > 256)
             throw new ArgumentOutOfRangeException(nameof(title), "Title cannot be greater than 256 characters.");
@@ -46,7 +46,7 @@ public sealed class EmbedWriter : PayloadWriter
     }
 
     /// <summary></summary>
-    public EmbedWriter SetDescription(string description)
+    public EmbedPayloadBuilder SetDescription(string description)
     {
         if (description.Length > 4096)
             throw new ArgumentOutOfRangeException(nameof(description), "Description cannot be greater than 4096 characters.");
@@ -55,42 +55,42 @@ public sealed class EmbedWriter : PayloadWriter
         return this;
     }
 
-    public EmbedWriter SetFooter(string footer)
+    public EmbedPayloadBuilder SetFooter(string footer)
     {
 
     }
 
-    public EmbedWriter SetFooter(string footer, FileAttachment icon)
+    public EmbedPayloadBuilder SetFooter(string footer, FileAttachment icon)
     {
 
     }
 
-    public EmbedWriter SetFooter(string footer, Uri iconUrl)
+    public EmbedPayloadBuilder SetFooter(string footer, Uri iconUrl)
     {
 
     }
 
 
     /// <summary></summary>
-    public EmbedWriter SetThumbnail(FileAttachment image)
+    public EmbedPayloadBuilder SetThumbnail(FileAttachment image)
     {
         throw new NotImplementedException();
     }
 
     /// <summary></summary>
-    public EmbedWriter SetThumbnail(Uri imageUrl)
+    public EmbedPayloadBuilder SetThumbnail(Uri imageUrl)
     {
         throw new NotImplementedException();
     }
 
     /// <summary></summary>
-    public EmbedWriter SetImage(FileAttachment image)
+    public EmbedPayloadBuilder SetImage(FileAttachment image)
     {
         throw new NotImplementedException();
     }
 
     /// <summary></summary>
-    public EmbedWriter SetImage(Uri imageUrl)
+    public EmbedPayloadBuilder SetImage(Uri imageUrl)
     {
         throw new NotImplementedException();
     }

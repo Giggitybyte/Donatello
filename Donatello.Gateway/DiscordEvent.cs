@@ -7,8 +7,8 @@ internal readonly struct DiscordEvent
 {
     internal DiscordEvent(DiscordShard shard, JsonElement payload)
     {
-        Shard = shard;
-        Payload = payload;
+        this.Shard = shard;
+        this.Payload = payload;
     }
 
     /// <summary>Shard which received the event payload.</summary>

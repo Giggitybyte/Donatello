@@ -166,8 +166,8 @@ public static class GuildEndpoints
 
     /// <summary>Removes inactive guild members.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#begin-guild-prune">Click to see valid JSON parameters</see>.</remarks>
-    public static Task<HttpResponse> PruneGuildMembersAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonBuilder)
-        => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/prune", jsonBuilder);
+    public static Task<HttpResponse> PruneGuildMembersAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonWriter)
+        => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/prune", jsonWriter);
 
     /// <summary>Fetches available voice regions for a guild.</summary>
     /// <returns>Array of <see href="https://discord.com/developers/docs/resources/voice#voice-region-object">voice region objects</see>.</returns>
@@ -182,16 +182,16 @@ public static class GuildEndpoints
     public static Task<HttpResponse> GetGuildInvitesAsync(this DiscordHttpClient httpClient, ulong guildId)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/invites");
 
-    /// <summary>Fetches all integrations for the guild.</summary>
+    /// <summary>Fetches all integrations for a guild.</summary>
     /// <returns>Array of <see href="https://discord.com/developers/docs/resources/guild#integration-object">integration objects</see>.</returns>
     public static Task<HttpResponse> GetGuildIntegrationsAsync(this DiscordHttpClient httpClient, ulong guildId)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/integrations");
 
-    /// <summary>Removes an integration from the guild.</summary>
+    /// <summary>Removes an integration from a guild.</summary>
     public static Task<HttpResponse> DeleteGuildIntegrationAsync(this DiscordHttpClient httpClient, ulong guildId, JsonElement integrationObject)
         => httpClient.SendRequestAsync(HttpMethod.Delete, $"guilds/{guildId}/integrations", integrationObject);
 
-    /// <summary>Fetches a vanity invite.</summary>
+    /// <summary>Fetches a guild vanity invite.</summary>
     /// <returns>Partial <see href="https://discord.com/developers/docs/resources/invite#invite-object">invite object</see>.</returns>
     public static Task<HttpResponse> GetGuildVanityUrlAsync(this DiscordHttpClient httpClient, ulong guildId)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/vanity-url");
@@ -214,13 +214,13 @@ public static class GuildEndpoints
     /// <summary>Adds a new emoji to the guild.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/emoji#create-guild-emoji">Click to see valid JSON parameters</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/emoji#emoji-object">emoji object</see></returns>
-    public static Task<HttpResponse> CreateGuildEmojiAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonBuilder)
-        => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/emojis", jsonBuilder);
+    public static Task<HttpResponse> CreateGuildEmojiAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonWriter)
+        => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/emojis", jsonWriter);
 
     /// <summary>Changes attributes of an emoji.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/emoji#modify-guild-emoji">Click to see valid JSON parameters</see>.</remarks>
     /// <returns>Updated <see href="https://discord.com/developers/docs/resources/emoji#emoji-object">emoji object</see>.</returns>
-    public static Task<HttpResponse> ModifyGuildEmojiAsync(this DiscordHttpClient httpClient, ulong guildId, ulong emojiId, Action<Utf8JsonWriter> jsonBuilder)
+    public static Task<HttpResponse> ModifyGuildEmojiAsync(this DiscordHttpClient httpClient, ulong guildId, ulong emojiId, Action<Utf8JsonWriter> jsonWriter)
         => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/emojis/{emojiId}");
 
     /// <summary>Permanently deletes a guild emoji.</summary>

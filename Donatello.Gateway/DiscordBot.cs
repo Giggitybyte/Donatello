@@ -24,7 +24,7 @@ public sealed partial class DiscordBot
     private CommandService _commandService;
     private Channel<DiscordShard> _identifyChannel;
     private Channel<DiscordEvent> _eventChannel;
-    private Task _eventProcessingTask;
+    private Task _identifyProcessingTask, _eventProcessingTask;
     private DiscordShard[] _shards;
 
     /// <param name="apiToken"></param>
@@ -68,10 +68,10 @@ public sealed partial class DiscordBot
         => _commandService.AddModule(typeof(T));
 
     /// <summary></summary>
-    public void LoadCommandModule(Action<ModuleBuilder> moduleBuilder) 
+    public void LoadCommandModule(Action<ModuleBuilder> moduleBuilder)
         => _commandService.AddModule(moduleBuilder);
 
-    /// <summary>Adds an addon to this instance.</summary>
+    /// <summary>Registers an addon with this instance.</summary>
     public void LoadAddon<T>() // where T : DonatelloAddon
         => throw new NotImplementedException();
 
@@ -82,28 +82,31 @@ public sealed partial class DiscordBot
     /// <summary>Connects to the Discord gateway.</summary>
     public async Task StartAsync()
     {
-        var payload = await _httpClient.GetGatewayMetadataAsync();
+        var websocketMetadata = await _httpClient.GetGatewayMetadataAsync();
 
-        var websocketUrl = payload.GetProperty("url").GetString();
-        var shardCount = payload.GetProperty("shards").GetInt32();
-        var batchSize = payload.GetProperty("session_start_limit").GetProperty("max_concurrency").GetInt32();
+        var websocketUrl = websocketMetadata.GetProperty("url").GetString();
+        var shardCount = websocketMetadata.GetProperty("shards").GetInt32();
+        var batchSize = websocketMetadata.GetProperty("session_start_limit").GetProperty("max_concurrency").GetInt32();
 
         _shards = new DiscordShard[shardCount];
-        _eventProcessingTask = ProcessEventsAsync(_eventChannel.Reader);
+        _identifyProcessingTask = ProcessIdentifyAsync(_identifyChannel.Reader);
+        _eventProcessingTask = DispatchEventsAsync(_eventChannel.Reader);
 
         for (int shardId = 0; shardId < shardCount; shardId++)
         {
-            var shard = new DiscordShard(shardId, _identifyChannel.Writer, _eventChannel.Writer, this.Logger);
-            await shard.ConnectAsync();
+            var shard = new DiscordShard(shardId, _httpClient, _identifyChannel.Writer, _eventChannel.Writer, this.Logger);
+            await shard.ConnectAsync(websocketUrl);
 
             _shards[shardId] = shard;
         }
+
+        // ...
     }
 
     /// <summary>Closes all websocket connections and unloads all extensions.</summary>
     public async Task StopAsync()
     {
-        if (_shards.Length is 0 | _eventProcessingTask is null)
+        if (_shards.Length is 0 | _identifyProcessingTask is null | _eventProcessingTask is null)
             throw new InvalidOperationException("This instance is not currently connected to Discord.");
 
         var disconnectTasks = new Task[_shards.Length];
@@ -113,7 +116,10 @@ public sealed partial class DiscordBot
 
         await Task.WhenAll(disconnectTasks);
 
+        _identifyChannel.Writer.TryComplete();
         _eventChannel.Writer.TryComplete();
+
+        await _identifyChannel.Reader.Completion;
         await _eventChannel.Reader.Completion;
 
         Array.Clear(_shards, 0, _shards.Length);
@@ -122,15 +128,34 @@ public sealed partial class DiscordBot
     /// <summary>Handles</summary>
     private async Task ProcessIdentifyAsync(ChannelReader<DiscordShard> identifyReader)
     {
-        // I don't like this.
         await foreach (var shard in identifyReader.ReadAllAsync())
         {
-           
+            await shard.SendPayloadAsync(2, (json) =>
+            {
+                json.WriteString("token", _apiToken);
+
+                json.WriteStartObject("properties");
+                json.WriteString("$os", Environment.OSVersion.ToString());
+                json.WriteString("$browser", "Donatello/0.0.0");
+                json.WriteString("$browser", "Donatello/0.0.0");
+                json.WriteEndObject();
+
+                // json.WriteBoolean("compress", true);
+
+                json.WriteNumber("large_threshold", 250);
+
+                json.WriteStartArray("shard");
+                json.WriteNumberValue(shard.Id);
+                json.WriteNumberValue(_shards.Length);
+                json.WriteEndArray();
+
+                json.WriteNumber("intents", (long)_intents);
+            });
         }
     }
 
     /// <summary>Receives gateway event payloads from each connected <see cref="DiscordShard"/>.</summary>
-    private async Task ProcessEventsAsync(ChannelReader<DiscordEvent> eventReader)
+    private async Task DispatchEventsAsync(ChannelReader<DiscordEvent> eventReader)
     {
         await foreach (var gatewayEvent in eventReader.ReadAllAsync())
         {
@@ -138,7 +163,37 @@ public sealed partial class DiscordBot
             var eventName = gatewayEvent.Payload.GetProperty("t").GetString();
             var eventData = gatewayEvent.Payload.GetProperty("d");
 
+            switch (eventName)
+            {
+                case "CHANNEL_CREATE":
+                    
+                case "":
 
+                case "":
+
+                case "":
+
+                case "":
+
+                case "":
+
+                case "":
+
+                case "":
+
+                case "":
+
+                case "":
+
+                case "":
+
+                case "":
+
+                case "":
+
+                default:
+                    break;
+            }
         }
     }
 }
