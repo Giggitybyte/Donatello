@@ -131,7 +131,7 @@ public sealed class DiscordBot
     public async Task<DiscordChannel> GetChannelAsync(ulong channelId)
     {
         var response = await this.HttpClient.GetChannelAsync(channelId);
-        return response.Payload.ToEntity<DiscordChannel>(this);
+        return response.Payload.ToChannel(this);
     }
 
     /// <summary></summary>
@@ -141,8 +141,8 @@ public sealed class DiscordBot
         var channels = new DiscordChannel[response.Payload.GetArrayLength()];
 
         int index = 0;
-        foreach (var guildChannel in response.Payload.EnumerateArray())
-            channels[index++] = guildChannel.ToEntity<DiscordChannel>(this);
+        foreach (var channelJson in response.Payload.EnumerateArray())
+            channels[index++] = channelJson.ToChannel(this);
 
         return new ReadOnlyList<DiscordChannel>(channels);
     }
@@ -199,7 +199,6 @@ public sealed class DiscordBot
 
             if (interactionType == 1) // Ping
                 responseWriter.WriteNumber("type", 1);
-
             else if (interactionType == 2) // Command
             {
                 var data = interactionJson.GetProperty("data");

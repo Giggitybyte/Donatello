@@ -5,8 +5,10 @@ using System.Reflection;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Donatello.Gateway.Command;
-using Donatello.Gateway.Entity.Enumeration;
+using Donatello.Gateway.Entity;
+using Donatello.Gateway.Enumeration;
 using Donatello.Rest;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Qmmands;
@@ -24,7 +26,7 @@ public sealed partial class DiscordBot
     private CommandService _commandService;
     private Channel<DiscordShard> _identifyChannel;
     private Channel<DiscordEvent> _eventChannel;
-    private Task _identifyProcessingTask, _eventProcessingTask;
+    private Task _identifyProcessingTask, _eventDispatchTask;
     private DiscordShard[] _shards;
 
     /// <param name="apiToken"></param>
@@ -37,18 +39,16 @@ public sealed partial class DiscordBot
 
         _apiToken = apiToken;
         _intents = intents;
-        _httpClient = new DiscordHttpClient(_apiToken);
+        _httpClient = new DiscordHttpClient(apiToken);
         _identifyChannel = Channel.CreateUnbounded<DiscordShard>();
         _eventChannel = Channel.CreateUnbounded<DiscordEvent>();
 
         this.Logger = logger ?? NullLogger.Instance;
+        InitializeEvents();
 
         var commandConfig = CommandServiceConfiguration.Default;
         // commandConfig.CooldownBucketKeyGenerator ??= ...;
-
         _commandService = new CommandService(commandConfig);
-        _commandService.CommandExecuted += (s, e) => _commandExecutedEvent.InvokeAsync(this, e);
-        _commandService.CommandExecutionFailed += (s, e) => _commandExecutionFailedEvent.InvokeAsync(this, e);
 
         _shards = Array.Empty<DiscordShard>();
     }
@@ -58,6 +58,9 @@ public sealed partial class DiscordBot
 
     /// <summary></summary>
     internal ReadOnlyList<DiscordShard> Shards { get => new(_shards); }
+
+    /// <summary></summary>
+    internal EntityCache Cache { get; private init; }
 
     /// <summary>Searches the provided assembly for classes which inherit from <see cref="DiscordCommandModule"/> and registers each of their commands.</summary>
     public void LoadCommandModules(Assembly assembly)
@@ -71,12 +74,12 @@ public sealed partial class DiscordBot
     public void LoadCommandModule(Action<ModuleBuilder> moduleBuilder)
         => _commandService.AddModule(moduleBuilder);
 
-    /// <summary>Registers an addon with this instance.</summary>
-    public void LoadAddon<T>() // where T : DonatelloAddon
+    /// <summary>Registers a plugin with this instance.</summary>
+    public void EnablePlugin<T>() // where T : DonatelloGatewayPlugin
         => throw new NotImplementedException();
 
-    /// <summary>Removes an addon from this instance.</summary>
-    public async ValueTask UnloadAddonAsync<T>() // where T : DonatelloAddon
+    /// <summary>Removes a plugin from this instance, releasing any resources if needed.</summary>
+    public async ValueTask DisablePluginAsync<T>() // where T : DonatelloGatewayPlugin
         => throw new NotImplementedException();
 
     /// <summary>Connects to the Discord gateway.</summary>
@@ -90,7 +93,7 @@ public sealed partial class DiscordBot
 
         _shards = new DiscordShard[shardCount];
         _identifyProcessingTask = ProcessIdentifyAsync(_identifyChannel.Reader);
-        _eventProcessingTask = DispatchEventsAsync(_eventChannel.Reader);
+        _eventDispatchTask = DispatchGatewayEventsAsync(_eventChannel.Reader);
 
         for (int shardId = 0; shardId < shardCount; shardId++)
         {
@@ -106,7 +109,7 @@ public sealed partial class DiscordBot
     /// <summary>Closes all websocket connections and unloads all extensions.</summary>
     public async Task StopAsync()
     {
-        if (_shards.Length is 0 | _identifyProcessingTask is null | _eventProcessingTask is null)
+        if (_shards.Length is 0 | _identifyProcessingTask is null | _eventDispatchTask is null)
             throw new InvalidOperationException("This instance is not currently connected to Discord.");
 
         var disconnectTasks = new Task[_shards.Length];
@@ -123,6 +126,11 @@ public sealed partial class DiscordBot
         await _eventChannel.Reader.Completion;
 
         Array.Clear(_shards, 0, _shards.Length);
+    }
+
+    public async ValueTask<DiscordChannel> GetChannelAsync(ulong channelId)
+    {
+
     }
 
     /// <summary>Handles</summary>
@@ -149,51 +157,35 @@ public sealed partial class DiscordBot
                 json.WriteNumberValue(_shards.Length);
                 json.WriteEndArray();
 
-                json.WriteNumber("intents", (long)_intents);
+                json.WriteNumber("intents", (int)_intents);
             });
         }
     }
 
-    /// <summary>Receives gateway event payloads from each connected <see cref="DiscordShard"/>.</summary>
-    private async Task DispatchEventsAsync(ChannelReader<DiscordEvent> eventReader)
+    internal class EntityCache
     {
-        await foreach (var gatewayEvent in eventReader.ReadAllAsync())
+        internal EntityCache()
         {
-            var shard = gatewayEvent.Shard;
-            var eventName = gatewayEvent.Payload.GetProperty("t").GetString();
-            var eventData = gatewayEvent.Payload.GetProperty("d");
-
-            switch (eventName)
-            {
-                case "CHANNEL_CREATE":
-                    
-                case "":
-
-                case "":
-
-                case "":
-
-                case "":
-
-                case "":
-
-                case "":
-
-                case "":
-
-                case "":
-
-                case "":
-
-                case "":
-
-                case "":
-
-                case "":
-
-                default:
-                    break;
-            }
+           var userOptions = new MemoryCacheOptions()
+           {
+                
+           }
+           this.Users = new MemoryCache(userOptions);
         }
+
+        /// <summary></summary>
+        internal MemoryCache Users { get; private init; }
+
+        /// <summary></summary>
+        internal MemoryCache Presences { get; private init; }
+
+        /// <summary></summary>
+        internal MemoryCache Guilds { get; private init; }
+
+        /// <summary></summary>
+        internal MemoryCache Channels { get; private init; }
+
+        /// <summary></summary>
+        internal MemoryCache Messages { get; private init; }
     }
 }

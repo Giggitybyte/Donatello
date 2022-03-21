@@ -1,10 +1,8 @@
 ﻿namespace Donatello.Interactions.Entity;
 
 using Donatello.Interactions.Enumeration;
-using Donatello.Interactions.Builder;
 using System;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 /// <summary></summary>
 public abstract class DiscordChannel : DiscordEntity

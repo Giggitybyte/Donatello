@@ -3,7 +3,7 @@
 /// <summary>
 /// 
 /// </summary>
-public class MessageReceivedEventContext : EventContext
+public class MessageReceivedEventContext : DiscordEventContext
 {
 
 }

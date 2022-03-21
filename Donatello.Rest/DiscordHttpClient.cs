@@ -162,7 +162,7 @@ public class DiscordHttpClient
 
                 return await DelayRequestAsync(request, retryTime);
             }
-            else
+            else // TODO: redirect JSON error codes and common error HTTP statuses to a DiscordHttpClient.RequestFailed event.
             {
                 using var responsePayload = await response.Content.ReadAsStreamAsync();
                 using var responseJson = await JsonDocument.ParseAsync(responsePayload);
