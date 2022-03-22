@@ -26,8 +26,9 @@ public sealed partial class DiscordBot
     private CommandService _commandService;
     private Channel<DiscordShard> _identifyChannel;
     private Channel<DiscordEvent> _eventChannel;
-    private Task _identifyProcessingTask, _eventDispatchTask;
     private DiscordShard[] _shards;
+    private Task _identifyProcessingTask, _eventDispatchTask;
+    private MemoryCache _guildCache, _channelCache, _userCache, _presenceCache;
 
     /// <param name="apiToken"></param>
     /// <param name="intents"></param>
@@ -42,6 +43,11 @@ public sealed partial class DiscordBot
         _httpClient = new DiscordHttpClient(apiToken);
         _identifyChannel = Channel.CreateUnbounded<DiscordShard>();
         _eventChannel = Channel.CreateUnbounded<DiscordEvent>();
+
+        _guildCache = new MemoryCache(new MemoryCacheOptions());
+        _channelCache = new MemoryCache(new MemoryCacheOptions());
+        _userCache = new MemoryCache(new MemoryCacheOptions());
+        _presenceCache = new MemoryCache(new MemoryCacheOptions());
 
         this.Logger = logger ?? NullLogger.Instance;
         InitializeEvents();
@@ -58,9 +64,6 @@ public sealed partial class DiscordBot
 
     /// <summary></summary>
     internal ReadOnlyList<DiscordShard> Shards { get => new(_shards); }
-
-    /// <summary></summary>
-    internal EntityCache Cache { get; private init; }
 
     /// <summary>Searches the provided assembly for classes which inherit from <see cref="DiscordCommandModule"/> and registers each of their commands.</summary>
     public void LoadCommandModules(Assembly assembly)
@@ -128,12 +131,24 @@ public sealed partial class DiscordBot
         Array.Clear(_shards, 0, _shards.Length);
     }
 
-    public async ValueTask<DiscordChannel> GetChannelAsync(ulong channelId)
+    /// <summary></summary>
+    public async ValueTask<DiscordGuild> GetGuildAsync(ulong guildId)
     {
-
+        throw new NotImplementedException();
     }
 
-    /// <summary>Handles</summary>
+    /// <summary></summary>
+    public async ValueTask<DiscordChannel> GetChannelAsync(ulong channelId)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <summary></summary>
+    public async ValueTask<DiscordUser> GetUserAsync(ulong userId)
+    {
+        throw new NotImplementedException();
+    }
+
     private async Task ProcessIdentifyAsync(ChannelReader<DiscordShard> identifyReader)
     {
         await foreach (var shard in identifyReader.ReadAllAsync())
@@ -160,32 +175,5 @@ public sealed partial class DiscordBot
                 json.WriteNumber("intents", (int)_intents);
             });
         }
-    }
-
-    internal class EntityCache
-    {
-        internal EntityCache()
-        {
-           var userOptions = new MemoryCacheOptions()
-           {
-                
-           }
-           this.Users = new MemoryCache(userOptions);
-        }
-
-        /// <summary></summary>
-        internal MemoryCache Users { get; private init; }
-
-        /// <summary></summary>
-        internal MemoryCache Presences { get; private init; }
-
-        /// <summary></summary>
-        internal MemoryCache Guilds { get; private init; }
-
-        /// <summary></summary>
-        internal MemoryCache Channels { get; private init; }
-
-        /// <summary></summary>
-        internal MemoryCache Messages { get; private init; }
     }
 }
