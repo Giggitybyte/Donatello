@@ -2,6 +2,7 @@
 
 using System.Text.Json;
 
+/// <summary></summary>
 public abstract class DiscordEntity
 {
     internal DiscordEntity(DiscordBot bot, JsonElement json)

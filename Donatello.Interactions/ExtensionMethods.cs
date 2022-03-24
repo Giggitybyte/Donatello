@@ -36,7 +36,13 @@ internal static class ExtensionMethods
         int index = 0;
 
         foreach (var jsonElement in jsonArray.EnumerateArray())
-            array[index++] = jsonElement.ToEntity<T>(botInstance);
+        {
+            T entity = typeof(T) == typeof(DiscordChannel)
+                ? jsonElement.ToChannel(botInstance) as T 
+                : Activator.CreateInstance(typeof(T), botInstance, jsonElement) as T;
+
+            array[index++] = entity;
+        }
 
         return array;
     }

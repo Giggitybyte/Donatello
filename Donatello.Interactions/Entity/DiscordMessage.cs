@@ -23,14 +23,7 @@ public sealed class DiscordMessage : DiscordEntity
     public bool MentionsEveryone => this.Json.GetProperty("mention_everyone").GetBoolean();
 
     /// <summary>A collection of users that were mentioned in this message.</summary>
-    public ReadOnlyList<DiscordUser> MentionedUsers
-    {
-        get
-        {
-            var users = this.Json.GetProperty("mentions").ToEntityArray<DiscordUser>(this.Bot);
-            return new ReadOnlyList<DiscordUser>(users);
-        }
-    }
+    public ReadOnlyList<DiscordUser> MentionedUsers => new(this.Json.GetProperty("mentions").ToEntityArray<DiscordUser>(this.Bot));
 
     /// <summary>A collection of roles that were mentioned in this message.</summary>
     public ReadOnlyList<DiscordRole> MentionedRoles => new(this.Json.GetProperty("mention_roles").ToEntityArray<DiscordRole>(this.Bot));

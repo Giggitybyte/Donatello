@@ -103,7 +103,7 @@ public sealed class DiscordShard
     }
 
     /// <summary>Sends a payload to the gateway containing a single primitive data value.</summary>
-    internal ValueTask SendPayloadAsync(int opcode, JsonValueKind payloadType, object payload = null)
+    internal ValueTask SendPayloadAsync(int opcode, JsonValueKind payloadType, object payloadValue = null)
     {
         var buffer = new ArrayBufferWriter<byte>();
         using var jsonWriter = new Utf8JsonWriter(buffer);
@@ -111,10 +111,10 @@ public sealed class DiscordShard
         jsonWriter.WriteStartObject();
         jsonWriter.WriteNumber("op", opcode);
 
-        if (payloadType is JsonValueKind.String & payload is string)
-            jsonWriter.WriteString("d", (string)payload);
-        else if (payloadType is JsonValueKind.Number & payload is short or int or long)
-            jsonWriter.WriteNumber("d", (long)payload);
+        if (payloadType is JsonValueKind.String && payloadValue is string)
+            jsonWriter.WriteString("d", (string)payloadValue);
+        else if (payloadType is JsonValueKind.Number && payloadValue is short or int or long)
+            jsonWriter.WriteNumber("d", (long)payloadValue);
         else if (payloadType is JsonValueKind.True)
             jsonWriter.WriteBoolean("d", true);
         else if (payloadType is JsonValueKind.False)

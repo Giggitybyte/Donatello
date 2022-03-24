@@ -36,7 +36,7 @@ public class DiscordHttpClient
 
     /// <param name="token">Discord token.</param>
     /// <param name="isBearerToken"><see langword="true"/>: OAuth2 bearer token.<br/><see langword="false"/>: application bot token.</param>
-    public DiscordHttpClient(string token, bool isBearerToken = false, ILogger logger = null)
+    public DiscordHttpClient(string token, ILogger logger = null, bool isBearerToken = false)
     {
         _authHeader = new("Authorization", $"{(isBearerToken ? "Bearer" : "Bot")} {token}");
         _bucketIds = new ConcurrentDictionary<Uri, string>();
@@ -162,7 +162,7 @@ public class DiscordHttpClient
 
                 return await DelayRequestAsync(request, retryTime);
             }
-            else // TODO: redirect JSON error codes and common error HTTP statuses to a DiscordHttpClient.RequestFailed event.
+            else
             {
                 using var responsePayload = await response.Content.ReadAsStreamAsync();
                 using var responseJson = await JsonDocument.ParseAsync(responsePayload);

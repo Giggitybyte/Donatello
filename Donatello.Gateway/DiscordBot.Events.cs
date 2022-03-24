@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using Qmmands;
 using Qommon.Events;
 
-// Declarations for user facing events.
+// Everything event related; C# declarations, Discord dispatch.
 public sealed partial class DiscordBot
 {
     private AsynchronousEvent<CommandExecutedEventArgs> _commandExecutedEvent;
@@ -16,32 +16,35 @@ public sealed partial class DiscordBot
     private AsynchronousEvent<UnknownEventContext> _unknownGatewayEvent;
     private AsynchronousEvent<ChannelCreatedEventContext> _channelCreateEvent;
 
+    /// <summary></summary>
     public event AsynchronousEventHandler<CommandExecutedEventArgs> CommandExecuted
     {
         add => _commandExecutedEvent.Hook(value);
         remove => _commandExecutedEvent.Unhook(value);
     }
 
+    /// <summary></summary>
     public event AsynchronousEventHandler<CommandExecutionFailedEventArgs> CommandExecutionFailed
     {
         add => _commandExecutionFailedEvent.Hook(value);
         remove => _commandExecutionFailedEvent.Unhook(value);
     }
 
-    
+    /// <summary></summary>
     public event AsynchronousEventHandler<UnknownEventContext> UnknownEvent
     {
         add => _unknownGatewayEvent.Hook(value);
         remove => _unknownGatewayEvent.Unhook(value);
     }
 
-    
+    /// <summary></summary>
     public event AsynchronousEventHandler<ChannelCreatedEventContext> ChannelCreated
     {
         add => _channelCreateEvent.Hook(value);
         remove => _channelCreateEvent.Unhook(value);
     }
 
+    /// <summary></summary>
     private void InitializeEvents()
     {
         _commandExecutedEvent = new AsynchronousEvent<CommandExecutedEventArgs>(EventExceptionLogger);
@@ -122,6 +125,7 @@ public sealed partial class DiscordBot
         }
     }
 
+    /// <summary></summary>
     private void EventExceptionLogger(Exception exception)
         => this.Logger.LogError(exception, "An event handler threw an exception.");
 }

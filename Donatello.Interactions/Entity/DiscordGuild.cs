@@ -43,9 +43,8 @@ public sealed class DiscordGuild : DiscordEntity
     /// <remarks>May return <see cref="string.Empty"/> if the guild does not have a vanity URL.</remarks>
     public string VanityInviteUrl => this.Json.TryGetProperty("vanity_url_code", out var prop) ? $"https://discord.gg/{prop.GetString()}" : string.Empty;
 
-
     /// <summary>Guild icon URL.</summary>
-    /// <remarks>May return <see cref="string.Empty"/> if an icon has not been uploaded.</remarks>
+    /// <remarks>May return <see cref="string.Empty"/> if an icon has not been uploaded for this guild.</remarks>
     public string IconUrl
     {
         get

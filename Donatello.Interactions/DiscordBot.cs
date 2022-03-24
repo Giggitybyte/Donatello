@@ -35,6 +35,7 @@ public sealed class DiscordBot
 
     private AsynchronousEvent<CommandExecutedEventArgs> _commandExecutedEvent;
     private AsynchronousEvent<CommandExecutionFailedEventArgs> _commandExecutionFailedEvent;
+    private AsynchronousEvent<>
 
     public DiscordBot(string apiToken, string publicKey, ILogger logger = null)
     {
@@ -45,7 +46,7 @@ public sealed class DiscordBot
 
         _publicKey = PublicKey.Import(SignatureAlgorithm.Ed25519, Convert.FromHexString(publicKey), KeyBlobFormat.PkixPublicKeyText);
 
-        this.HttpClient = new DiscordHttpClient(apiToken, logger: logger);
+        this.HttpClient = new DiscordHttpClient(apiToken, logger);
         this.Logger = logger ?? NullLogger.Instance;
 
         _commandExecutedEvent = new AsynchronousEvent<CommandExecutedEventArgs>(EventExceptionLogger);

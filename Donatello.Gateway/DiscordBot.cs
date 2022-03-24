@@ -1,6 +1,7 @@
 ﻿namespace Donatello.Gateway;
 
 using System;
+using System.Net;
 using System.Reflection;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -8,6 +9,7 @@ using Donatello.Gateway.Command;
 using Donatello.Gateway.Entity;
 using Donatello.Gateway.Enumeration;
 using Donatello.Rest;
+using Donatello.Rest.Endpoint;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -95,7 +97,7 @@ public sealed partial class DiscordBot
         var batchSize = websocketMetadata.GetProperty("session_start_limit").GetProperty("max_concurrency").GetInt32();
 
         _shards = new DiscordShard[shardCount];
-        _identifyProcessingTask = ProcessIdentifyAsync(_identifyChannel.Reader);
+        _identifyProcessingTask = ProcessShardIdentifyAsync(_identifyChannel.Reader);
         _eventDispatchTask = DispatchGatewayEventsAsync(_eventChannel.Reader);
 
         for (int shardId = 0; shardId < shardCount; shardId++)
@@ -134,8 +136,31 @@ public sealed partial class DiscordBot
     /// <summary></summary>
     public async ValueTask<DiscordGuild> GetGuildAsync(ulong guildId)
     {
-        throw new NotImplementedException();
+        if (_guildCache.TryGetValue<DiscordGuild>(guildId, out var cachedGuild))
+            return cachedGuild;
+        else
+        {
+            var response = await _httpClient.GetGuildAsync(guildId);
+            if (response.Status is HttpStatusCode.OK)
+            {
+                var guild = new DiscordGuild(this, response.Payload);
+
+                _guildCache.Set(guildId, guild, new MemoryCacheEntryOptions()
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1),
+                    PostEvictionCallbacks = { LogCacheEviction() } 
+                });
+
+                return guild;
+            }
+            else if (response.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+                throw new ArgumentException("Guild ID was invalid", nameof(guildId));
+            else
+                throw new InvalidOperationException($"Something went wrong while fetching a guild: {response.Message} ({(int)response.Status})");
+        }
     }
+
+    
 
     /// <summary></summary>
     public async ValueTask<DiscordChannel> GetChannelAsync(ulong channelId)
@@ -146,10 +171,28 @@ public sealed partial class DiscordBot
     /// <summary></summary>
     public async ValueTask<DiscordUser> GetUserAsync(ulong userId)
     {
-        throw new NotImplementedException();
+        if (_userCache.TryGetValue<DiscordUser>(userId, out var cachedUser))
+            return cachedUser;
+        else
+        {
+            var response = await _httpClient.GetUserAsync(userId);
+        }
     }
 
-    private async Task ProcessIdentifyAsync(ChannelReader<DiscordShard> identifyReader)
+    /// <summary>Adds or updates an entry in the guild cache.</summary>
+    internal void UpdateGuildCache(DiscordGuild guild)
+        => _guildCache.Set(guild.Id, guild);
+
+    /// <summary>Adds or updates an entry in the channel cache.</summary>
+    internal void UpdateChannelCache(DiscordChannel channel)
+        => _channelCache.Set(channel.Id, channel);
+
+    /// <summary>Adds or updates an entry in the user cache.</summary>
+    internal void UpdateUserCache(DiscordUser user)
+        => _userCache.Set(user.Id, user);
+
+    /// <summary></summary>
+    private async Task ProcessShardIdentifyAsync(ChannelReader<DiscordShard> identifyReader)
     {
         await foreach (var shard in identifyReader.ReadAllAsync())
         {
