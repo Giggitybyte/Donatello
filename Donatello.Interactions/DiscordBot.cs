@@ -143,7 +143,7 @@ public sealed class DiscordBot
 
         int index = 0;
         foreach (var channelJson in response.Payload.EnumerateArray())
-            channels[index++] = channelJson.ToChannel(this);
+            channels[index++] = channelJson.ToChannelEntity(this);
 
         return new ReadOnlyList<DiscordChannel>(channels);
     }

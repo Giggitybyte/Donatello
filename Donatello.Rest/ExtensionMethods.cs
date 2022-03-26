@@ -1,13 +1,11 @@
 ﻿namespace Donatello.Rest;
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 
-/// <summary>Internal helper methods.</summary>
 internal static class ExtensionMethods
 {
     /// <summary>Converts a JSON object to a <see cref="StringContent"/> object for REST requests.</summary>
@@ -35,25 +33,27 @@ internal static class ExtensionMethods
         );
     }
 
-    /// <summary>Converts the key-value pairs in this dictionary to a URL query parameter string.</summary>
-    internal static string ToParamString(this IDictionary<string, string> dictionary)
+    /// <summary>Converts the key-value pairs contained in a tuple array to a URL query parameter string.</summary>
+    internal static string ToParamString(this (string key, string value)[] paramArray)
     {
-        if (dictionary is null || dictionary.Count is 0)
+        if (paramArray is null || paramArray.Length is 0)
             return string.Empty;
 
         var builder = new StringBuilder();
-        foreach (var param in dictionary)
+        foreach (var param in paramArray)
         {
             if (builder.Length > 0)
                 builder.Append('&');
             else
                 builder.Append('?');
 
-            builder.Append(param.Key);
+            builder.Append(param.key);
             builder.Append('=');
-            builder.Append(param.Value);
+            builder.Append(param.value);
         }
 
         return builder.ToString();
     }
+
+
 }

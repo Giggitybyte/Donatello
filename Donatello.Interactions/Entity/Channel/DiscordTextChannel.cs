@@ -19,7 +19,7 @@ public abstract class DiscordTextChannel : DiscordChannel
             throw new ArgumentException("Message content cannot be longer than 2,000 characters.", nameof(content));
 
         var response = await this.Bot.HttpClient.CreateMessageAsync(this.Id, (json) => json.WriteString("content", content));
-        var message = response.Payload.ToChannel(this.Bot);
+        var message = response.Payload.ToChannelEntity(this.Bot);
 
         var channel = new DiscordDirectTextChannel(this.Bot, )
 

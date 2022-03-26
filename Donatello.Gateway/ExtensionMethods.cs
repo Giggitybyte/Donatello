@@ -1,5 +1,6 @@
 ﻿namespace Donatello.Gateway;
 
+using Donatello.Gateway.Entity;
 using Donatello.Rest;
 using System;
 using System.Buffers;
@@ -15,7 +16,7 @@ internal static class ExtensionMethods
     {
         var response = await httpClient.SendRequestAsync(HttpMethod.Get, $"gateway/bot");
 
-        if (response.Status != HttpStatusCode.OK)
+        if (response.Status is not HttpStatusCode.OK)
             throw new HttpRequestException("Could not retreive shard metadata.", null, response.Status);
 
         return response.Payload;
@@ -33,6 +34,26 @@ internal static class ExtensionMethods
         pool.Return(array, true);
 
         array = newArray;
+    }
+
+    /// <summary>Converts a JSON object to an appropriate Discord channel entity.</summary>
+    internal static DiscordChannel ToChannelEntity(this JsonElement jsonObject, DiscordBot botInstance)
+    {
+        var type = jsonObject.GetProperty("type").GetInt32();
+
+        DiscordChannel channel = type switch
+        {
+            0 => new DiscordGuildTextChannel(botInstance, jsonObject),
+            1 => new DiscordDirectTextChannel(botInstance, jsonObject),
+            2 or 13 => new DiscordVoiceChannel(botInstance, jsonObject),
+            3 => throw new NotSupportedException("Bot accounts cannot be in group DMs."),
+            4 => new DiscordCategoryChannel(botInstance, jsonObject),
+            5 => new DiscordAnnouncementChannel(botInstance, jsonObject),
+            10 or 11 or 12 => new DiscordThreadTextChannel(botInstance, jsonObject),
+            _ => throw new JsonException("Unknown channel type.")
+        };
+
+        return channel;
     }
 
     /// <summary>Deserializes the JSON property as string and converts the value to <see langword="ulong"/>.</summary>

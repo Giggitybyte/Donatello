@@ -15,6 +15,6 @@ public sealed class DiscordAnnouncementChannel : DiscordGuildTextChannel
 
     /// <summary>Adds the provided <paramref name="channel"/> as a follower to this channel.</summary>
     /// <remarks>Requires the <c>MANAGE_WEBHOOKS</c> permission in the <paramref name="channel"/>.</remarks>
-    public Task AddFollowerAsync(DiscordChannel channel)
+    public Task AddFollowerAsync(DiscordTextChannel channel)
         => this.Bot.HttpClient.FollowNewsChannelAsync(this.Id, channel.Id);
 }

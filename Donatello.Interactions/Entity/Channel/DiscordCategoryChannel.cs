@@ -21,10 +21,8 @@ public sealed class DiscordCategoryChannel : DiscordChannel
         int arrayIndex = 0;
 
         foreach (var channel in guildChannels.Payload.EnumerateArray())
-        {
             if (channel.TryGetProperty("parent_id", out var prop) && prop.AsUInt64() == this.Id)
-                childChannels[arrayIndex++] = channel.ToChannel(this.Bot);
-        }
+                childChannels[arrayIndex++] = channel.ToChannelEntity(this.Bot);
 
         return new ReadOnlyList<DiscordChannel>(childChannels);
     }

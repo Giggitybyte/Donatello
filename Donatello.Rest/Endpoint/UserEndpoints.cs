@@ -2,6 +2,7 @@
 
 using Donatello.Rest.Transport;
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -17,8 +18,17 @@ public static class UserEndpoints
 
     /// <summary>Fetches a user using its ID.</summary>
     /// <returns><see href="https://discord.com/developers/docs/resources/user#user-object">user object</see></returns>
-    public static Task<HttpResponse> GetUserAsync(this DiscordHttpClient httpClient, ulong id)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"users/{id}");
+    public static async Task<JsonElement> GetUserAsync(this DiscordHttpClient httpClient, ulong userId)
+    {
+        var response = await httpClient.SendRequestAsync(HttpMethod.Get, $"users/{userId}");
+
+        if (response.Status is HttpStatusCode.OK)
+            return response.Payload;
+        else if (response.Status is HttpStatusCode.NotFound)
+            throw new ArgumentException("User ID was invalid", nameof(userId));
+        else
+            throw new HttpRequestException($"Unable to fetch user from Discord: {response.Message} ({(int)response.Status})");
+    }
 
     /// <summary>Changes user account settings.</summary>
     /// <returns>Updated <see href="https://discord.com/developers/docs/resources/user#user-object">user object</see>.</returns>

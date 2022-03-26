@@ -27,18 +27,19 @@ public class DiscordMember : DiscordEntity
             {
                 var avatarHash = prop.GetString();
                 if (avatarHash is not null)
-                    return $"https://cdn.discordapp.com/guilds/{_guildId}/users/{_userId}/avatars/{prop.GetString()}.png";
+                    return $"https://cdn.discordapp.com/guilds/{_guildId}/users/{_userId}/avatars/{avatarHash}.png";
             }
 
             return string.Empty;
         }
     }
 
-    public ValueTask<DiscordUser> GetUserAsync()
-        => this.Bot.GetUserAsync(_userId);
-
     /// <summary></summary>
     public ValueTask<DiscordGuild> GetGuildAsync()
         => this.Bot.GetGuildAsync(_guildId);
+
+    /// <summary></summary>
+    public ValueTask<DiscordUser> GetUserAsync()
+        => this.Bot.GetUserAsync(_userId);
 }
 

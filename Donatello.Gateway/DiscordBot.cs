@@ -1,8 +1,8 @@
 ﻿namespace Donatello.Gateway;
 
 using System;
-using System.Net;
 using System.Reflection;
+using System.Text.Json;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Donatello.Gateway.Command;
@@ -16,10 +16,11 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Qmmands;
 using Qommon.Collections;
 
-/// <summary>
-/// High-level bot framework for the Discord API.<br/>
-/// Receives events from the API through a websocket connection and sends requests to the API through HTTP REST requests.
-/// </summary>
+/// <summary>High-level bot framework for the Discord API.</summary>
+/// <remarks>
+/// Receives events from the API through a websocket connection.<br/> 
+/// Sends requests to the API through HTTP REST requests and the websocket connection.
+/// </remarks>
 public sealed partial class DiscordBot
 {
     private string _apiToken;
@@ -65,7 +66,7 @@ public sealed partial class DiscordBot
     internal ILogger Logger { get; private set; }
 
     /// <summary></summary>
-    internal ReadOnlyList<DiscordShard> Shards { get => new(_shards); }
+    internal ReadOnlyList<DiscordShard> Shards => new(_shards);
 
     /// <summary>Searches the provided assembly for classes which inherit from <see cref="DiscordCommandModule"/> and registers each of their commands.</summary>
     public void LoadCommandModules(Assembly assembly)
@@ -80,7 +81,7 @@ public sealed partial class DiscordBot
         => _commandService.AddModule(moduleBuilder);
 
     /// <summary>Registers a plugin with this instance.</summary>
-    public void EnablePlugin<T>() // where T : DonatelloGatewayPlugin
+    public ValueTask EnablePluginAsync<T>() // where T : DonatelloGatewayPlugin
         => throw new NotImplementedException();
 
     /// <summary>Removes a plugin from this instance, releasing any resources if needed.</summary>
@@ -111,7 +112,7 @@ public sealed partial class DiscordBot
         // ...
     }
 
-    /// <summary>Closes all websocket connections and unloads all extensions.</summary>
+    /// <summary>Closes all websocket connections and disables all plugins.</summary>
     public async Task StopAsync()
     {
         if (_shards.Length is 0 | _identifyProcessingTask is null | _eventDispatchTask is null)
@@ -133,70 +134,101 @@ public sealed partial class DiscordBot
         Array.Clear(_shards, 0, _shards.Length);
     }
 
-    /// <summary></summary>
+    /// <summary>Fetches a guild object using an ID.</summary>
     public async ValueTask<DiscordGuild> GetGuildAsync(ulong guildId)
     {
         if (_guildCache.TryGetValue<DiscordGuild>(guildId, out var cachedGuild))
             return cachedGuild;
         else
         {
-            var response = await _httpClient.GetGuildAsync(guildId);
-            if (response.Status is HttpStatusCode.OK)
-            {
-                var guild = new DiscordGuild(this, response.Payload);
+            var json = await _httpClient.GetGuildAsync(guildId);
+            var guild = new DiscordGuild(this, json);
 
-                _guildCache.Set(guildId, guild, new MemoryCacheEntryOptions()
-                {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1),
-                    PostEvictionCallbacks = { LogCacheEviction() } 
-                });
+            UpdateGuildCache(guild);
+            this.Logger.LogTrace("Added entry {Id} to the guild cache", guildId);
 
-                return guild;
-            }
-            else if (response.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
-                throw new ArgumentException("Guild ID was invalid", nameof(guildId));
-            else
-                throw new InvalidOperationException($"Something went wrong while fetching a guild: {response.Message} ({(int)response.Status})");
+            return guild;
         }
     }
 
-    
-
-    /// <summary></summary>
-    public async ValueTask<DiscordChannel> GetChannelAsync(ulong channelId)
+    /// <summary>Fetches a channel using an ID and returns it as a <typeparamref name="TChannel"/> object.</summary>
+    public async ValueTask<TChannel> GetChannelAsync<TChannel>(ulong channelId) where TChannel : DiscordChannel
     {
-        throw new NotImplementedException();
+        if (_channelCache.TryGetValue<DiscordChannel>(channelId, out var cachedChannel))
+            return cachedChannel as TChannel;
+        else
+        {
+            var json = await _httpClient.GetChannelAsync(channelId);
+            var channel = json.ToChannelEntity(this);
+
+            this.Logger.LogTrace("Added entry {Id} to the channel cache", channelId);
+
+            return channel as TChannel;
+        }
     }
 
-    /// <summary></summary>
+    /// <summary>Fetches a user object using an ID.</summary>
     public async ValueTask<DiscordUser> GetUserAsync(ulong userId)
     {
         if (_userCache.TryGetValue<DiscordUser>(userId, out var cachedUser))
             return cachedUser;
         else
         {
-            var response = await _httpClient.GetUserAsync(userId);
+            var json = await _httpClient.GetUserAsync(userId);
+            var user = new DiscordUser(this, json);
+
+            UpdateUserCache(user);
+            this.Logger.LogTrace("Added entry {Id} to the user cache", userId);
+
+            return user;
         }
     }
 
     /// <summary>Adds or updates an entry in the guild cache.</summary>
     internal void UpdateGuildCache(DiscordGuild guild)
-        => _guildCache.Set(guild.Id, guild);
+    {
+        var entryConfig = new MemoryCacheEntryOptions()
+            .SetSlidingExpiration(TimeSpan.FromHours(1))
+            .RegisterPostEvictionCallback(LogGuildCacheEviction);
+
+        _guildCache.Set(guild.Id, guild, entryConfig);
+
+        void LogGuildCacheEviction(object key, object value, EvictionReason reason, object state)
+            => this.Logger.LogTrace("Removed entry {Id} from the guild cache ({Reason})", (ulong)key, reason);
+    }
 
     /// <summary>Adds or updates an entry in the channel cache.</summary>
     internal void UpdateChannelCache(DiscordChannel channel)
-        => _channelCache.Set(channel.Id, channel);
+    {
+        var entryConfig = new MemoryCacheEntryOptions()
+                .SetSlidingExpiration(TimeSpan.FromHours(1))
+                .RegisterPostEvictionCallback(LogChannelCacheEviction);
+
+        _channelCache.Set(channel.Id, channel, entryConfig);
+
+        void LogChannelCacheEviction(object key, object value, EvictionReason reason, object state)
+            => this.Logger.LogTrace("Removed entry {Id} from the channel cache ({Reason})", (ulong)key, reason);
+    }
 
     /// <summary>Adds or updates an entry in the user cache.</summary>
     internal void UpdateUserCache(DiscordUser user)
-        => _userCache.Set(user.Id, user);
+    {
+        var entryConfig = new MemoryCacheEntryOptions()
+                .SetSlidingExpiration(TimeSpan.FromMinutes(30))
+                .RegisterPostEvictionCallback(LogUserCacheEviction);
+
+        _userCache.Set(user.Id, user, entryConfig);
+
+        void LogUserCacheEviction(object key, object value, EvictionReason reason, object state)
+            => this.Logger.LogTrace("Removed entry {Id} from the user cache ({Reason})", (ulong)key, reason);
+    }
 
     /// <summary></summary>
     private async Task ProcessShardIdentifyAsync(ChannelReader<DiscordShard> identifyReader)
     {
         await foreach (var shard in identifyReader.ReadAllAsync())
         {
-            await shard.SendPayloadAsync(2, (json) =>
+            await shard.SendPayloadAsync(2, json =>
             {
                 json.WriteString("token", _apiToken);
 

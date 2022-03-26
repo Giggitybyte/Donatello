@@ -118,10 +118,16 @@ public sealed partial class DiscordBot
                 "VOICE_STATE_UPDATE" => throw new NotImplementedException(),
                 "VOICE_SERVER_UPDATE" => throw new NotImplementedException(),
                 "WEBHOOKS_UPDATE" => throw new NotImplementedException(),
-                _ => _unknownGatewayEvent.InvokeAsync(this, new UnknownEventContext(eventName, eventData))
+                _ => UnknownEvent()
             };
 
             await eventTask;
+
+            ValueTask UnknownEvent()
+            {
+                this.Logger.LogWarning("Received unknown gateway event: {EventName}", eventName);
+                return _unknownGatewayEvent.InvokeAsync(this, new UnknownEventContext(eventName, eventData));
+            }
         }
     }
 

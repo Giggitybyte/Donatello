@@ -3,6 +3,7 @@
 using Donatello.Rest.Transport;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -18,8 +19,17 @@ public static class GuildEndpoints
 
     /// <summary>Fetches a guild using its ID.</summary>
     /// <returns><see href="https://discord.com/developers/docs/resources/guild#guild-object">guild object</see></returns>
-    public static Task<HttpResponse> GetGuildAsync(this DiscordHttpClient httpClient, ulong guildId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}");
+    public static async Task<JsonElement> GetGuildAsync(this DiscordHttpClient httpClient, ulong guildId)
+    {
+        var response = await httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}");
+
+        if (response.Status is HttpStatusCode.OK)
+            return response.Payload;
+        else if (response.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+            throw new ArgumentException("Guild ID was invalid", nameof(guildId));
+        else
+            throw new HttpRequestException($"Unable to fetch guild from Discord: {response.Message} ({(int)response.Status})");
+    }
 
     /// <summary>Fetches the guild preview for a lurkable guild.</summary>
     /// <returns><see href="https://discord.com/developers/docs/resources/guild#guild-preview-object">guild preview object</see></returns>

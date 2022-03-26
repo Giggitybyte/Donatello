@@ -2,10 +2,9 @@
 
 using System.Text.Json;
 
+/// <summary></summary>
 public abstract class DiscordChannel : DiscordEntity
 {
-    internal DiscordChannel(DiscordBot bot, JsonElement json) : base(bot, json) { }
-
-
+    protected DiscordChannel(DiscordBot bot, JsonElement json) : base(bot, json) { }
 }
 

@@ -3,11 +3,11 @@
 using Microsoft.Extensions.Caching.Memory;
 using System.Text.Json;
 
-public class DiscordTextChannel : DiscordEntity
+public abstract class DiscordTextChannel : DiscordChannel
 {
     private MemoryCache _messageCache;
 
-    public DiscordTextChannel(DiscordBot bot, JsonElement json) : base(bot, json) 
+    protected DiscordTextChannel(DiscordBot bot, JsonElement json) : base(bot, json) 
     { 
 
     }

@@ -3,6 +3,7 @@
 using Donatello.Rest.Transport;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -12,8 +13,17 @@ public static class ChannelEndpoints
 {
     /// <summary>Fetches a channel using its ID.</summary>
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#channel-object">channel object</see></returns>
-    public static Task<HttpResponse> GetChannelAsync(this DiscordHttpClient httpClient, ulong channelId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}");
+    public static async Task<JsonElement> GetChannelAsync(this DiscordHttpClient httpClient, ulong channelId)
+    {
+        var response = await httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}");
+
+        if (response.Status is HttpStatusCode.OK)
+            return response.Payload;
+        else if (response.Status is HttpStatusCode.NotFound)
+            throw new ArgumentException("Channel ID was invalid", nameof(channelId));
+        else
+            throw new HttpRequestException($"Unable to fetch channel from Discord: {response.Message} ({(int)response.Status})");
+    }
 
     /// <summary>Updates the settings for a channel.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/channel#modify-channel">Click here to see valid JSON parameters</see>.</remarks>
@@ -33,7 +43,7 @@ public static class ChannelEndpoints
     /// <summary>Fetches up to 100 messages from a channel.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/channel#get-channel-messages-query-string-params">Click here to see valid query parameters</see>.</remarks>
     /// <returns>Array of <see href="https://discord.com/developers/docs/resources/channel#message-object">message objects</see>.</returns>
-    public static Task<HttpResponse> GetChannelMessagesAsync(this DiscordHttpClient httpClient, ulong channelId, IDictionary<string, string> queryParams = null)
+    public static Task<HttpResponse> GetChannelMessagesAsync(this DiscordHttpClient httpClient, ulong channelId, params (string key, string value)[] queryParams)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/messages{queryParams.ToParamString()}");
 
     /// <summary>Posts a message to a channel.</summary>
@@ -223,18 +233,18 @@ public static class ChannelEndpoints
     /// <summary>Fetches all archived public thread channels.</summary>
     /// /// <remarks><see href="https://discord.com/developers/docs/resources/channel#list-public-archived-threads-query-string-params">Click to see valid query string params</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#list-public-archived-threads-response-body">archived threads object</see></returns>
-    public static Task<HttpResponse> GetArchivedPublicThreadsAsync(this DiscordHttpClient httpClient, ulong channelId, IDictionary<string,string> queryParams = null)
+    public static Task<HttpResponse> GetArchivedPublicThreadsAsync(this DiscordHttpClient httpClient, ulong channelId, params (string key, string value)[] queryParams)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/threads/archived/public{queryParams.ToParamString()}");
 
     /// <summary>Fetches all archived private thread channels.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/channel#list-private-archived-threads-query-string-params">Click to see valid query string params</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#list-private-archived-threads-response-body">archived threads object</see></returns>
-    public static Task<HttpResponse> GetArchivedPrivateThreadsAsync(this DiscordHttpClient httpClient, ulong channelId, IDictionary<string, string> queryParams = null)
+    public static Task<HttpResponse> GetArchivedPrivateThreadsAsync(this DiscordHttpClient httpClient, ulong channelId, params (string key, string value)[] queryParams)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/threads/archived/private{queryParams.ToParamString()}");
 
     /// <summary>Fetches all archived private thread channels that the current user has joined.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/channel#list-joined-private-archived-threads-query-string-params">Click to see valid query string params</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#list-joined-private-archived-threads-response-body">archived threads object</see></returns>
-    public static Task<HttpResponse> GetJoinedArchivedPrivateThreadsAsync(this DiscordHttpClient httpClient, ulong channelId, IDictionary<string, string> queryParams = null)
+    public static Task<HttpResponse> GetJoinedArchivedPrivateThreadsAsync(this DiscordHttpClient httpClient, ulong channelId, params (string key, string value)[] queryParams)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/users/@me/threads/archived/private{queryParams.ToParamString()}");
 }
