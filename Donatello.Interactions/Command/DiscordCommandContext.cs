@@ -1,7 +1,6 @@
 ﻿namespace Donatello.Interactions.Command;
 
 using System;
-using Donatello.Interactions.Entity;
 using Qmmands;
 
 /// <summary>

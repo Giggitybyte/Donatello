@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Interactions.Builder;
 
-using Donatello.Rest.Transport;
+using Donatello.Core;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -14,7 +14,7 @@ public sealed class EmbedPayloadBuilder : PayloadBuilder
     internal EmbedPayloadBuilder() 
         => _fields = new List<Field>(25);
 
-    internal override void Build(Utf8JsonWriter json)
+    internal override void Build(in Utf8JsonWriter json)
     {
         throw new NotImplementedException();
     }

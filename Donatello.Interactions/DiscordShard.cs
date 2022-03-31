@@ -1,6 +1,4 @@
 ﻿namespace Donatello.Gateway;
-
-using Donatello.Core.Rest;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;

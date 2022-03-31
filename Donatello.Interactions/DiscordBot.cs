@@ -10,10 +10,12 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Donatello.Core;
+using Donatello.Core.Entity;
+using Donatello.Core.Rest.Channel;
+using Donatello.Core.Rest.Guild;
+using Donatello.Core.Rest.User;
 using Donatello.Interactions.Command.Module;
-using Donatello.Interactions.Entity;
-using Donatello.Rest;
-using Donatello.Rest.Endpoint;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSec.Cryptography;
@@ -25,29 +27,28 @@ using Qommon.Events;
 /// High-level bot framework for the interaction model.<br/>
 /// Interactions are received from Discord through an integrated webhook listener.
 /// </summary>
-public sealed class DiscordBot
+public sealed class DiscordBot : AbstractBot
 {
     private readonly PublicKey _publicKey;
 
     private CommandService _commandService;
     private Task _interactionListenerTask;
     private CancellationTokenSource _cts;
+    private ushort _port;
 
     private AsynchronousEvent<CommandExecutedEventArgs> _commandExecutedEvent;
     private AsynchronousEvent<CommandExecutionFailedEventArgs> _commandExecutionFailedEvent;
-    private AsynchronousEvent<>
 
-    public DiscordBot(string apiToken, string publicKey, ILogger logger = null)
+    public DiscordBot(string apiToken, string publicKey, ushort port = 8080, ILogger logger = null) : base(apiToken, logger)
     {
         if (string.IsNullOrWhiteSpace(apiToken))
             throw new ArgumentException("Token cannot be empty.", nameof(apiToken));
         else if (string.IsNullOrWhiteSpace(publicKey))
             throw new ArgumentException("Public key cannot be empty.", nameof(publicKey));
 
-        _publicKey = PublicKey.Import(SignatureAlgorithm.Ed25519, Convert.FromHexString(publicKey), KeyBlobFormat.PkixPublicKeyText);
-
-        this.HttpClient = new DiscordHttpClient(apiToken, logger);
         this.Logger = logger ?? NullLogger.Instance;
+
+        _publicKey = PublicKey.Import(SignatureAlgorithm.Ed25519, Convert.FromHexString(publicKey), KeyBlobFormat.PkixPublicKeyText);
 
         _commandExecutedEvent = new AsynchronousEvent<CommandExecutedEventArgs>(EventExceptionLogger);
         _commandExecutionFailedEvent = new AsynchronousEvent<CommandExecutionFailedEventArgs>(EventExceptionLogger);
@@ -71,9 +72,6 @@ public sealed class DiscordBot
         remove => _commandExecutionFailedEvent.Unhook(value);
     }
 
-    /// <summary>REST API wrapper instance.</summary>
-    internal DiscordHttpClient HttpClient { get; private init; }
-
     /// <summary></summary>
     internal ILogger Logger { get; private init; }
 
@@ -89,21 +87,23 @@ public sealed class DiscordBot
         => _commandService.AddModule(typeof(T));
 
     /// <summary>Submits all registered commands to Discord and begins listening for interactions.</summary>
-    public void Start(ushort port = 8080)
+    public override ValueTask StartAsync()
     {
         if (this.IsRunning)
             throw new InvalidOperationException("Instance is already active.");
 
-        _interactionListenerTask = InteractionListenerLoop(port, _cts.Token);
+        _interactionListenerTask = InteractionListenerLoop(_cts.Token);
 
         foreach (var command in _commandService.GetAllCommands())
         {
             // ...
         }
+
+        throw new NotImplementedException();
     }
 
     /// <summary>Stops listening for interactions.</summary>
-    public async ValueTask StopAsync()
+    public override async ValueTask StopAsync()
     {
         if (!this.IsRunning)
             throw new InvalidOperationException("Instance is not active.");
@@ -115,30 +115,30 @@ public sealed class DiscordBot
     }
 
     /// <summary></summary>
-    public async Task<DiscordUser> GetUserAsync(ulong userId)
+    public override async ValueTask<DiscordUser> GetUserAsync(ulong userId)
     {
-        var response = await this.HttpClient.GetUserAsync(userId);
-        return new DiscordUser(this, response.Payload);
+        var response = await this.RestClient.GetUserAsync(userId);
+        return new DiscordUser(this, response);
     }
 
     /// <summary></summary>
-    public async Task<DiscordGuild> GetGuildAsync(ulong guildId)
+    public override async ValueTask<DiscordGuild> GetGuildAsync(ulong guildId)
     {
-        var response = await this.HttpClient.GetGuildAsync(guildId).ConfigureAwait(false);
-        return new DiscordGuild(this, response.Payload);
+        var guild = await this.RestClient.GetGuildAsync(guildId);
+        return new DiscordGuild(this, guild);
     }
 
     /// <summary></summary>
-    public async Task<DiscordChannel> GetChannelAsync(ulong channelId)
+    public override async ValueTask<T> GetChannelAsync<T>(ulong channelId)
     {
-        var response = await this.HttpClient.GetChannelAsync(channelId);
-        return response.Payload.ToChannel(this);
+        var response = await this.RestClient.GetChannelAsync(channelId);
+        return response.ToChannelEntity(this) as T;
     }
 
     /// <summary></summary>
-    public async Task<ReadOnlyList<DiscordChannel>> GetChannelsAsync(ulong guildId)
+    public async ValueTask<ReadOnlyList<DiscordChannel>> GetChannelsAsync(ulong guildId)
     {
-        var response = await this.HttpClient.GetGuildChannelsAsync(guildId);
+        var response = await this.RestClient.GetGuildChannelsAsync(guildId);
         var channels = new DiscordChannel[response.Payload.GetArrayLength()];
 
         int index = 0;
@@ -149,10 +149,10 @@ public sealed class DiscordBot
     }
 
     /// <summary>Webhook listener.</summary>
-    private async Task InteractionListenerLoop(ushort port, CancellationToken token)
+    private async Task InteractionListenerLoop(CancellationToken token)
     {
         using var listener = new HttpListener();
-        listener.Prefixes.Add($"https://*:{port}/");
+        listener.Prefixes.Add($"https://*:{_port}/");
 
         listener.Start();
 
@@ -210,7 +210,7 @@ public sealed class DiscordBot
 
                 if (result is not null)
                 {
-                    result.Command.
+                    // ...
                 }
                 else
                 {
@@ -246,5 +246,6 @@ public sealed class DiscordBot
 
     private void EventExceptionLogger(Exception exception)
         => this.Logger.LogError(exception, "An event handler threw an exception.");
+
 }
 

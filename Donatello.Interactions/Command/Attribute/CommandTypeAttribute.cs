@@ -1,7 +1,6 @@
 ﻿namespace Donatello.Interactions.Command.Attribute;
 
 using System;
-using Donatello.Interactions.Enumeration;
 
 /// <summary>Explicitly specifies the type of a command.</summary>
 [AttributeUsage(AttributeTargets.Method, Inherited = true, AllowMultiple = false)]

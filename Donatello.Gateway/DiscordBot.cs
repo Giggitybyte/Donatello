@@ -2,14 +2,15 @@
 
 using System;
 using System.Reflection;
-using System.Text.Json;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Donatello.Core;
+using Donatello.Core.Entity;
+using Donatello.Core.Enumeration;
+using Donatello.Core.Rest.Channel;
+using Donatello.Core.Rest.Guild;
+using Donatello.Core.Rest.User;
 using Donatello.Gateway.Command;
-using Donatello.Gateway.Entity;
-using Donatello.Gateway.Enumeration;
-using Donatello.Rest;
-using Donatello.Rest.Endpoint;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -21,11 +22,10 @@ using Qommon.Collections;
 /// Receives events from the API through a websocket connection.<br/> 
 /// Sends requests to the API through HTTP REST requests and the websocket connection.
 /// </remarks>
-public sealed partial class DiscordBot
+public sealed partial class DiscordBot : AbstractBot
 {
     private string _apiToken;
-    private DiscordIntent _intents;
-    private DiscordHttpClient _httpClient;
+    private GatewayIntent _intents;
     private CommandService _commandService;
     private Channel<DiscordShard> _identifyChannel;
     private Channel<DiscordEvent> _eventChannel;
@@ -36,14 +36,13 @@ public sealed partial class DiscordBot
     /// <param name="apiToken"></param>
     /// <param name="intents"></param>
     /// <param name="logger"></param>
-    public DiscordBot(string apiToken, DiscordIntent intents = DiscordIntent.Unprivileged, ILogger logger = null)
+    public DiscordBot(string apiToken, GatewayIntent intents = GatewayIntent.Unprivileged, ILogger logger = null) : base(apiToken, logger)
     {
         if (string.IsNullOrWhiteSpace(apiToken))
             throw new ArgumentException("Token cannot be empty.");
 
         _apiToken = apiToken;
         _intents = intents;
-        _httpClient = new DiscordHttpClient(apiToken);
         _identifyChannel = Channel.CreateUnbounded<DiscordShard>();
         _eventChannel = Channel.CreateUnbounded<DiscordEvent>();
 
@@ -89,9 +88,9 @@ public sealed partial class DiscordBot
         => throw new NotImplementedException();
 
     /// <summary>Connects to the Discord gateway.</summary>
-    public async Task StartAsync()
+    public override async ValueTask StartAsync()
     {
-        var websocketMetadata = await _httpClient.GetGatewayMetadataAsync();
+        var websocketMetadata = await this.RestClient.GetGatewayMetadataAsync();
 
         var websocketUrl = websocketMetadata.GetProperty("url").GetString();
         var shardCount = websocketMetadata.GetProperty("shards").GetInt32();
@@ -103,7 +102,7 @@ public sealed partial class DiscordBot
 
         for (int shardId = 0; shardId < shardCount; shardId++)
         {
-            var shard = new DiscordShard(shardId, _httpClient, _identifyChannel.Writer, _eventChannel.Writer, this.Logger);
+            var shard = new DiscordShard(shardId, this.RestClient, _identifyChannel.Writer, _eventChannel.Writer, this.Logger);
             await shard.ConnectAsync(websocketUrl);
 
             _shards[shardId] = shard;
@@ -113,7 +112,7 @@ public sealed partial class DiscordBot
     }
 
     /// <summary>Closes all websocket connections and disables all plugins.</summary>
-    public async Task StopAsync()
+    public override async ValueTask StopAsync()
     {
         if (_shards.Length is 0 | _identifyProcessingTask is null | _eventDispatchTask is null)
             throw new InvalidOperationException("This instance is not currently connected to Discord.");
@@ -135,13 +134,13 @@ public sealed partial class DiscordBot
     }
 
     /// <summary>Fetches a guild object using an ID.</summary>
-    public async ValueTask<DiscordGuild> GetGuildAsync(ulong guildId)
+    public override async ValueTask<DiscordGuild> GetGuildAsync(ulong guildId)
     {
         if (_guildCache.TryGetValue<DiscordGuild>(guildId, out var cachedGuild))
             return cachedGuild;
         else
         {
-            var json = await _httpClient.GetGuildAsync(guildId);
+            var json = await this.RestClient.GetGuildAsync(guildId);
             var guild = new DiscordGuild(this, json);
 
             UpdateGuildCache(guild);
@@ -152,13 +151,13 @@ public sealed partial class DiscordBot
     }
 
     /// <summary>Fetches a channel using an ID and returns it as a <typeparamref name="TChannel"/> object.</summary>
-    public async ValueTask<TChannel> GetChannelAsync<TChannel>(ulong channelId) where TChannel : DiscordChannel
+    public override async ValueTask<TChannel> GetChannelAsync<TChannel>(ulong channelId)
     {
         if (_channelCache.TryGetValue<DiscordChannel>(channelId, out var cachedChannel))
             return cachedChannel as TChannel;
         else
         {
-            var json = await _httpClient.GetChannelAsync(channelId);
+            var json = await this.RestClient.GetChannelAsync(channelId);
             var channel = json.ToChannelEntity(this);
 
             this.Logger.LogTrace("Added entry {Id} to the channel cache", channelId);
@@ -168,13 +167,13 @@ public sealed partial class DiscordBot
     }
 
     /// <summary>Fetches a user object using an ID.</summary>
-    public async ValueTask<DiscordUser> GetUserAsync(ulong userId)
+    public override async ValueTask<DiscordUser> GetUserAsync(ulong userId)
     {
         if (_userCache.TryGetValue<DiscordUser>(userId, out var cachedUser))
             return cachedUser;
         else
         {
-            var json = await _httpClient.GetUserAsync(userId);
+            var json = await this.RestClient.GetUserAsync(userId);
             var user = new DiscordUser(this, json);
 
             UpdateUserCache(user);
