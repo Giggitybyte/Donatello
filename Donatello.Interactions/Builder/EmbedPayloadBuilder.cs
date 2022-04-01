@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Interactions.Builder;
 
-using Donatello.Core;
+using Donatello;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;

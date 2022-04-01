@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Gateway;
 
-using Donatello.Core.Rest;
+using Donatello.Rest;
 using System;
 using System.Buffers;
 using System.Net;

@@ -4,12 +4,12 @@ using System;
 using System.Reflection;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using Donatello.Core;
-using Donatello.Core.Entity;
-using Donatello.Core.Enumeration;
-using Donatello.Core.Rest.Channel;
-using Donatello.Core.Rest.Guild;
-using Donatello.Core.Rest.User;
+using Donatello;
+using Donatello.Entity;
+using Donatello.Enumeration;
+using Donatello.Rest.Channel;
+using Donatello.Rest.Guild;
+using Donatello.Rest.User;
 using Donatello.Gateway.Command;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -22,7 +22,7 @@ using Qommon.Collections;
 /// Receives events from the API through a websocket connection.<br/> 
 /// Sends requests to the API through HTTP REST requests and the websocket connection.
 /// </remarks>
-public sealed partial class DiscordBot : AbstractBot
+public sealed partial class DiscordBot : Bot
 {
     private string _apiToken;
     private GatewayIntent _intents;
@@ -84,7 +84,7 @@ public sealed partial class DiscordBot : AbstractBot
         => throw new NotImplementedException();
 
     /// <summary>Removes a plugin from this instance, releasing any resources if needed.</summary>
-    public async ValueTask DisablePluginAsync<T>() // where T : DonatelloGatewayPlugin
+    public ValueTask DisablePluginAsync<T>() // where T : DonatelloGatewayPlugin
         => throw new NotImplementedException();
 
     /// <summary>Connects to the Discord gateway.</summary>

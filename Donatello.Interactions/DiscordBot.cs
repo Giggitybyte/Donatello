@@ -10,11 +10,11 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Donatello.Core;
-using Donatello.Core.Entity;
-using Donatello.Core.Rest.Channel;
-using Donatello.Core.Rest.Guild;
-using Donatello.Core.Rest.User;
+using Donatello;
+using Donatello.Entity;
+using Donatello.Rest.Channel;
+using Donatello.Rest.Guild;
+using Donatello.Rest.User;
 using Donatello.Interactions.Command.Module;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -27,7 +27,7 @@ using Qommon.Events;
 /// High-level bot framework for the interaction model.<br/>
 /// Interactions are received from Discord through an integrated webhook listener.
 /// </summary>
-public sealed class DiscordBot : AbstractBot
+public sealed class DiscordBot : Bot
 {
     private readonly PublicKey _publicKey;
 
