@@ -9,7 +9,7 @@ using Qmmands;
 using Qommon.Events;
 
 // Everything event related; C# declarations, Discord dispatch.
-public sealed partial class DiscordBot
+public sealed partial class DiscordGatewayBot
 {
     private AsynchronousEvent<CommandExecutedEventArgs> _commandExecutedEvent;
     private AsynchronousEvent<CommandExecutionFailedEventArgs> _commandExecutionFailedEvent;

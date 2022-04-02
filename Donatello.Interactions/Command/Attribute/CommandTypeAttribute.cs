@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Command.Attribute;
+﻿namespace Donatello.Interaction.Command.Attribute;
 
 using System;
 

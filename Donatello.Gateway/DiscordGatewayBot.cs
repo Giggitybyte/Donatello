@@ -17,12 +17,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Qmmands;
 using Qommon.Collections;
 
-/// <summary>High-level bot framework for the Discord API.</summary>
+/// <summary>Bot framework for the Discord's real-time websocket API.</summary>
 /// <remarks>
 /// Receives events from the API through a websocket connection.<br/> 
 /// Sends requests to the API through HTTP REST requests and the websocket connection.
 /// </remarks>
-public sealed partial class DiscordBot : Bot
+public sealed partial class DiscordGatewayBot : DiscordApiBot // Everything event related: DiscordGatewayBot.Events.cs
 {
     private string _apiToken;
     private GatewayIntent _intents;
@@ -36,7 +36,7 @@ public sealed partial class DiscordBot : Bot
     /// <param name="apiToken"></param>
     /// <param name="intents"></param>
     /// <param name="logger"></param>
-    public DiscordBot(string apiToken, GatewayIntent intents = GatewayIntent.Unprivileged, ILogger logger = null) : base(apiToken, logger)
+    public DiscordGatewayBot(string apiToken, GatewayIntent intents = GatewayIntent.Unprivileged, ILogger logger = null) : base(apiToken, logger)
     {
         if (string.IsNullOrWhiteSpace(apiToken))
             throw new ArgumentException("Token cannot be empty.");

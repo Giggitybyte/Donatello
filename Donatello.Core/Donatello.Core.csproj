@@ -1,11 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net6.0</TargetFramework>
+		<RootNamespace>Donatello</RootNamespace>
 		<Version>0.0.1</Version>
-		<Authors>thegiggitybyte</Authors>
+		<TargetFramework>net6.0</TargetFramework>
+		<Authors>Luke Triano (thegiggitybyte)</Authors>
 
-		<ImplicitUsings>enable</ImplicitUsings>
+		<!-- I don't like this kind of hidden convenience magic :( -->
+		<ImplicitUsings>false</ImplicitUsings>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -14,7 +16,7 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="Donatello.Gateway" />
-		<InternalsVisibleTo Include="Donatello.Interactions" />
+		<InternalsVisibleTo Include="Donatello.Interaction" />
 	</ItemGroup>
 
 </Project>

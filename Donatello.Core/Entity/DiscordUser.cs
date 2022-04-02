@@ -7,7 +7,7 @@ using System.Text.Json;
 /// <summary></summary>
 public sealed class DiscordUser : DiscordEntity
 {
-    public DiscordUser(Bot bot, JsonElement json) : base(bot, json) { }
+    public DiscordUser(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
 
     /// <summary>Additional metadata for this user, e.g. badges.</summary>
     internal UserFlag Flags => this.Json.TryGetProperty("public_flags", out var prop) ? (UserFlag)prop.GetInt32() : UserFlag.None;

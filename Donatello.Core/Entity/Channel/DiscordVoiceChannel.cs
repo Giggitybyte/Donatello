@@ -5,7 +5,7 @@ using System.Text.Json;
 /// <summary></summary>
 public sealed class DiscordVoiceChannel : DiscordChannel
 {
-    public DiscordVoiceChannel(Bot bot, JsonElement json) : base(bot, json) { }
+    public DiscordVoiceChannel(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
 
     /// <summary></summary>
     public int UserLimit => this.Json.GetProperty("user_limit").GetInt32();

@@ -5,7 +5,7 @@ using System.Text.Json;
 /// <summary>Custom guild emote.</summary>
 public sealed class DiscordEmote : DiscordEntity
 {
-    public DiscordEmote(Bot bot, JsonElement json) : base(bot, json) { }
+    public DiscordEmote(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
 
     /// <summary>Emote name.</summary>
     public string Name => this.Json.GetProperty("name").GetString();

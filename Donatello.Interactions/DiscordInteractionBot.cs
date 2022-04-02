@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions;
+﻿namespace Donatello.Interaction;
 
 using System;
 using System.Buffers;
@@ -15,7 +15,7 @@ using Donatello.Entity;
 using Donatello.Rest.Channel;
 using Donatello.Rest.Guild;
 using Donatello.Rest.User;
-using Donatello.Interactions.Command.Module;
+using Donatello.Interaction.Command.Module;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSec.Cryptography;
@@ -24,10 +24,10 @@ using Qommon.Collections;
 using Qommon.Events;
 
 /// <summary>
-/// High-level bot framework for the interaction model.<br/>
+/// Bot framework for Discord's interaction API model.<br/>
 /// Interactions are received from Discord through an integrated webhook listener.
 /// </summary>
-public sealed class DiscordBot : Bot
+public sealed class DiscordInteractionBot : DiscordApiBot
 {
     private readonly PublicKey _publicKey;
 
@@ -39,7 +39,7 @@ public sealed class DiscordBot : Bot
     private AsynchronousEvent<CommandExecutedEventArgs> _commandExecutedEvent;
     private AsynchronousEvent<CommandExecutionFailedEventArgs> _commandExecutionFailedEvent;
 
-    public DiscordBot(string apiToken, string publicKey, ushort port = 8080, ILogger logger = null) : base(apiToken, logger)
+    public DiscordInteractionBot(string apiToken, string publicKey, ushort port = 8080, ILogger logger = null) : base(apiToken, logger)
     {
         if (string.IsNullOrWhiteSpace(apiToken))
             throw new ArgumentException("Token cannot be empty.", nameof(apiToken));

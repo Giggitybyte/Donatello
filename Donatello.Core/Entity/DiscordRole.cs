@@ -5,7 +5,7 @@ using RoleColor = System.Drawing.Color;
 
 public sealed class DiscordRole : DiscordEntity
 {
-    internal DiscordRole(Bot bot, JsonElement json) : base(bot, json) { }
+    internal DiscordRole(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
 
     /// <summary>Role name.</summary>
     public string Name => this.Json.GetProperty("name").GetString();

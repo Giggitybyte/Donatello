@@ -60,15 +60,15 @@ public class DiscordHttpClient
         => SendRequestCoreAsync(method, endpoint, jsonObject.ToContent());
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonWriter, IList<FileAttachment> attachments)
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonWriter, IList<LocalFileAttachment> attachments)
         => SendMultipartRequestAsync(method, endpoint, jsonWriter.ToContent(), attachments);
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, IList<FileAttachment> attachments)
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, IList<LocalFileAttachment> attachments)
         => SendMultipartRequestAsync(method, endpoint, jsonObject.ToContent(), attachments);
 
     /// <summary>Sends a multi-part HTTP request to an endpoint.</summary>
-    private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, StringContent jsonContent, IList<FileAttachment> attachments)
+    private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, StringContent jsonContent, IList<LocalFileAttachment> attachments)
     {
         var multipartContent = new MultipartFormDataContent();
         multipartContent.Add(jsonContent, "payload_json");
@@ -104,7 +104,7 @@ public class DiscordHttpClient
         {
             return DelayRequestAsync(request, bucket.ResetDate - currentDate);
         }
-        else
+        else 
         {
             return DispatchRequestAsync(request);
         }
@@ -125,10 +125,11 @@ public class DiscordHttpClient
 
             this.Logger.LogDebug("Request to {Url} got {Status} response from Discord.", request.RequestUri.AbsolutePath, response.StatusCode);
 
+            RequestBucket bucket;
             if (response.Headers.TryGetValues("X-RateLimit-Bucket", out var headers))
             {
                 var bucketId = headers.FirstOrDefault();
-                if (_requestBuckets.TryGetValue(bucketId, out var bucket))
+                if (_requestBuckets.TryGetValue(bucketId, out bucket))
                 {
                     bucket.Update(response.Headers);
                     this.Logger.LogTrace("Updated existing ratelimit bucket {Id}", bucketId);
@@ -154,8 +155,13 @@ public class DiscordHttpClient
                     _globalRatelimitResetDate = DateTime.Now + retryTime;
                     this.Logger.LogCritical("Hit global rate limit");
                 }
-                else if (scope is "user" or "shared")
-                    this.Logger.LogWarning("Hit {Scope} ratelimit for {Uri}", scope, request.RequestUri.AbsolutePath);
+                else if (scope is "user")
+                {
+                    this.Logger.LogWarning("Hit token ratelimit for {Uri}", request.RequestUri.AbsolutePath);
+                    bucket.TryUse()
+                }
+                else if (scope is "shared")
+                    this.Logger.LogWarning("Hit shared ratelimit for {Uri}", request.RequestUri.AbsolutePath);
                 else
                     this.Logger.LogWarning("Hit unknown ratelimit scope '{Scope}'", scope);
 

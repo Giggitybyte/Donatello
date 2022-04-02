@@ -9,10 +9,14 @@ using System.Threading.Tasks;
 /// <summary>A collection of channels and users.</summary>
 public sealed class DiscordGuild : DiscordEntity
 {
-    public DiscordGuild(Bot bot, JsonElement json) : base(bot, json) { }
+
+    public DiscordGuild(DiscordApiBot bot, JsonElement json) : base(bot, json) 
+    {
+        this.Features = this.Json.GetProperty("features").ToStringArray();
+    }
 
     /// <summary></summary>
-    internal ReadOnlyList<string> Features => new(this.Json.GetProperty("features").ToStringArray());
+    internal string[] Features { get; private init; }
 
     /// <summary></summary>
     internal SystemChannelFlag SystemChannelFlags => (SystemChannelFlag)this.Json.GetProperty("system_channel_flags").GetInt32();
@@ -33,10 +37,10 @@ public sealed class DiscordGuild : DiscordEntity
     public int BoostLevel => this.Json.GetProperty("premium_tier").GetInt32();
 
     /// <summary></summary>
-    public ReadOnlyCollection<DiscordRole> Roles => new(this.Json.GetProperty("roles").ToEntityArray<DiscordRole>(this.Bot));
+    public DiscordEntityCollection<DiscordRole> Roles => new(this.Json.GetProperty("roles").ToEntityDictionary<DiscordRole>(this.Bot));
 
     /// <summary></summary>
-    public ReadOnlyList<DiscordEmote> Emotes => new(this.Json.GetProperty("emojis").ToEntityArray<DiscordEmote>(this.Bot));
+    public ReadOnlyCollection<DiscordEmote> Emotes => new(this.Json.GetProperty("emojis").ToEntityArray<DiscordEmote>(this.Bot));
 
     /// <summary>Custom invite link, e.g. <c>https://discord.gg/wumpus-and-friends</c></summary>
     /// <remarks>May return <see cref="string.Empty"/> if the guild does not have a vanity URL.</remarks>
@@ -81,23 +85,23 @@ public sealed class DiscordGuild : DiscordEntity
     }
 
     /// <summary></summary>
-    public Task<DiscordUser> GetOwnerAsync()
-        => this.Bot.GetUserAsync(this.Json.GetProperty("owner_id").AsUInt64());
+    public ValueTask<DiscordUser> GetOwnerAsync()
+        => this.Bot.GetUserAsync(this.Json.GetProperty("owner_id").ToUInt64());
 
     /// <summary></summary>
-    public Task<DiscordChannel> GetChannelAsync(ulong channelId)
+    public ValueTask<DiscordChannel> GetChannelAsync(ulong channelId)
         => this.Bot.GetChannelAsync(channelId);
 
     /// <summary></summary>
-    public Task<DiscordChannel> GetRulesChannelAsync()
-        => GetChannelAsync(this.Json.GetProperty("rules_channel_id").AsUInt64());
+    public ValueTask<DiscordChannel> GetRulesChannelAsync()
+        => GetChannelAsync(this.Json.GetProperty("rules_channel_id").ToUInt64());
 
     /// <summary></summary>
-    public Task<DiscordChannel> GetAfkChannelAsync()
-        => GetChannelAsync(this.Json.GetProperty("afk_channel_id").AsUInt64());
+    public ValueTask<DiscordChannel> GetAfkChannelAsync()
+        => GetChannelAsync(this.Json.GetProperty("afk_channel_id").ToUInt64());
 
     /// <summary></summary>
-    public Task<DiscordChannel> GetSystemChannelAsync()
-        => GetChannelAsync(this.Json.GetProperty("system_channel_id").AsUInt64());
+    public ValueTask<DiscordChannel> GetSystemChannelAsync()
+        => GetChannelAsync(this.Json.GetProperty("system_channel_id").ToUInt64());
 }
 

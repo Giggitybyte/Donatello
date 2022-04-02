@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Command.Module;
+﻿namespace Donatello.Interaction.Command.Module;
 
 using System;
 using System.Threading.Tasks;

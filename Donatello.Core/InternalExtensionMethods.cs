@@ -2,6 +2,9 @@
 
 using Donatello.Entity;
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 
@@ -54,8 +57,23 @@ internal static class InternalExtensionMethods
         return builder.ToString();
     }
 
+    /// <summary>Deserializes the JSON property as string and converts the value to <see langword="ulong"/>.</summary>
+    internal static ulong ToUInt64(this JsonElement jsonProperty)
+    {
+        if (jsonProperty.ValueKind is not JsonValueKind.String)
+            throw new JsonException($"Expected a string, got {jsonProperty.ValueKind} instead.");
+
+        return ulong.Parse(jsonProperty.GetString());
+    }
+
+    /// <summary>Creates a new entity</summary>
+    internal static T ToEntity<T>(this JsonElement jsonObject, DiscordApiBot botInstance) where T : DiscordEntity
+        => typeof(T) == typeof(DiscordChannel)
+                ? jsonObject.ToChannelEntity(botInstance) as T
+                : Activator.CreateInstance(typeof(T), botInstance, jsonObject) as T;
+
     /// <summary>Converts a JSON object to an appropriate Discord channel entity.</summary>
-    internal static DiscordChannel ToChannelEntity(this JsonElement jsonObject, Bot botInstance)
+    internal static DiscordChannel ToChannelEntity(this JsonElement jsonObject, DiscordApiBot botInstance)
     {
         var type = jsonObject.GetProperty("type").GetInt32();
 
@@ -68,6 +86,7 @@ internal static class InternalExtensionMethods
             4 => new DiscordCategoryChannel(botInstance, jsonObject),
             5 => new DiscordAnnouncementChannel(botInstance, jsonObject),
             10 or 11 or 12 => new DiscordThreadTextChannel(botInstance, jsonObject),
+            14 => throw new NotImplementedException(),
             _ => throw new JsonException("Unknown channel type.")
         };
 
@@ -75,7 +94,7 @@ internal static class InternalExtensionMethods
     }
 
     /// <summary>Converts a JSON token to an array of Discord entities.</summary>
-    internal static T[] ToEntityArray<T>(this JsonElement jsonArray, Bot botInstance) where T : DiscordEntity
+    internal static T[] ToEntityArray<T>(this JsonElement jsonArray, DiscordApiBot botInstance) where T : DiscordEntity
     {
         if (jsonArray.ValueKind is not JsonValueKind.Array)
             throw new JsonException($"Expected an array; got {jsonArray.ValueKind} instead.");
@@ -84,24 +103,39 @@ internal static class InternalExtensionMethods
         int index = 0;
 
         foreach (var jsonElement in jsonArray.EnumerateArray())
-        {
-            T entity = typeof(T) == typeof(DiscordChannel)
-                ? jsonElement.ToChannelEntity(botInstance) as T
-                : Activator.CreateInstance(typeof(T), botInstance, jsonElement) as T;
-
-            array[index++] = entity;
-        }
+            array[index++] = jsonElement.ToEntity<T>(botInstance);
 
         return array;
     }
 
-    /// <summary>Deserializes the JSON property as string and converts the value to <see langword="ulong"/>.</summary>
-    internal static ulong AsUInt64(this JsonElement jsonProperty) // TODO: proper snowflake type.
+    /// <summary>Converts a JSON token to an array of key-value pairs, where the key is the snowflake ID for each value.</summary>
+    internal static Dictionary<ulong, T> ToEntityDictionary<T>(this JsonElement jsonArray, DiscordApiBot botInstance) where T : DiscordEntity
     {
-        if (jsonProperty.ValueKind is JsonValueKind.String)
-            return ulong.Parse(jsonProperty.GetString());
-        else
-            throw new JsonException($"Expected a string, got {jsonProperty.ValueKind} instead.");
+        if (jsonArray.ValueKind is not JsonValueKind.Array)
+            throw new JsonException($"Expected an array; got {jsonArray.ValueKind} instead.");
+
+        var dictionary = new Dictionary<ulong, T>(jsonArray.GetArrayLength());
+        foreach (var jsonElement in jsonArray.EnumerateArray())
+        {
+            T entity = jsonElement.ToEntity<T>(botInstance);
+            dictionary.Add(entity.Id, entity);
+        }
+
+        return dictionary;
+    }
+
+    /// <summary>Converts a JSON token to an array of strings.</summary>
+    internal static string[] ToStringArray(this JsonElement jsonArray)
+    {
+        if (jsonArray.ValueKind is not JsonValueKind.Array)
+            throw new JsonException($"Expected an array; got {jsonArray.ValueKind} instead.");
+
+        var array = new string[jsonArray.GetArrayLength()];
+        int index = 0;
+
+        foreach (var jsonElement in jsonArray.EnumerateArray())
+            array[index++] = jsonElement.GetString();
+
+        return array;
     }
 }
-

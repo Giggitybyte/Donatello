@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 /// <summary>Temporary sub-channel inside an existing text channel.</summary>
 public sealed class DiscordThreadTextChannel : DiscordGuildTextChannel
 {
-    internal DiscordThreadTextChannel(Bot bot, JsonElement json) : base(bot, json) { }
+    internal DiscordThreadTextChannel(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
 
     /// <summary>Thread-specific channel fields that are not used by other channel types.</summary>
     internal JsonElement Metadata => this.Json.GetProperty("thread_metadata");
@@ -31,14 +31,14 @@ public sealed class DiscordThreadTextChannel : DiscordGuildTextChannel
     /// <summary>Fetches the user which started this thread.</summary>
     public Task<DiscordUser> GetCreatorAsync()
     {
-        var id = this.Json.GetProperty("owner_id").AsUInt64();
+        var id = this.Json.GetProperty("owner_id").ToUInt64();
         return this.Bot.GetUserAsync(id);
     }
 
     /// <summary>Fetches the text channel which contains this thread channel.</summary>
     public async Task<DiscordGuildTextChannel> GetParentChannel()
     {
-        var id = this.Json.GetProperty("parent_id").AsUInt64();
+        var id = this.Json.GetProperty("parent_id").ToUInt64();
         var channel = await this.Bot.GetChannelAsync(id);
 
         return channel as DiscordGuildTextChannel;

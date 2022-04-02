@@ -1,10 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net6.0</TargetFramework>
-
 		<Version>0.0.1</Version>
-		<Authors>thegiggitybyte</Authors>
+		<TargetFramework>net6.0</TargetFramework>
+		<Authors>Luke Triano (thegiggitybyte)</Authors>
+
+		<!-- I don't like this kind of hidden convenience magic :( -->
+		<ImplicitUsings>false</ImplicitUsings>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -18,7 +20,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Donatello.Entity\Donatello.Core.csproj" />
+	  <ProjectReference Include="..\Donatello.Core\Donatello.Core.csproj" />
 	</ItemGroup>
 
 </Project>

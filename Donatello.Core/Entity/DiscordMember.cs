@@ -9,9 +9,9 @@ public class DiscordMember : DiscordEntity
     private readonly ulong _userId;
     private readonly ulong _guildId;
 
-    public DiscordMember(Bot bot, JsonElement json, ulong guildId) : base(bot, json) 
+    public DiscordMember(DiscordApiBot bot, JsonElement json, ulong guildId) : base(bot, json) 
     {
-        _userId = this.Json.GetProperty("user").GetProperty("id").AsUInt64();
+        _userId = this.Json.GetProperty("user").GetProperty("id").ToUInt64();
         _guildId = guildId;
     }
 

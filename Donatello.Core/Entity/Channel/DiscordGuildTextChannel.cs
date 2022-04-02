@@ -1,5 +1,6 @@
 ﻿namespace Donatello.Entity;
 
+using Donatello.Rest.Channel;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -7,7 +8,7 @@ using System.Threading.Tasks;
 
 public class DiscordGuildTextChannel : DiscordTextChannel
 {
-    public DiscordGuildTextChannel(Bot bot, JsonElement json) : base(bot, json) { }
+    public DiscordGuildTextChannel(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
 
     /// <summary></summary>
     public string Topic => this.Json.GetProperty("topic").GetString();
@@ -31,6 +32,6 @@ public class DiscordGuildTextChannel : DiscordTextChannel
         foreach (var msg in messages)
             messageIds.Add(msg.Id);
 
-        return this.Bot.HttpClient.BulkDeleteMessagesAsync(this.Id, messageIds);
+        return this.Bot.RestClient.BulkDeleteMessagesAsync(this.Id, messageIds);
     }
 }

@@ -3,17 +3,21 @@
 using Donatello.Entity;
 using Donatello.Rest;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
 
 /// <summary></summary>
-public abstract class Bot
+public abstract class DiscordApiBot
 {
-    internal Bot(string token, ILogger logger = null)
+    public DiscordApiBot(string token, ILogger logger = null)
     {
         this.RestClient = new DiscordHttpClient(token, logger);
     }
 
     /// <summary>REST API wrapper instance.</summary>
     internal DiscordHttpClient RestClient { get; private init; }
+
+    /// <summary></summary>
+    internal abstract ValueTask<DiscordMessage> GetMessageAsync(DiscordChannel channel, ulong messageId);
 
     /// <summary>Connects to the Discord API.</summary>
     public abstract ValueTask StartAsync();

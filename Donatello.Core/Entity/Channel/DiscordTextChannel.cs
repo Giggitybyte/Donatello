@@ -1,5 +1,6 @@
 ﻿namespace Donatello.Entity;
 
+using Donatello.Entity.Builder;
 using Donatello.Rest.Channel;
 using System;
 using System.Text.Json;
@@ -8,7 +9,20 @@ using System.Threading.Tasks;
 /// <summary>A channel containing messages.</summary>
 public abstract class DiscordTextChannel : DiscordChannel
 {
-    internal DiscordTextChannel(Bot bot, JsonElement json) : base(bot, json) { }
+    internal DiscordTextChannel(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
+
+    /// <summary></summary>
+    public abstract ValueTask<DiscordMessage> GetMessageAsync(ulong messageId);
+
+    /// <summary></summary>
+    public abstract ValueTask<DiscordEntityCollection<DiscordMessage>> GetMessagesAsync();
+
+    /// <summary></summary>
+    public ValueTask<DiscordMessage> GetLastMessageAsync()
+    {
+        var messageId = this.Json.GetProperty("last_message_id").ToUInt64();
+        return this.GetMessageAsync(messageId);
+    }
 
     /// <summary></summary>
     public async Task<DiscordMessage> SendMessageAsync(string content)
@@ -16,12 +30,12 @@ public abstract class DiscordTextChannel : DiscordChannel
         if (content.Length > 2000)
             throw new ArgumentException("Message content cannot be longer than 2,000 characters.", nameof(content));
 
-        var response = await this.Bot.RestClient.CreateMessageAsync(this.Id, (json) => json.WriteString("content", content));
-        var message = response.Payload.ToChannelEntity(this.Bot);
+        var messageJson = await this.Bot.RestClient.CreateMessageAsync(this.Id, (json) =>
+        {
+            json.WriteString("content", content);
+        });
 
-        var channel = new DiscordDirectTextChannel(this.Bot, response)
-
-        return message;
+        return new DiscordMessage(this.Bot, messageJson);
     }
 
     /// <summary></summary>
@@ -30,26 +44,8 @@ public abstract class DiscordTextChannel : DiscordChannel
         var builder = new MessageBuilder();
         message(builder);
 
-        var response = await this.Bot.HttpClient.CreateMessageAsync(this.Id, builder.WriteJson, builder.Attachments);
-        return new DiscordMessage(this.Bot, response.Payload);
-    }
-
-    /// <summary></summary>
-    public Task<DiscordChannel> GetLastMessageAsync()
-    {
-        throw new NotImplementedException();
-    }
-
-    /// <summary></summary>
-    public Task<DiscordMessage> GetMessageAsync(ulong messageId)
-    {
-        throw new NotImplementedException();
-    }
-
-    /// <summary></summary>
-    public Task<ReadOnlyList<DiscordMessage>> GetMessagesAsync()
-    {
-        throw new NotImplementedException();
+        var response = await this.Bot.RestClient.CreateMessageAsync(this.Id, json => builder.WriteJson(json));
+        return new DiscordMessage(this.Bot, response);
     }
 
     /// <summary></summary>

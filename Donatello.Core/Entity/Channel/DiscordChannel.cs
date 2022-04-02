@@ -7,7 +7,7 @@ using System.Text.Json;
 /// <summary></summary>
 public abstract class DiscordChannel : DiscordEntity
 {
-    internal DiscordChannel(Bot bot, JsonElement json) : base(bot, json)
+    internal DiscordChannel(DiscordApiBot bot, JsonElement json) : base(bot, json)
     {
         var jsonType = json.GetProperty("type").GetInt32();
         if (Enum.IsDefined(typeof(ChannelType), jsonType))

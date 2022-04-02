@@ -4,10 +4,10 @@ using Donatello.Rest.Channel;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-/// <summary>A text channel that can crosspost to following channels.</summary>
+/// <summary>A text channel that can crosspost messages to following channels.</summary>
 public sealed class DiscordAnnouncementChannel : DiscordGuildTextChannel
 {
-    internal DiscordAnnouncementChannel(Bot bot, JsonElement json) : base(bot, json) { }
+    internal DiscordAnnouncementChannel(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
 
     /// <summary>Send a message in this channel to all following channels.</summary>
     public Task CrosspostMessageAsync(DiscordMessage message)

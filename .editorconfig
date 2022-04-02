@@ -1,17 +1,17 @@
 ﻿[*.cs]
 
-# Get a better font.
-dotnet_diagnostic.CS0078.severity = none
-
 csharp_prefer_simple_using_statement= true:suggestion
-csharp_prefer_braces= when_multiline:silent
-csharp_using_directive_placement = inside_namespace:silent
+csharp_prefer_braces= when_multiline:suggestion
+csharp_using_directive_placement = inside_namespace:suggestion
 csharp_style_namespace_declarations = file_scoped:suggestion
 csharp_style_prefer_pattern_matching = true:suggestion
 csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_expression_bodied_constructors = false:suggestion
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
 
 dotnet_style_qualification_for_property = true:suggestion
 
+dotnet_diagnostic.CS0078.severity = none
 dotnet_diagnostic.IDE0009.severity = suggestion
 dotnet_diagnostic.IDE0011.severity = silent
 dotnet_diagnostic.IDE0044.severity = silent

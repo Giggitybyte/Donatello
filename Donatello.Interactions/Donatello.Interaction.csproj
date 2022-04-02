@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	  <Version>0.0.1</Version>
+	  <TargetFramework>net6.0</TargetFramework>
+	  <Authors>Luke Triano (thegiggitybyte)</Authors>
+
+	  <!-- I don't like this kind of hidden convenience magic :( -->
+	  <ImplicitUsings>false</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NSec.Cryptography" Version="21.11.0-preview2" />
+    <PackageReference Include="Qmmands" Version="5.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Command\Enum\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Donatello.Core\Donatello.Core.csproj" />
+  </ItemGroup>
+
+</Project>

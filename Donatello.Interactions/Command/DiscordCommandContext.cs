@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Command;
+﻿namespace Donatello.Interaction.Command;
 
 using System;
 using Qmmands;

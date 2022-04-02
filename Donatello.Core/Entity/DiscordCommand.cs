@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 internal sealed class DiscordCommand : DiscordEntity
 {
-    public DiscordCommand(Bot bot, JsonElement json) : base(bot, json) { }
+    public DiscordCommand(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
 
     /// <summary>Command interaction method.</summary>
     public CommandType Type

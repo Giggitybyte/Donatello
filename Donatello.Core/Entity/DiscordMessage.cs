@@ -6,7 +6,7 @@ using System.Text.Json;
 /// <summary></summary>
 public sealed class DiscordMessage : DiscordEntity
 {
-    public DiscordMessage(Bot bot, JsonElement json) : base(bot, json) { }
+    public DiscordMessage(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
 
     /// <summary>ID of the channel the message was sent in.</summary>
     public ulong ChannelId => ulong.Parse(this.Json.GetProperty("channel_id").GetString());
@@ -21,10 +21,10 @@ public sealed class DiscordMessage : DiscordEntity
     public bool MentionsEveryone => this.Json.GetProperty("mention_everyone").GetBoolean();
 
     /// <summary>A collection of users that were mentioned in this message.</summary>
-    public ReadOnlyList<DiscordUser> MentionedUsers => new(this.Json.GetProperty("mentions").ToEntityArray<DiscordUser>(this.Bot));
+    public DiscordEntityCollection<DiscordUser> MentionedUsers => new(this.Json.GetProperty("mentions").ToEntityArray<DiscordUser>(this.Bot));
 
     /// <summary>A collection of roles that were mentioned in this message.</summary>
-    public ReadOnlyList<DiscordRole> MentionedRoles => new(this.Json.GetProperty("mention_roles").ToEntityArray<DiscordRole>(this.Bot));
+    public DiscordEntityCollection<DiscordRole> MentionedRoles => new(this.Json.GetProperty("mention_roles").ToEntityArray<DiscordRole>(this.Bot));
 
     /// <summary>When this message was sent.</summary>
     public DateTime Timestamp => this.Json.GetProperty("timestamp").GetDateTime();

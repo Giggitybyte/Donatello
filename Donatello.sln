@@ -5,7 +5,7 @@ VisualStudioVersion = 17.0.31808.319
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Gateway", "Donatello.Gateway\Donatello.Gateway.csproj", "{3E41E54B-FCF9-4568-802A-C2AAD1F3D2F8}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Interactions", "Donatello.Interactions\Donatello.Interactions.csproj", "{FE2E28F2-1C79-458B-BCBE-D77D2A32A883}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Interaction", "Donatello.Interactions\Donatello.Interaction.csproj", "{FE2E28F2-1C79-458B-BCBE-D77D2A32A883}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{279BA834-F811-4F57-918E-5DDBB64442C1}"
 	ProjectSection(SolutionItems) = preProject
@@ -14,7 +14,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Test", "Donatello.Test\Donatello.Test.csproj", "{C5A1E03B-2A0E-4334-8EFA-5B27EF82BF83}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Core", "Donatello.Entity\Donatello.Core.csproj", "{47A0F3A8-B81B-462E-9C04-784AECF77781}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Donatello.Core", "Donatello.Core\Donatello.Core.csproj", "{219E5F58-CD8C-401F-BE09-B8C755B5BB59}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -34,10 +34,10 @@ Global
 		{C5A1E03B-2A0E-4334-8EFA-5B27EF82BF83}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C5A1E03B-2A0E-4334-8EFA-5B27EF82BF83}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C5A1E03B-2A0E-4334-8EFA-5B27EF82BF83}.Release|Any CPU.Build.0 = Release|Any CPU
-		{47A0F3A8-B81B-462E-9C04-784AECF77781}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{47A0F3A8-B81B-462E-9C04-784AECF77781}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{47A0F3A8-B81B-462E-9C04-784AECF77781}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{47A0F3A8-B81B-462E-9C04-784AECF77781}.Release|Any CPU.Build.0 = Release|Any CPU
+		{219E5F58-CD8C-401F-BE09-B8C755B5BB59}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{219E5F58-CD8C-401F-BE09-B8C755B5BB59}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{219E5F58-CD8C-401F-BE09-B8C755B5BB59}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{219E5F58-CD8C-401F-BE09-B8C755B5BB59}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,10 +1,10 @@
-﻿namespace Donatello.Interactions.Builder;
+﻿namespace Donatello.Entity.Builder;
 
 using System.Text.Json;
 
 public sealed class ThreadChannelBuilder : PayloadBuilder
 {
-    internal override void Build(in Utf8JsonWriter json)
+    internal void WriteJson(in Utf8JsonWriter json)
     {
         throw new System.NotImplementedException();
     }

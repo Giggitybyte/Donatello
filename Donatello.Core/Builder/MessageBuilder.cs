@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interactions.Builder;
+﻿namespace Donatello.Entity.Builder;
 
 using Donatello;
 using Donatello.Entity;
@@ -10,18 +10,18 @@ public sealed class MessageBuilder : PayloadBuilder
 {
     private string _content;
     private bool _tts;
-    private List<FileAttachment> _attachments;
-    private List<EmbedPayloadBuilder> _embeds;
+    private List<LocalFileAttachment> _attachments;
+    private List<EmbedBuilder> _embeds;
     private List<string> _stickerIds;
     private DiscordMessage _messageReference;
     private MentionConfiguration _mentionConfiguration;
 
     internal MessageBuilder()
     {
-        _embeds = new List<EmbedPayloadBuilder>(10);
+        _embeds = new List<EmbedBuilder>(10);
     }
 
-    internal override void Build(in Utf8JsonWriter json)
+    internal override void WriteJson(in Utf8JsonWriter json)
     {
         if (_embeds.Count is 0 && _attachments.Count is 0 && _content is null && _stickerIds.Count is 0)
             throw new FormatException("A message requires an embed, file, sticker, or text content.");
@@ -32,18 +32,18 @@ public sealed class MessageBuilder : PayloadBuilder
         json.WriteStartArray("embeds");
 
         foreach (var embedBuilder in _embeds)
-            embedBuilder.Build(json);
+            embedBuilder.WriteJson(json);
 
         json.WriteEndArray();
     }
 
     /// <summary>Add an embed to the message.</summary>
-    public MessageBuilder AppendEmbed(Action<EmbedPayloadBuilder> embed)
+    public MessageBuilder AppendEmbed(Action<EmbedBuilder> embed)
     {
         if (_embeds.Count + 1 > _embeds.Capacity)
             throw new InvalidOperationException($"Message cannot have more than {_embeds.Capacity} embeds.");
 
-        var builder = new EmbedPayloadBuilder();
+        var builder = new EmbedBuilder();
         embed(builder);
         _embeds.Add(builder);
 
@@ -83,6 +83,6 @@ public sealed class MessageBuilder : PayloadBuilder
 
     public sealed class MentionConfiguration
     {
-
+        // TODO
     }
 }
