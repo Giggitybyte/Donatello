@@ -21,10 +21,10 @@ public sealed class DiscordMessage : DiscordEntity
     public bool MentionsEveryone => this.Json.GetProperty("mention_everyone").GetBoolean();
 
     /// <summary>A collection of users that were mentioned in this message.</summary>
-    public DiscordEntityCollection<DiscordUser> MentionedUsers => new(this.Json.GetProperty("mentions").ToEntityArray<DiscordUser>(this.Bot));
+    public EntityCollection<DiscordUser> MentionedUsers => new(this.Json.GetProperty("mentions").ToEntityArray<DiscordUser>(this.Bot));
 
     /// <summary>A collection of roles that were mentioned in this message.</summary>
-    public DiscordEntityCollection<DiscordRole> MentionedRoles => new(this.Json.GetProperty("mention_roles").ToEntityArray<DiscordRole>(this.Bot));
+    public EntityCollection<DiscordRole> MentionedRoles => new(this.Json.GetProperty("mention_roles").ToEntityArray<DiscordRole>(this.Bot));
 
     /// <summary>When this message was sent.</summary>
     public DateTime Timestamp => this.Json.GetProperty("timestamp").GetDateTime();

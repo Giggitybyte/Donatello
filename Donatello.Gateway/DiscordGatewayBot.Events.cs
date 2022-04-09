@@ -57,7 +57,7 @@ public sealed partial class DiscordGatewayBot
         _channelCreateEvent = new AsynchronousEvent<ChannelCreatedEventContext>(EventExceptionLogger);
     }
 
-    /// <summary>Receives gateway event payloads from each connected <see cref="DiscordShard"/>.</summary>
+    /// <summary>Receives gateway event payloads from each connected <see cref="DiscordWebsocketShard"/>.</summary>
     private async Task DispatchGatewayEventsAsync(ChannelReader<DiscordEvent> eventReader)
     {
         await foreach (var gatewayEvent in eventReader.ReadAllAsync())

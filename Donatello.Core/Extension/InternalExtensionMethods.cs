@@ -1,4 +1,4 @@
-﻿namespace Donatello;
+﻿namespace Donatello.Extension.Internal;
 
 using Donatello.Entity;
 using System;
@@ -12,7 +12,12 @@ internal static class InternalExtensionMethods
 {
     /// <summary>Converts a JSON object to a <see cref="StringContent"/> object for REST requests.</summary>
     internal static StringContent ToContent(this JsonElement jsonObject)
-        => new StringContent(jsonObject.ToString());
+    {
+        if (jsonObject.ValueKind is not JsonValueKind.Object)
+            throw new JsonException($"Expected an object; got {jsonObject.ValueKind} instead.");
+
+        return new StringContent(jsonObject.ToString(), Encoding.UTF8, "application/json");
+    }
 
     /// <summary>Converts the contents of a JSON writer to a <see cref="StringContent"/> object for REST requests.</summary>
     internal static StringContent ToContent(this Action<Utf8JsonWriter> jsonWriter)
@@ -27,12 +32,8 @@ internal static class InternalExtensionMethods
         writer.Flush();
         jsonStream.Seek(0, SeekOrigin.Begin);
 
-        return new StringContent
-        (
-            new StreamReader(jsonStream).ReadToEnd(),
-            Encoding.UTF8,
-            "application/json"
-        );
+        var json = new StreamReader(jsonStream).ReadToEnd();
+        return new StringContent(json, Encoding.UTF8, "application/json");
     }
 
     /// <summary>Converts the key-value pairs contained in a tuple array to a URL query parameter string.</summary>
@@ -57,6 +58,21 @@ internal static class InternalExtensionMethods
         return builder.ToString();
     }
 
+    /// <summary>Converts a JSON token to an array of strings.</summary>
+    internal static string[] ToStringArray(this JsonElement jsonArray)
+    {
+        if (jsonArray.ValueKind is not JsonValueKind.Array)
+            throw new JsonException($"Expected an array; got {jsonArray.ValueKind} instead.");
+
+        var array = new string[jsonArray.GetArrayLength()];
+        int index = 0;
+
+        foreach (var jsonElement in jsonArray.EnumerateArray())
+            array[index++] = jsonElement.GetString();
+
+        return array;
+    }
+
     /// <summary>Deserializes the JSON property as string and converts the value to <see langword="ulong"/>.</summary>
     internal static ulong ToUInt64(this JsonElement jsonProperty)
     {
@@ -68,9 +84,12 @@ internal static class InternalExtensionMethods
 
     /// <summary>Creates a new entity</summary>
     internal static T ToEntity<T>(this JsonElement jsonObject, DiscordApiBot botInstance) where T : DiscordEntity
-        => typeof(T) == typeof(DiscordChannel)
-                ? jsonObject.ToChannelEntity(botInstance) as T
-                : Activator.CreateInstance(typeof(T), botInstance, jsonObject) as T;
+    {
+        if (typeof(T) == typeof(DiscordChannel))
+            return jsonObject.ToChannelEntity(botInstance) as T;
+        else
+            return Activator.CreateInstance(typeof(T), botInstance, jsonObject) as T;
+    }
 
     /// <summary>Converts a JSON object to an appropriate Discord channel entity.</summary>
     internal static DiscordChannel ToChannelEntity(this JsonElement jsonObject, DiscordApiBot botInstance)
@@ -86,7 +105,7 @@ internal static class InternalExtensionMethods
             4 => new DiscordCategoryChannel(botInstance, jsonObject),
             5 => new DiscordAnnouncementChannel(botInstance, jsonObject),
             10 or 11 or 12 => new DiscordThreadTextChannel(botInstance, jsonObject),
-            14 => throw new NotImplementedException(),
+            14 => throw new NotImplementedException("Ahahah"),
             _ => throw new JsonException("Unknown channel type.")
         };
 
@@ -122,20 +141,5 @@ internal static class InternalExtensionMethods
         }
 
         return dictionary;
-    }
-
-    /// <summary>Converts a JSON token to an array of strings.</summary>
-    internal static string[] ToStringArray(this JsonElement jsonArray)
-    {
-        if (jsonArray.ValueKind is not JsonValueKind.Array)
-            throw new JsonException($"Expected an array; got {jsonArray.ValueKind} instead.");
-
-        var array = new string[jsonArray.GetArrayLength()];
-        int index = 0;
-
-        foreach (var jsonElement in jsonArray.EnumerateArray())
-            array[index++] = jsonElement.GetString();
-
-        return array;
     }
 }

@@ -11,20 +11,20 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 
 /// <summary>
-/// Websocket client for the Discord API gateway.
+/// Websocket client for the Discord API.
 /// </summary>
-public sealed class DiscordShard
+public sealed class DiscordWebsocketShard
 {
     private Task _wsReceieveTask, _wsHeartbeatTask;
     private CancellationTokenSource _websocketCts, _heartbeatDelayCts;
-    private ChannelWriter<DiscordShard> _identifyChannelWriter;
+    private ChannelWriter<DiscordWebsocketShard> _identifyChannelWriter;
     private ChannelWriter<DiscordEvent> _eventChannelWriter;
     private ClientWebSocket _websocketClient;
     private DiscordHttpClient _httpClient;
     private ILogger _logger;
     private bool _receivedHeartbeatAck;
 
-    internal DiscordShard(int shardId, DiscordHttpClient httpClient, ChannelWriter<DiscordShard> identifyWriter, ChannelWriter<DiscordEvent> eventWriter, ILogger logger)
+    internal DiscordWebsocketShard(int shardId, DiscordHttpClient httpClient, ChannelWriter<DiscordWebsocketShard> identifyWriter, ChannelWriter<DiscordEvent> eventWriter, ILogger logger)
     {
         _websocketCts = new CancellationTokenSource();
         _heartbeatDelayCts = new CancellationTokenSource();
@@ -147,7 +147,7 @@ public sealed class DiscordShard
     /// </summary>
     private async Task WebsocketReceiveLoop(CancellationToken cancelToken)
     {
-        while (cancelToken!.IsCancellationRequested)
+        while (cancelToken.IsCancellationRequested)
         {
             var payloadLength = 0;
             var buffer = ArrayPool<byte>.Shared.Rent(8192);
@@ -173,8 +173,7 @@ public sealed class DiscordShard
             if (opcode == 0) // Guild, channel, or user event
             {
                 this.EventSequenceNumber = json.GetProperty("s").GetInt32();
-                var gatewayEvent = new DiscordEvent(this, json.Clone());
-                await _eventChannelWriter.WriteAsync(gatewayEvent);
+                await _eventChannelWriter.WriteAsync(new DiscordEvent(this, json.Clone()));
             }
             else if (opcode == 1) // Heartbeat request
                 await SendHeartbeatAsync();

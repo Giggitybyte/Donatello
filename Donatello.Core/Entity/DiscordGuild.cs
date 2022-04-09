@@ -1,107 +1,172 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Enumeration;
+using Donatello.Extension.Internal;
+using Donatello.Rest.Guild;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-/// <summary>A collection of channels and users.</summary>
+/// <summary>A collection of channels and members.</summary>
 public sealed class DiscordGuild : DiscordEntity
 {
+    private MemoryCache _memberCache, _channelCache, _roleCache, _emojiCache;
 
-    public DiscordGuild(DiscordApiBot bot, JsonElement json) : base(bot, json) 
+    public DiscordGuild(DiscordApiBot bot, JsonElement json) : base(bot, json)
     {
-        this.Features = this.Json.GetProperty("features").ToStringArray();
+        _memberCache = new MemoryCache(new MemoryCacheOptions());
+        _channelCache = new MemoryCache(new MemoryCacheOptions());
+        _roleCache = new MemoryCache(new MemoryCacheOptions());
+        _emojiCache = new MemoryCache(new MemoryCacheOptions());
     }
 
-    /// <summary></summary>
-    internal string[] Features { get; private init; }
-
-    /// <summary></summary>
-    internal SystemChannelFlag SystemChannelFlags => (SystemChannelFlag)this.Json.GetProperty("system_channel_flags").GetInt32();
-
-    /// <summary>Guild name.</summary>
+    /// <summary>The guild name.</summary>
     public string Name => this.Json.GetProperty("name").GetString();
 
-    /// <summary>Guild verification level.</summary>
-    public GuildVerificationLevel VerificationLevel => (GuildVerificationLevel)this.Json.GetProperty("verification_level").GetInt32();
-
-    /// <summary></summary>
-    public GuildContentFilterLevel ContentFilterLevel => (GuildContentFilterLevel)this.Json.GetProperty("explicit_content_filter").GetInt32();
-
-    /// <summary>Amount of time a user must be idle before they are moved to the AFK channel.</summary>
-    public TimeSpan AfkTimeout => TimeSpan.FromSeconds(this.Json.GetProperty("afk_timeout").GetInt32());
-
-    /// <summary></summary>
-    public int BoostLevel => this.Json.GetProperty("premium_tier").GetInt32();
-
-    /// <summary></summary>
-    public DiscordEntityCollection<DiscordRole> Roles => new(this.Json.GetProperty("roles").ToEntityDictionary<DiscordRole>(this.Bot));
-
-    /// <summary></summary>
-    public ReadOnlyCollection<DiscordEmote> Emotes => new(this.Json.GetProperty("emojis").ToEntityArray<DiscordEmote>(this.Bot));
-
-    /// <summary>Custom invite link, e.g. <c>https://discord.gg/wumpus-and-friends</c></summary>
-    /// <remarks>May return <see cref="string.Empty"/> if the guild does not have a vanity URL.</remarks>
-    public string VanityInviteUrl => this.Json.TryGetProperty("vanity_url_code", out var prop) ? $"https://discord.gg/{prop.GetString()}" : string.Empty;
-
-    /// <summary>Guild icon URL.</summary>
-    /// <remarks>May return <see cref="string.Empty"/> if an icon has not been uploaded for this guild.</remarks>
-    public string IconUrl
+    /// <summary>Returns whether this guild has a specific feature enabled.</summary>
+    public bool HasFeature(string feature)
     {
-        get
-        {
-            var iconProp = this.Json.GetProperty("icon");
+        var features = this.Json.GetProperty("features");
 
-            if (iconProp.ValueKind is not JsonValueKind.Null)
-            {
-                var iconHash = iconProp.GetString();
-                var extension = iconHash.StartsWith("a_") ? "gif" : "png";
-                return $"https://cdn.discordapp.com/icons/{this.Id}/{iconHash}.{extension}";
-            }
-            else
-                return string.Empty;
+        if (features.GetArrayLength() is not 0)
+        {
+            foreach (var featureElement in features.EnumerateArray())
+                if (featureElement.GetString() == feature.ToUpper())
+                    return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Returns <see langword="true"/> if the guild has an icon image uploaded, <see langword="false"/> otherwise.</summary>
+    /// <param name="iconUrl">
+    /// When the method returns:<br/>
+    /// <see langword="true"/> this parameter will contain the icon URL.<br/>
+    /// <see langword="false"/> this parameter will contain an empty string.
+    /// </param>
+    public bool HasIcon(out string iconUrl)
+    {
+        var iconProp = this.Json.GetProperty("icon");
+
+        if (iconProp.ValueKind is not JsonValueKind.Null)
+        {
+            var iconHash = iconProp.GetString();
+            var extension = iconHash.StartsWith("a_") ? "gif" : "png";
+            iconUrl = $"https://cdn.discordapp.com/icons/{this.Id}/{iconHash}.{extension}";
+
+            return true;
+        }
+        else
+        {
+            iconUrl = string.Empty;
+            return false;
         }
     }
 
-    /// <summary>Guild banner URL.</summary>
-    /// <remarks>May return <see cref="string.Empty"/> if the guild does not have a banner.</remarks>
-    public string BannerUrl => this.Json.TryGetProperty("banner", out var prop) ? $"https://cdn.discordapp.com/banners/{this.Id}/{prop.GetString()}.png" : string.Empty;
-
-    /// <summary>Splash image URL.</summary>
-    /// <remarks>May return <see cref="string.Empty"/> if a splash image has not been uploaded.</remarks>
-    public string InviteSplashUrl
+    /// <summary>Returns <see langword="true"/> if the guild has an invite splash image uploaded, <see langword="false"/> otherwise.</summary>
+    /// <param name="splashUrl">
+    /// When the method returns:<br/>
+    /// <see langword="true"/> this parameter will conatain the invite splash URL.<br/>
+    /// <see langword="false"/> this parameter will contain an empty string.
+    /// </param>
+    public bool HasInviteSplash(out string splashUrl)
     {
-        get
+        if (this.Json.TryGetProperty("discovery_splash", out var property) && property.ValueKind is not JsonValueKind.Null)
         {
-            var splashProp = this.Json.GetProperty("splash");
-
-            if (splashProp.ValueKind is not JsonValueKind.Null)
-                return $"https://cdn.discordapp.com/splashes/{this.Id}/{splashProp.GetString()}.png";
-            else
-                return string.Empty;
+            splashUrl = $"https://cdn.discordapp.com/splashes/{this.Id}/{property.GetString()}.png";
+            return true;
+        }
+        else
+        {
+            splashUrl = string.Empty;
+            return false;
         }
     }
+
+    /// <summary>Returns <see langword="true"/> if the guild has an discovery splash image uploaded, <see langword="false"/> otherwise.</summary>
+    /// <param name="splashUrl">
+    /// When the method returns:<br/>
+    /// <see langword="true"/> this parameter will conatain the discovery splash URL.<br/>
+    /// <see langword="false"/> this parameter will contain an empty string.
+    /// </param>
+    public bool HasDiscoverySplash(out string splashUrl)
+    {
+        if (this.Json.TryGetProperty("discovery_splash", out var property) && property.ValueKind is not JsonValueKind.Null)
+        {
+            splashUrl = $"https://cdn.discordapp.com/splashes/{this.Id}/{property.GetString()}.png";
+            return true;
+        }
+        else
+        {
+            splashUrl = string.Empty;
+            return true;
+        }
+    }
+
+
 
     /// <summary></summary>
     public ValueTask<DiscordUser> GetOwnerAsync()
         => this.Bot.GetUserAsync(this.Json.GetProperty("owner_id").ToUInt64());
 
     /// <summary></summary>
-    public ValueTask<DiscordChannel> GetChannelAsync(ulong channelId)
-        => this.Bot.GetChannelAsync(channelId);
+    public async ValueTask<DiscordRole> GetRoleAsync(ulong roleId)
+    {
+        if (_roleCache.TryGetValue(roleId, out DiscordRole role))
+            return role;
+        else
+        {
+            var json = await this.Bot.RestClient.GetGuildRolesAsync(this.Id);
+
+        }
+    }
 
     /// <summary></summary>
-    public ValueTask<DiscordChannel> GetRulesChannelAsync()
-        => GetChannelAsync(this.Json.GetProperty("rules_channel_id").ToUInt64());
+    public async ValueTask<DiscordMember> GetMemberAsync(ulong userId)
+    {
+        if (_memberCache.TryGetValue(userId, out DiscordMember member))
+            return member;
+        else
+        {
+            var json = await this.Bot.RestClient.GetGuildMemberAsync(this.Id, userId);
+            var member = new DiscordMember(this.Bot, json, userId);
+        }
+    }
 
     /// <summary></summary>
-    public ValueTask<DiscordChannel> GetAfkChannelAsync()
-        => GetChannelAsync(this.Json.GetProperty("afk_channel_id").ToUInt64());
+    public ValueTask<DiscordMember> GetMemberAsync(DiscordUser user)
+        => GetMemberAsync(user.Id);
 
     /// <summary></summary>
-    public ValueTask<DiscordChannel> GetSystemChannelAsync()
-        => GetChannelAsync(this.Json.GetProperty("system_channel_id").ToUInt64());
+    public async ValueTask<EntityCollection<DiscordChannel>> GetChannelsAsync()
+    {
+
+        var response = await this.Bot.RestClient.GetGuildChannelsAsync(this.Id);
+        var channels = new DiscordChannel[response.Payload.GetArrayLength()];
+
+        int index = 0;
+        foreach (var channelJson in response.Payload.EnumerateArray())
+        {
+            var channel = channelJson.ToChannelEntity(this.Bot);
+            channels[index++] = channel;
+
+        }
+
+        return new EntityCollection<DiscordChannel>(channels);
+    }
+
+    /// <summary></summary>
+    internal void UpdateChannelCache(DiscordChannel channel)
+    {
+        var entryConfig = new MemoryCacheEntryOptions()
+            .SetSlidingExpiration(TimeSpan.FromHours(1))
+            .RegisterPostEvictionCallback(LogChannelCacheEviction);
+
+        _channelCache.Set(channel.Id, channel, entryConfig);
+
+        void LogChannelCacheEviction(object key, object value, EvictionReason reason, object state)
+            => this.Bot.Logger.LogTrace("Removed entry {Id} from the channel cache ({Reason})", (ulong)key, reason);
+    }
 }
 

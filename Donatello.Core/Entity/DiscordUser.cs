@@ -5,14 +5,14 @@ using System.Drawing;
 using System.Text.Json;
 
 /// <summary></summary>
-public sealed class DiscordUser : DiscordEntity
+public class DiscordUser : DiscordEntity
 {
     public DiscordUser(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
 
     /// <summary>Additional metadata for this user, e.g. badges.</summary>
-    internal UserFlag Flags => this.Json.TryGetProperty("public_flags", out var prop) ? (UserFlag)prop.GetInt32() : UserFlag.None;
+    internal UserFlag Flags => this.Json.TryGetProperty("public_flags", out var property) ? (UserFlag)property.GetInt32() : UserFlag.None;
 
-    /// <summary>The user's name.</summary>
+    /// <summary>The user's global display name.</summary>
     public string Username => this.Json.GetProperty("username").GetString();
 
     /// <summary>Sequence used to differentiate between users with the same username.</summary>
@@ -21,49 +21,51 @@ public sealed class DiscordUser : DiscordEntity
     /// <summary>Full Discord tag, e.g. <c>thegiggitybyte#8099</c>.</summary>
     public string Tag => $"{this.Username}#{this.Discriminator}";
 
-    /// <summary>User avatar URL.</summary>
+    /// <summary>Global user avatar URL.</summary>
     public string AvatarUrl
     {
         get
         {
-            var avatarHash = this.Json.GetProperty("avatar").GetString();
-            if (!string.IsNullOrEmpty(avatarHash))
+            if (this.Json.TryGetProperty("avatar", out var avatarHash) && avatarHash.ValueKind is not JsonValueKind.Null)
             {
-                var extension = avatarHash.StartsWith("a_") ? "gif" : "png";
-                return $"https://cdn.discordapp.com/avatars/{this.Id}/{avatarHash}.{extension}";
+                var extension = avatarHash.GetString().StartsWith("a_") ? "gif" : "png";
+                return $"https://cdn.discordapp.com/avatars/{this.Id}/{avatarHash.GetString()}.{extension}";
             }
             else
                 return $"https://cdn.discordapp.com/embed/avatars/{this.Discriminator % 5}.png";
         }
     }
 
+    /// <summary>Whether this user is a bot account.</summary>
+    public bool IsBot => this.Json.TryGetProperty("bot", out var property) && property.GetBoolean();
+
+    /// <summary>Whether this user is the official Discord system account.</summary>
+    public bool IsSystem => this.Json.TryGetProperty("system", out var property) && property.GetBoolean();
+
     /// <summary>User banner URL.</summary>
-    /// <remarks>May return <see cref="string.Empty"/> if the user has not uploaded a banner.</remarks>
+    /// <remarks>Will return <see cref="string.Empty"/> if the user has not uploaded a banner image.</remarks>
     public string BannerUrl
     {
         get
         {
-            if (this.Json.TryGetProperty("banner", out var prop))
+            if (this.Json.TryGetProperty("banner", out var bannerHash) && bannerHash.ValueKind is not JsonValueKind.Null)
             {
-                var bannerHash = prop.GetString();
-                var extension = bannerHash.StartsWith("a_") ? "gif" : "png";
+                var extension = bannerHash.GetString().StartsWith("a_") ? "gif" : "png";
 
-                return $"https://cdn.discordapp.com/avatars/{this.Id}/{bannerHash}.{extension}";
+                return $"https://cdn.discordapp.com/avatars/{this.Id}/{bannerHash.GetString()}.{extension}";
             }
             else
                 return string.Empty;
         }
     }
 
-    /// <summary>Displayed as the user's banner if one has not been uploaded.</summary>
-    public Color BannerColor => this.Json.TryGetProperty("accent_color", out var prop) ? Color.FromArgb(prop.GetInt32()) : Color.Empty;
+    /// <summary>Displayed as the user's banner if the user has not uploaded a banner image.</summary>
+    public Color BannerColor => this.Json.TryGetProperty("accent_color", out var property) ? Color.FromArgb(property.GetInt32()) : Color.Empty;
 
-    /// <summary>Whether this user is a bot user.</summary>
-    public bool IsBot => this.Json.TryGetProperty("bot", out var prop) && prop.GetBoolean();
-
-    /// <summary>Whether this user is the official Discord system user.</summary>
-    public bool IsSystem => this.Json.TryGetProperty("system", out var prop) && prop.GetBoolean();
+    /// <summary>The type of Nitro subscription on the user's account.</summary>
+    public NitroType Nitro => this.Json.TryGetProperty("premium_type", out var property) ? (NitroType)property.GetUInt16() : NitroType.None;
 
     /// <summary>Returns the user's full tag and ID.</summary>
     public override string ToString() => $"{this.Tag} ({this.Id})";
+
 }

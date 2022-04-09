@@ -4,7 +4,7 @@ using Donatello.Enumeration;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-internal sealed class DiscordCommand : DiscordEntity
+public sealed class DiscordCommand : DiscordEntity
 {
     public DiscordCommand(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
 
@@ -13,8 +13,8 @@ internal sealed class DiscordCommand : DiscordEntity
     {
         get
         {
-            if (this.Json.TryGetProperty("type", out var prop))
-                return (CommandType)prop.GetInt32();
+            if (this.Json.TryGetProperty("type", out var property))
+                return (CommandType)property.GetInt32();
             else
                 return CommandType.Slash;
         }
@@ -22,7 +22,7 @@ internal sealed class DiscordCommand : DiscordEntity
 
     public async ValueTask<DiscordGuild> GetGuildAsync()
     {
-        if (this.Json.TryGetProperty("guild_id", out var prop))
+        if (this.Json.TryGetProperty("guild_id", out var property))
         {
 
         }

@@ -124,5 +124,8 @@ public enum GuildPermission : ulong
     SendThreadMessages = 1ul << 38,
 
     /// <summary>Permits launching of an activity in a voice channel.</summary>
-    StartActivites = 1ul << 39
+    StartActivites = 1ul << 39,
+
+    /// <summary>Permits a user to issue <see href="https://support.discord.com/hc/en-us/articles/4413305239191">time-outs</see> to other users.</summary>
+    ModerateMembers = 1ul << 40
 }

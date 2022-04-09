@@ -11,16 +11,12 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Donatello;
-using Donatello.Entity;
-using Donatello.Rest.Channel;
-using Donatello.Rest.Guild;
-using Donatello.Rest.User;
+using Donatello.Enumeration;
 using Donatello.Interaction.Command.Module;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSec.Cryptography;
 using Qmmands;
-using Qommon.Collections;
 using Qommon.Events;
 
 /// <summary>
@@ -114,40 +110,6 @@ public sealed class DiscordInteractionBot : DiscordApiBot
         _interactionListenerTask.Dispose();
     }
 
-    /// <summary></summary>
-    public override async ValueTask<DiscordUser> GetUserAsync(ulong userId)
-    {
-        var response = await this.RestClient.GetUserAsync(userId);
-        return new DiscordUser(this, response);
-    }
-
-    /// <summary></summary>
-    public override async ValueTask<DiscordGuild> GetGuildAsync(ulong guildId)
-    {
-        var guild = await this.RestClient.GetGuildAsync(guildId);
-        return new DiscordGuild(this, guild);
-    }
-
-    /// <summary></summary>
-    public override async ValueTask<T> GetChannelAsync<T>(ulong channelId)
-    {
-        var response = await this.RestClient.GetChannelAsync(channelId);
-        return response.ToChannelEntity(this) as T;
-    }
-
-    /// <summary></summary>
-    public async ValueTask<ReadOnlyList<DiscordChannel>> GetChannelsAsync(ulong guildId)
-    {
-        var response = await this.RestClient.GetGuildChannelsAsync(guildId);
-        var channels = new DiscordChannel[response.Payload.GetArrayLength()];
-
-        int index = 0;
-        foreach (var channelJson in response.Payload.EnumerateArray())
-            channels[index++] = channelJson.ToChannelEntity(this);
-
-        return new ReadOnlyList<DiscordChannel>(channels);
-    }
-
     /// <summary>Webhook listener.</summary>
     private async Task InteractionListenerLoop(CancellationToken token)
     {
@@ -156,7 +118,7 @@ public sealed class DiscordInteractionBot : DiscordApiBot
 
         listener.Start();
 
-        while (!token.IsCancellationRequested)
+        while (token.IsCancellationRequested is false)
         {
             var httpContext = await listener.GetContextAsync();
             var request = httpContext.Request;
@@ -203,10 +165,10 @@ public sealed class DiscordInteractionBot : DiscordApiBot
             else if (interactionType == 2) // Command
             {
                 var data = interactionJson.GetProperty("data");
-                var commandType = data.TryGetProperty("type", out var prop) ? prop.GetInt32() : 1;
+                var commandType = (CommandType) (data.TryGetProperty("type", out var prop) ? prop.GetInt32() : 1);
 
                 var name = data.GetProperty("name").GetString();
-                var result = _commandService.FindCommands(name).FirstOrDefault();
+                var result = _commandService.FindCommands(name)[0];
 
                 if (result is not null)
                 {
@@ -220,11 +182,11 @@ public sealed class DiscordInteractionBot : DiscordApiBot
             }
             else if (interactionType == 3) // Component
             {
-                throw new NotImplementedException();
+                throw new NotImplementedException("Components");
             }
-            else if (interactionType == 4) // Autocomplete
+            else if (interactionType == 4) // Auto-complete
             {
-                throw new NotImplementedException();
+                throw new NotImplementedException("Auto-complete");
             }
             else
             {
@@ -240,6 +202,10 @@ public sealed class DiscordInteractionBot : DiscordApiBot
                 await response.OutputStream.WriteAsync(responseBuffer.WrittenMemory).ConfigureAwait(false);
 
                 response.StatusCode = 200;
+            }
+            else
+            {
+                throw new NotImplementedException();
             }
         }
     }

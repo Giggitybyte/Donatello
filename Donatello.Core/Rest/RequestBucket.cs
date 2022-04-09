@@ -58,7 +58,7 @@ internal sealed class RequestBucket
     }
 
     /// <summary>Attempts to decrement the number of requests available for this bucket.</summary>
-    internal bool TryUse() // TODO: rework this to support refunding this bucket in the event of a shared ratelimit
+    internal bool TryUse()
     {
         lock (this)
         {

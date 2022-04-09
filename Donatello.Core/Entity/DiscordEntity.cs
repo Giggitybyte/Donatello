@@ -1,25 +1,29 @@
 ﻿namespace Donatello.Entity;
 
+using Donatello.Extension.Internal;
 using System;
 using System.Text.Json;
 
 /// <summary></summary>
 public abstract class DiscordEntity : IEquatable<DiscordEntity>
 {
-    internal DiscordEntity(DiscordApiBot bot, JsonElement json)
+    internal DiscordEntity(DiscordApiBot bot, JsonElement jsonObject)
     {
+        if (jsonObject.ValueKind is not JsonValueKind.Object)
+            throw new ArgumentException($"Expected object, got {jsonObject.ValueKind}.", nameof(jsonObject));
+
         this.Bot = bot;
-        this.Json = json;
+        this.Json = jsonObject;
     }
 
     /// <summary>Bot instance which created this object.</summary>
     protected DiscordApiBot Bot { get; private init; }
 
-    /// <summary>Backing JSON data for this entity.</summary>
+    /// <summary>Backing JSON object for this entity.</summary>
     protected JsonElement Json { get; private init; }
 
-    /// <summary>Unique Discord ID.</summary>
-    public ulong Id => this.Json.GetProperty("id").ToUInt64();
+    /// <summary>Unique snowflake identifier.</summary>
+    public virtual ulong Id => this.Json.GetProperty("id").ToUInt64();
 
     public virtual bool Equals(DiscordEntity other)
         => this.Id == other?.Id;

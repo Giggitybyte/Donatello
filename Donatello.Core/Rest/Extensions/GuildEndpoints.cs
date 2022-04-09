@@ -68,8 +68,18 @@ public static class GuildEndpoints
 
     /// <summary>Fetches a guild member for the provided user.</summary>
     /// <returns><see href="https://discord.com/developers/docs/resources/guild#guild-member-object">guild member object</see></returns>
-    public static Task<HttpResponse> GetGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/members/{userId}");
+    public static async Task<JsonElement> GetGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId)
+    {
+        var response = await httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/members/{userId}");
+
+        if (response.Status is HttpStatusCode.Forbidden)
+            throw new ArgumentException("Invalid guild ID.", nameof(guildId));
+        else if (response.Status is HttpStatusCode.NotFound)
+            throw new ArgumentException(response.Payload.GetProperty("message").GetString(), nameof(userId));
+        else
+            return response.Payload;
+
+    }
 
     /// <summary>Fetches all members in a guild.</summary>
     /// <returns>Array of <see href="https://discord.com/developers/docs/resources/guild#guild-member-object">guild member objects</see>.</returns>

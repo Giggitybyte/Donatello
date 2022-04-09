@@ -1,4 +1,5 @@
 ﻿namespace Donatello.Rest.Application;
+
 using System;
 using System.Net.Http;
 using System.Text.Json;

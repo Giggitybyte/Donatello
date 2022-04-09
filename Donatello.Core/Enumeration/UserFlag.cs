@@ -33,6 +33,9 @@ public enum UserFlag
     /// <summary>User was a Legacy Nitro subscriber.</summary>
     EarlySupporter = 1 << 9,
 
+    /// <summary>User is not actually a user, but a <see href="https://discord.com/developers/docs/topics/teams">team</see>.</summary>
+    Team = 1 << 10,
+
     /// <summary>The user is the official Discord system user.</summary>
     System = 1 << 12,
 

@@ -6,7 +6,7 @@ using System;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-/// <summary>A channel containing messages.</summary>
+/// <summary>A channel containing text messages.</summary>
 public abstract class DiscordTextChannel : DiscordChannel
 {
     internal DiscordTextChannel(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
@@ -15,13 +15,13 @@ public abstract class DiscordTextChannel : DiscordChannel
     public abstract ValueTask<DiscordMessage> GetMessageAsync(ulong messageId);
 
     /// <summary></summary>
-    public abstract ValueTask<DiscordEntityCollection<DiscordMessage>> GetMessagesAsync();
+    public abstract ValueTask<EntityCollection<DiscordMessage>> GetMessagesAsync();
 
     /// <summary></summary>
     public ValueTask<DiscordMessage> GetLastMessageAsync()
     {
         var messageId = this.Json.GetProperty("last_message_id").ToUInt64();
-        return this.GetMessageAsync(messageId);
+        return GetMessageAsync(messageId);
     }
 
     /// <summary></summary>

@@ -1,5 +1,6 @@
 ﻿namespace Donatello.Rest;
 
+using Donatello.Extension.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -98,16 +99,15 @@ public class DiscordHttpClient
         {
             return DelayRequestAsync(request, _globalRatelimitResetDate - currentDate);
         }
-        else if (_bucketIds.TryGetValue(request.RequestUri, out var bucketId)
-            && _requestBuckets.TryGetValue(bucketId, out var bucket)
-            && bucket.TryUse())
+        else if (_bucketIds.TryGetValue(request.RequestUri, out var bucketId))
         {
-            return DelayRequestAsync(request, bucket.ResetDate - currentDate);
+            if (_requestBuckets.TryGetValue(bucketId, out var bucket))
+                if (bucket.Remaining is 0)
+                    return DelayRequestAsync(request, bucket.ResetDate - currentDate);
         }
-        else 
-        {
-            return DispatchRequestAsync(request);
-        }
+
+        return DispatchRequestAsync(request);
+
 
         async Task<HttpResponse> DelayRequestAsync(HttpRequestMessage request, TimeSpan delayTime)
         {
@@ -125,7 +125,7 @@ public class DiscordHttpClient
 
             this.Logger.LogDebug("Request to {Url} got {Status} response from Discord.", request.RequestUri.AbsolutePath, response.StatusCode);
 
-            RequestBucket bucket;
+            RequestBucket bucket = null;
             if (response.Headers.TryGetValues("X-RateLimit-Bucket", out var headers))
             {
                 var bucketId = headers.FirstOrDefault();

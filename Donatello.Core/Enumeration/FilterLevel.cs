@@ -1,7 +1,7 @@
 ﻿namespace Donatello.Enumeration;
 
 /// <summary>Explicit content filter.</summary>
-public enum GuildContentFilterLevel
+public enum FilterLevel
 {
     /// <summary>Uploaded media will not be scanned.</summary>
     Disabled,

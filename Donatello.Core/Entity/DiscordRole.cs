@@ -1,17 +1,26 @@
 ﻿namespace Donatello.Entity;
 
+using Donatello.Enumeration;
+using Donatello.Extension.Internal;
+using System;
+using System.Drawing;
 using System.Text.Json;
-using RoleColor = System.Drawing.Color;
+using System.Threading.Tasks;
 
 public sealed class DiscordRole : DiscordEntity
 {
+    private ulong _guildId;
+
     internal DiscordRole(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
 
     /// <summary>Role name.</summary>
     public string Name => this.Json.GetProperty("name").GetString();
 
     /// <summary>Role color.</summary>
-    public RoleColor Color => RoleColor.FromArgb(this.Json.GetProperty("color").GetInt32());
+    public Color Color => Color.FromArgb(this.Json.GetProperty("color").GetInt32());
+
+    /// <summary>Whether users with this role are displayed separately from online users in the sidebar.</summary>
+    public bool IsPinned => this.Json.GetProperty("hoist").GetBoolean();
 
     /// <summary>Position of this role in the role hierarchy.</summary>
     public int Position => this.Json.GetProperty("position").GetInt32();
@@ -21,15 +30,10 @@ public sealed class DiscordRole : DiscordEntity
     {
         get
         {
-            var prop = this.Json.GetProperty("permissions").GetString();
-            var permissions = long.Parse(prop);
-
-            return (GuildPermission)permissions;
+            var property = this.Json.GetProperty("permissions").GetString();
+            return (GuildPermission)ulong.Parse(property);
         }
     }
-
-    /// <summary>Whether users with this role are displayed separately from online users in the sidebar.</summary>
-    public bool IsHoisted => this.Json.GetProperty("hoist").GetBoolean();
 
     /// <summary>Whether this role is managed by an <i>integration</i>, e.g. a Discord bot.</summary>
     public bool IsManaged => this.Json.GetProperty("managed").GetBoolean();
@@ -37,7 +41,7 @@ public sealed class DiscordRole : DiscordEntity
     /// <summary>Whether this role can be <c>@mentioned</c>.</summary>
     public bool IsMentionable => this.Json.GetProperty("mentionable").GetBoolean();
 
-    /// <summary>Whether this role is the Nitro Booster role.</summary>
+    /// <summary>Whether this role is the Nitro booster role.</summary>
     public bool IsBoostRole
     {
         get
@@ -48,5 +52,33 @@ public sealed class DiscordRole : DiscordEntity
 
             return false;
         }
+    }
+
+    /// <summary></summary>
+    public ValueTask<DiscordGuild> GetGuildAsync()
+        => this.Bot.GetGuildAsync(_guildId);
+
+    /// <summary></summary>
+    public async ValueTask<DiscordMember> GetBotAsync()
+    {
+        if (this.Json.TryGetProperty("tags", out var tagProp))
+            if (tagProp.TryGetProperty("bot_id", out var idProp))
+            {
+                var guild = await GetGuildAsync();
+                var member = await guild.GetMemberAsync(idProp.ToUInt64());
+            }
+
+        return ValueTask.FromException<DiscordUser>(new InvalidOperationException("Role is not owned by a bot."));
+    }
+
+    public ValueTask<DiscordIntegration> GetIntegrationAsync()
+    {
+        if (this.Json.TryGetProperty("tags", out var tagProp))
+            if (tagProp.TryGetProperty("integration_id", out var idProp))
+            {
+                
+            }
+
+        return ValueTask.FromException<DiscordIntegration>(new InvalidOperationException("Role is not owned by an integration."));
     }
 }

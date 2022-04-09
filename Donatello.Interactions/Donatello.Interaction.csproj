@@ -10,12 +10,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NSec.Cryptography" Version="21.11.0-preview2" />
-    <PackageReference Include="Qmmands" Version="5.0.1" />
+    <Compile Remove="Command\Enum\**" />
+    <EmbeddedResource Remove="Command\Enum\**" />
+    <None Remove="Command\Enum\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Command\Enum\" />
+    <PackageReference Include="NSec.Cryptography" Version="21.11.0-preview2" />
   </ItemGroup>
 
   <ItemGroup>
