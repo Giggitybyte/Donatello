@@ -7,16 +7,18 @@ using System.Text.Json;
 /// <summary></summary>
 public abstract class DiscordEntity : IEquatable<DiscordEntity>
 {
-    internal DiscordEntity(DiscordApiBot bot, JsonElement jsonObject)
+    /// <param name="bot">Bot instance to provide convinence methods.</param>
+    /// <param name="jsonObject">Backing JSON entity.</param>
+    protected DiscordEntity(DiscordApiBot bot, JsonElement jsonObject)
     {
         if (jsonObject.ValueKind is not JsonValueKind.Object)
-            throw new ArgumentException($"Expected object, got {jsonObject.ValueKind}.", nameof(jsonObject));
+            throw new ArgumentException($"Expected JSON object, got {jsonObject.ValueKind}.", nameof(jsonObject));
 
         this.Bot = bot;
         this.Json = jsonObject;
     }
 
-    /// <summary>Bot instance which created this object.</summary>
+    /// <summary>Bot instance which contains and manages this object.</summary>
     protected DiscordApiBot Bot { get; private init; }
 
     /// <summary>Backing JSON object for this entity.</summary>

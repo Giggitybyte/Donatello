@@ -4,7 +4,7 @@ using System;
 
 /// <summary>Additional user metadata.</summary>
 [Flags]
-public enum UserFlag
+public enum UserFlag : int 
 {
     /// <summary>User does not have any flags.</summary>
     None = 0,

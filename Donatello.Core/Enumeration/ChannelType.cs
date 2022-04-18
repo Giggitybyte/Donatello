@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Enumeration;
 
-internal enum ChannelType
+public enum ChannelType : ushort
 {
     /// <summary>Text channel within a guild.</summary>
     Text = 0,
@@ -37,5 +37,8 @@ internal enum ChannelType
     /// <see href="https://support.discord.com/hc/en-us/articles/4406046651927">hub guild</see>
     /// which contains its listed servers.
     /// </summary>
-    Directory = 14
+    Directory = 14,
+
+    /// <summary>A channel which can only contain thread channels.</summary>
+    Fourm = 15
 }

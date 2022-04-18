@@ -4,7 +4,7 @@ using System;
 
 /// <summary>Additional message metadata.</summary>
 [Flags]
-public enum MessageFlag
+public enum MessageFlag : int
 {
     /// <summary>Message has been published to all channels subscribed to the parent channel.</summary>
     Crossposted = 1 << 0,

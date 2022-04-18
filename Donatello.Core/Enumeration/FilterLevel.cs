@@ -1,7 +1,7 @@
 ﻿namespace Donatello.Enumeration;
 
 /// <summary>Explicit content filter.</summary>
-public enum FilterLevel
+public enum FilterLevel : ushort
 {
     /// <summary>Uploaded media will not be scanned.</summary>
     Disabled,

@@ -74,7 +74,7 @@ public abstract class DiscordApiBot
             UpdateChannelCache(channel);
             this.Logger.LogTrace("Added entry {Id} to the channel cache", channelId);
 
-            return channel as TChannel;
+            return (TChannel)channel;
         }
     }
 

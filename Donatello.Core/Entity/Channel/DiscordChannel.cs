@@ -1,24 +1,17 @@
 ﻿namespace Donatello.Entity;
 
 using Donatello.Enumeration;
-using System;
 using System.Text.Json;
 
-/// <summary></summary>
+/// <summary>A guild or DM channel within Discord.</summary>
 public abstract class DiscordChannel : DiscordEntity
 {
-    internal DiscordChannel(DiscordApiBot bot, JsonElement json) : base(bot, json)
-    {
-        var jsonType = json.GetProperty("type").GetInt32();
-        if (Enum.IsDefined(typeof(ChannelType), jsonType))
-            this.Type = (ChannelType)jsonType;
-        else
-            throw new JsonException("Unknown channel type.");
-    }
+    internal DiscordChannel(DiscordApiBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
 
-    /// <summary>Type of this channel.</summary>
-    internal ChannelType Type { get; private init; }
+    /// <summary>The type of this channel.</summary>
+    public ChannelType Type => (ChannelType)this.Json.GetProperty("type").GetInt16();
 
-    /// <summary>Name of the channel.</summary>
-    public string Name => this.Json.GetProperty("name").GetString();
+    /// <summary>The name of this channel.</summary>
+    public string Name => this.Json.TryGetProperty("name", out var prop) ? prop.GetString() : string.Empty;
 }
+

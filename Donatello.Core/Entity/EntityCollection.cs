@@ -12,7 +12,8 @@ public sealed class EntityCollection<TEntity> : IEnumerable<TEntity> where TEnti
 
     static EntityCollection()
     {
-        _emptyInstance = new EntityCollection<TEntity>(new Dictionary<ulong, TEntity>());
+        var emptyDictionary = new Dictionary<ulong, TEntity>();
+        _emptyInstance = new EntityCollection<TEntity>(emptyDictionary);
     }
 
     /// <summary></summary>

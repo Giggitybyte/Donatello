@@ -16,10 +16,9 @@ using System.Threading.Tasks;
 public class DiscordHttpClient
 {
     private static HttpClient _client;
-    private KeyValuePair<string, string> _authHeader;
     private DateTime _globalRatelimitResetDate;
-    private ConcurrentDictionary<Uri, string> _bucketIds;
-    private ConcurrentDictionary<string, RequestBucket> _requestBuckets;
+    private ConcurrentDictionary<Uri, string> _ratelimitBucketIds;
+    private ConcurrentDictionary<string, RatelimitBucket> _ratelimitBuckets;
 
     static DiscordHttpClient()
     {
@@ -38,9 +37,10 @@ public class DiscordHttpClient
     /// <param name="isBearerToken"><see langword="true"/>: OAuth2 bearer token.<br/><see langword="false"/>: application bot token.</param>
     public DiscordHttpClient(string token, ILogger logger = null, bool isBearerToken = false)
     {
-        _authHeader = new("Authorization", $"{(isBearerToken ? "Bearer" : "Bot")} {token}");
-        _bucketIds = new ConcurrentDictionary<Uri, string>();
-        _requestBuckets = new ConcurrentDictionary<string, RequestBucket>();
+        _client.DefaultRequestHeaders.Add("Authorization", $"{(isBearerToken ? "Bearer" : "Bot")} {token}");
+
+        _ratelimitBucketIds = new ConcurrentDictionary<Uri, string>();
+        _ratelimitBuckets = new ConcurrentDictionary<string, RatelimitBucket>();
 
         this.Logger = logger ?? NullLogger.Instance;
     }
@@ -86,25 +86,19 @@ public class DiscordHttpClient
     /// <summary>Sends an HTTP request.</summary>
     private Task<HttpResponse> SendRequestCoreAsync(HttpMethod method, string endpoint, HttpContent content = null)
     {
-        endpoint = endpoint.Trim('/');
-
         var currentDate = DateTime.Now;
-        var request = new HttpRequestMessage(method, endpoint);
-        request.Headers.Add(_authHeader.Key, _authHeader.Value);
+        var request = new HttpRequestMessage(method, endpoint.Trim('/'));
 
         if (content is not null)
             request.Content = content;
 
         if (_globalRatelimitResetDate > currentDate)
-        {
             return DelayRequestAsync(request, _globalRatelimitResetDate - currentDate);
-        }
-        else if (_bucketIds.TryGetValue(request.RequestUri, out var bucketId))
-        {
-            if (_requestBuckets.TryGetValue(bucketId, out var bucket))
-                if (bucket.Remaining is 0)
+
+        if (_ratelimitBucketIds.TryGetValue(request.RequestUri, out var bucketId))
+            if (_ratelimitBuckets.TryGetValue(bucketId, out var bucket))
+                if (bucket.TryUse() is false)
                     return DelayRequestAsync(request, bucket.ResetDate - currentDate);
-        }
 
         return DispatchRequestAsync(request);
 
@@ -120,34 +114,32 @@ public class DiscordHttpClient
         async Task<HttpResponse> DispatchRequestAsync(HttpRequestMessage request)
         {
             this.Logger.LogDebug("Sending {Method} request to {Uri}", request.Method.Method, request.RequestUri);
-
             using var response = await _client.SendAsync(request);
-
             this.Logger.LogDebug("Request to {Url} got {Status} response from Discord.", request.RequestUri.AbsolutePath, response.StatusCode);
 
-            RequestBucket bucket = null;
+            RatelimitBucket bucket = null;
             if (response.Headers.TryGetValues("X-RateLimit-Bucket", out var headers))
             {
                 var bucketId = headers.FirstOrDefault();
-                if (_requestBuckets.TryGetValue(bucketId, out bucket))
+                if (_ratelimitBuckets.TryGetValue(bucketId, out bucket))
                 {
                     bucket.Update(response.Headers);
                     this.Logger.LogTrace("Updated existing ratelimit bucket {Id}", bucketId);
                 }
                 else
                 {
-                    _bucketIds.TryAdd(request.RequestUri, bucketId);
+                    _ratelimitBucketIds.TryAdd(request.RequestUri, bucketId);
 
-                    bucket = new RequestBucket(response.Headers);
-                    _requestBuckets.TryAdd(bucketId, bucket);
+                    bucket = new RatelimitBucket(response.Headers);
+                    _ratelimitBuckets.TryAdd(bucketId, bucket);
                     this.Logger.LogTrace("Created new ratelimit bucket {Id}", bucketId);
                 }
             }
 
             if (response.StatusCode is HttpStatusCode.TooManyRequests)
             {
-                var scope = response.Headers.GetValues("X-RateLimit-Scope").First();
-                var retrySeconds = int.Parse(response.Headers.GetValues("Retry-After").First());
+                var scope = response.Headers.GetValues("X-RateLimit-Scope").Single();
+                var retrySeconds = int.Parse(response.Headers.GetValues("Retry-After").Single());
                 var retryTime = TimeSpan.FromSeconds(retrySeconds);
 
                 if (scope is "global")
@@ -155,15 +147,8 @@ public class DiscordHttpClient
                     _globalRatelimitResetDate = DateTime.Now + retryTime;
                     this.Logger.LogCritical("Hit global rate limit");
                 }
-                else if (scope is "user")
-                {
-                    this.Logger.LogWarning("Hit token ratelimit for {Uri}", request.RequestUri.AbsolutePath);
-                    bucket.TryUse()
-                }
-                else if (scope is "shared")
-                    this.Logger.LogWarning("Hit shared ratelimit for {Uri}", request.RequestUri.AbsolutePath);
                 else
-                    this.Logger.LogWarning("Hit unknown ratelimit scope '{Scope}'", scope);
+                    this.Logger.LogWarning("Hit {Scope} ratelimit for {Url} ({Bucket})", scope, request.RequestUri.AbsolutePath, bucket.Id);
 
                 return await DelayRequestAsync(request, retryTime);
             }
@@ -181,5 +166,10 @@ public class DiscordHttpClient
             }
         }
     }
+}
+
+public class RequestFailedEventArgs : EventArgs
+{
+    public string
 }
 

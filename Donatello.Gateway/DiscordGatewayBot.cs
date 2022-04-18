@@ -20,12 +20,10 @@ using Qommon.Collections;
 public sealed partial class DiscordGatewayBot : DiscordApiBot // Everything event related: DiscordGatewayBot.Events.cs
 {
     private GatewayIntent _intents;
-    private CommandService _commandService;
     private Channel<DiscordWebsocketShard> _identifyChannel;
     private Channel<DiscordEvent> _eventChannel;
     private DiscordWebsocketShard[] _shards;
     private Task _identifyProcessingTask, _eventDispatchTask;
-    private MemoryCache _guildCache, _channelCache, _userCache, _presenceCache;
 
     /// <param name="token"></param>
     /// <param name="intents"></param>
@@ -38,11 +36,6 @@ public sealed partial class DiscordGatewayBot : DiscordApiBot // Everything even
         _intents = intents;
         _identifyChannel = Channel.CreateUnbounded<DiscordWebsocketShard>();
         _eventChannel = Channel.CreateUnbounded<DiscordEvent>();
-
-        _guildCache = new MemoryCache(new MemoryCacheOptions());
-        _channelCache = new MemoryCache(new MemoryCacheOptions());
-        _userCache = new MemoryCache(new MemoryCacheOptions());
-        _presenceCache = new MemoryCache(new MemoryCacheOptions());
 
         InitializeEvents();
 

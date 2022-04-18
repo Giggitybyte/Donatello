@@ -1,7 +1,7 @@
 ﻿namespace Donatello.Enumeration;
 
 /// <summary>Guild membership criteria.</summary>
-public enum GuildVerificationLevel
+public enum GuildVerificationLevel : ushort
 {
     /// <summary>Unrestricted; anyone who joins the guild will be able to interact with it immediately.</summary>
     None,

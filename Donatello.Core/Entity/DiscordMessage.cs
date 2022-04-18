@@ -1,37 +1,22 @@
 ﻿namespace Donatello.Entity;
 
-using System;
+using Donatello.Extension.Internal;
 using System.Text.Json;
+using System.Threading.Tasks;
 
-/// <summary></summary>
+/// <summary>A message sent in a channel within Discord.</summary>
 public sealed class DiscordMessage : DiscordEntity
 {
-    public DiscordMessage(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
+    public DiscordMessage(DiscordApiBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
 
-    /// <summary>ID of the channel the message was sent in.</summary>
-    public ulong ChannelId => ulong.Parse(this.Json.GetProperty("channel_id").GetString());
+    public bool SentFromUser(out DiscordUser user)
+    {
+        if (this.Json.TryGetProperty("guild_id"))
+    }
 
-    /// <summary>User who sent this message.</summary>
-    public DiscordUser Author => new(this.Bot, this.Json.GetProperty("author"));
+    public bool SentFromWebhook(out)
 
-    /// <summary>The contents of this message.</summary>
-    public string Content => this.Json.GetProperty("content").GetString();
-
-    /// <summary>Whether the message contains an <c>@everyone</c> mention.</summary>
-    public bool MentionsEveryone => this.Json.GetProperty("mention_everyone").GetBoolean();
-
-    /// <summary>A collection of users that were mentioned in this message.</summary>
-    public EntityCollection<DiscordUser> MentionedUsers => new(this.Json.GetProperty("mentions").ToEntityArray<DiscordUser>(this.Bot));
-
-    /// <summary>A collection of roles that were mentioned in this message.</summary>
-    public EntityCollection<DiscordRole> MentionedRoles => new(this.Json.GetProperty("mention_roles").ToEntityArray<DiscordRole>(this.Bot));
-
-    /// <summary>When this message was sent.</summary>
-    public DateTime Timestamp => this.Json.GetProperty("timestamp").GetDateTime();
-
-    /// <summary>The last date this message was modified.</summary>
-    public DateTime? EditTimestamp => this.Json.GetProperty("edited_timestamp").GetDateTime();
-
-    /// <summary>Whether or not the contents of this message have been modified.</summary>
-    public bool IsEdited => this.EditTimestamp is not null;
+    /// <summary></summary>
+    public ValueTask<DiscordTextChannel> GetChannelAsync()
+        => this.Bot.GetChannelAsync<DiscordTextChannel>(this.Json.GetProperty("channel_id").ToUInt64());
 }

@@ -1,7 +1,7 @@
 ﻿namespace Donatello.Enumeration;
 
 /// <summary>The interaction method of a command.</summary>
-public enum CommandType
+public enum CommandType : ushort
 {
     /// <summary>Text-based command which is displayed when a user types <c>/</c></summary>
     Slash = 1,

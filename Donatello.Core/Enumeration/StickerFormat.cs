@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Enumeration;
 
-public enum StickerFormat
+public enum StickerFormat : ushort
 {
     /// <summary>Portable Graphics Format.</summary>
     Png,

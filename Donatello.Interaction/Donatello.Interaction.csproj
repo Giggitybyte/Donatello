@@ -10,16 +10,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Command\Enum\**" />
-    <EmbeddedResource Remove="Command\Enum\**" />
-    <None Remove="Command\Enum\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="NSec.Cryptography" Version="21.11.0-preview2" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Donatello.Core\Donatello.Core.csproj" />
   </ItemGroup>
 

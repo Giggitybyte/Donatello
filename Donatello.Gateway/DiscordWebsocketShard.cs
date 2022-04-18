@@ -37,6 +37,12 @@ public sealed class DiscordWebsocketShard
         this.Id = shardId;
     }
 
+    /// <summary></summary>
+    internal string SessionId { get; private set; }
+
+    /// <summary></summary>
+    internal int EventSequenceNumber { get; private set; }
+
     /// <summary>Zero-based shard ID number.</summary>
     public int Id { get; private init; }
 
@@ -48,12 +54,6 @@ public sealed class DiscordWebsocketShard
 
     /// <summary>Whether or not this shard is sending a regular heartbeat payload to the gateway.</summary>
     public bool IsHeartbeatActive { get => _wsHeartbeatTask.Status == TaskStatus.Running; }
-
-    /// <summary></summary>
-    internal string SessionId { get; private set; }
-
-    /// <summary></summary>
-    internal int EventSequenceNumber { get; private set; }
 
     /// <summary>Connects to the Discord gateway.</summary>
     internal async Task ConnectAsync(string gatewayUrl)

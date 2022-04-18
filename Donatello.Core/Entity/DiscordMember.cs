@@ -1,61 +1,72 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Extension.Internal;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
 
 /// <summary></summary>
-public sealed class DiscordMember : DiscordEntity
+public sealed class DiscordMember : DiscordUser
 {
-    private ulong _userId, _guildId;
+    private ulong _guildId;
+    private JsonElement _member;
 
-    internal DiscordMember(DiscordApiBot bot, JsonElement json, ulong guildId) : base(bot, json)
+    public DiscordMember(DiscordApiBot bot, ulong guildId, JsonElement memberJson, JsonElement userJson) : base(bot, userJson)
     {
-        if (this.Json.TryGetProperty("user", out var property))
-            _userId = property.GetProperty("id").ToUInt64();
-        else
-            throw new ArgumentException("Provided JSON object does not contain a user field.", nameof(json));
-
+        _member = memberJson;
         _guildId = guildId;
     }
 
-    /// <summary>Unique snowflake identifier for the user that this object represents.</summary>
-    public override ulong Id => _userId;
+    /// <summary></summary>
+    public string Nickname => _member.TryGetProperty("nick", out var prop) ? prop.GetString() : string.Empty;
 
     /// <summary></summary>
-    public string Nickname => this.Json.TryGetProperty("nick", out var property) ? property.GetString() : string.Empty;
-
-    /// <summary></summary>
-    public string AvatarUrl
+    public override string AvatarUrl
     {
         get
         {
-            if (this.Json.TryGetProperty("avatar", out var avatarHash) && avatarHash.ValueKind is not JsonValueKind.Null)
+            if (_member.TryGetProperty("avatar", out var avatarHash) && avatarHash.ValueKind is not JsonValueKind.Null)
             {
                 var extension = avatarHash.GetString().StartsWith("a_") ? "gif" : "png";
-                return $"https://cdn.discordapp.com/avatars/{this.Id}/{avatarHash.GetString()}.{extension}";
+                return $"https://cdn.discordapp.com/avatars/guilds/{_guildId}/users/{this.Id}/avatars/{avatarHash.GetString()}.{extension}";
             }
             else
-                return $"https://cdn.discordapp.com/embed/avatars/{this.Discriminator % 5}.png";
+                return base.AvatarUrl;
         }
     }
 
     /// <summary>When the member joined the guild.</summary>
-    public DateTimeOffset JoinDate => this.Json.GetProperty("joined_at").GetDateTimeOffset();
+    public DateTimeOffset JoinDate => _member.GetProperty("joined_at").GetDateTimeOffset();
 
     /// <summary>Whether the member is "server" deafened in voice channels.</summary>
-    public bool IsDeafened => this.Json.GetProperty("deaf").GetBoolean();
+    public bool IsDeafened => _member.GetProperty("deaf").GetBoolean();
 
     /// <summary>Whether the member is "server" muted in voice channels.</summary>
-    public bool IsMuted => this.Json.GetProperty("mute").GetBoolean();
+    public bool IsMuted => _member.GetProperty("mute").GetBoolean();
 
-    /// <summary>
-    /// Whether the member has not yet met the guild's 
-    /// <see href="https://support.discord.com/hc/en-us/articles/1500000466882">membership screening</see> requirements.
-    /// </summary>
-    public bool IsRestricted => this.Json.TryGetProperty("pending", out var property) && property.GetBoolean();
+    /// <summary>Whether the member has not yet met the guild's <see href="https://support.discord.com/hc/en-us/articles/1500000466882">membership screening</see> requirements.</summary>
+    /// <remarks>A pending member will not be able to interact with the server until they pass the screening requirements.</remarks>
+    public bool IsPending => _member.TryGetProperty("pending", out var property) && property.GetBoolean();
+
+    /// <summary>Returns <see langword="true"/> if the member has a nickname set, <see langword="false"/> otherwise.</summary>
+    /// <param name="nickname">
+    /// When the method returns:<br/>
+    /// <see langword="true"/> this parameter will contain the nickname set by the member,<br/>
+    /// <see langword="false"/> this parameter will contain an empty string.
+    /// </param>
+    public bool HasNickname(out string nickname)
+    {
+        if (_member.TryGetProperty("nick", out var prop) && prop.ValueKind is not JsonValueKind.Null)
+        {
+            nickname = prop.GetString();
+            return true;
+        }
+        else
+        {
+            nickname = string.Empty;
+            return false;
+        }
+    }
 
     /// <summary></summary>
     public ValueTask<DiscordGuild> GetGuildAsync()
@@ -63,13 +74,13 @@ public sealed class DiscordMember : DiscordEntity
 
     /// <summary></summary>
     public ValueTask<DiscordUser> GetUserAsync()
-        => this.Bot.GetUserAsync(_userId);
+        => this.Bot.GetUserAsync(this.Id);
 
     /// <summary></summary>
     public async ValueTask<EntityCollection<DiscordRole>> GetRolesAsync()
     {
         var guild = await GetGuildAsync();
-        var roleIds = this.Json.GetProperty("roles");
+        var roleIds = _member.GetProperty("roles");
         var roles = new Dictionary<ulong, DiscordRole>(roleIds.GetArrayLength());
 
         foreach (var roleId in roleIds.EnumerateArray())
@@ -82,28 +93,31 @@ public sealed class DiscordMember : DiscordEntity
     }
 
     /// <summary>
-    /// Returns <see langword="true"/> if the user is <see href="https://support.discord.com/hc/en-us/articles/360028038352">boosting</see> 
+    /// Returns <see langword="true"/> if the member is 
+    /// <see href="https://support.discord.com/hc/en-us/articles/360028038352">boosting</see> 
     /// its associated guild; <see langword="false"/> otherwise.
     /// </summary>
     /// <param name="startDate">Date when the member started boosting its guild.</param>
     public bool IsBooster(out DateTimeOffset startDate)
     {
-        if (this.Json.TryGetProperty("premium_since", out var property))
+        if (_member.TryGetProperty("premium_since", out var property))
         {
             startDate = property.GetDateTimeOffset();
             return true;
         }
         else
         {
-            startDate = DateTimeOffset.MinValue;
+            startDate = DateTimeOffset.MaxValue;
             return false;
         }
     }
 
-    /// <summary></summary>
-    public bool InTimeout(out DateTimeOffset expirationDate)
+    /// <summary>
+    /// Returns <see langword="true"/> if the 
+    /// </summary>
+    public bool IsCommunicationDisabled(out DateTimeOffset expirationDate)
     {
-        if (this.Json.TryGetProperty("communication_disabled_until", out var property) && property.ValueKind is not JsonValueKind.Null)
+        if (_member.TryGetProperty("communication_disabled_until", out var property) && property.ValueKind is not JsonValueKind.Null)
         {
             var date = property.GetDateTimeOffset();
             if (DateTimeOffset.UtcNow < date)

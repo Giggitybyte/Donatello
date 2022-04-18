@@ -10,16 +10,16 @@ using System.Text.Json;
 
 internal static class InternalExtensionMethods
 {
-    /// <summary>Converts a JSON object to a <see cref="StringContent"/> object for REST requests.</summary>
+    /// <summary>Converts this JSON object to a <see cref="StringContent"/> object for REST requests.</summary>
     internal static StringContent ToContent(this JsonElement jsonObject)
     {
         if (jsonObject.ValueKind is not JsonValueKind.Object)
             throw new JsonException($"Expected an object; got {jsonObject.ValueKind} instead.");
 
-        return new StringContent(jsonObject.ToString(), Encoding.UTF8, "application/json");
+        return new StringContent(jsonObject.GetRawText(), Encoding.UTF8, "application/json");
     }
 
-    /// <summary>Converts the contents of a JSON writer to a <see cref="StringContent"/> object for REST requests.</summary>
+    /// <summary>Creates a <see cref="StringContent"/> object for REST requests using this delegate.</summary>
     internal static StringContent ToContent(this Action<Utf8JsonWriter> jsonWriter)
     {
         using var jsonStream = new MemoryStream();
@@ -36,7 +36,7 @@ internal static class InternalExtensionMethods
         return new StringContent(json, Encoding.UTF8, "application/json");
     }
 
-    /// <summary>Converts the key-value pairs contained in a tuple array to a URL query parameter string.</summary>
+    /// <summary>Converts the key-value pairs contained in a <see cref="ValueTuple"/> array to a URL query parameter string.</summary>
     internal static string ToParamString(this (string key, string value)[] paramArray)
     {
         if (paramArray is null || paramArray.Length is 0)
