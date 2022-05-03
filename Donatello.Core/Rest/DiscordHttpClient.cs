@@ -10,6 +10,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 /// <summary>HTTP client wrapper for the Discord REST API.</summary>
@@ -29,7 +30,7 @@ public class DiscordHttpClient
         };
 
         _client = new HttpClient(handler);
-        _client.BaseAddress = new Uri("https://discord.com/api/v9");
+        _client.BaseAddress = new Uri("https://discord.com/api/v10");
         _client.DefaultRequestHeaders.Add("User-Agent", "Donatello/0.0.0 (creator: 176477523717259264)");
     }
 
@@ -53,16 +54,16 @@ public class DiscordHttpClient
         => SendRequestCoreAsync(method, endpoint);
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonWriter)
-        => SendRequestCoreAsync(method, endpoint, jsonWriter.ToContent());
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonDelegate)
+        => SendRequestCoreAsync(method, endpoint, jsonDelegate.ToContent());
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload.</summary>
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject)
         => SendRequestCoreAsync(method, endpoint, jsonObject.ToContent());
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonWriter, IList<LocalFileAttachment> attachments)
-        => SendMultipartRequestAsync(method, endpoint, jsonWriter.ToContent(), attachments);
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonDelegate, IList<LocalFileAttachment> attachments)
+        => SendMultipartRequestAsync(method, endpoint, jsonDelegate.ToContent(), attachments);
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, IList<LocalFileAttachment> attachments)
@@ -86,42 +87,41 @@ public class DiscordHttpClient
     /// <summary>Sends an HTTP request.</summary>
     private Task<HttpResponse> SendRequestCoreAsync(HttpMethod method, string endpoint, HttpContent content = null)
     {
-        var currentDate = DateTime.Now;
+        var attemptCount = 0;
+        var requestDate = DateTime.Now;
         var request = new HttpRequestMessage(method, endpoint.Trim('/'));
 
         if (content is not null)
             request.Content = content;
 
-        if (_globalRatelimitResetDate > currentDate)
-            return DelayRequestAsync(request, _globalRatelimitResetDate - currentDate);
+        if (_globalRatelimitResetDate > requestDate)
+            return DelayRequestAsync(_globalRatelimitResetDate - requestDate);
 
         if (_ratelimitBucketIds.TryGetValue(request.RequestUri, out var bucketId))
             if (_ratelimitBuckets.TryGetValue(bucketId, out var bucket))
                 if (bucket.TryUse() is false)
-                    return DelayRequestAsync(request, bucket.ResetDate - currentDate);
+                    return DelayRequestAsync(bucket.ResetDate - requestDate);
 
-        return DispatchRequestAsync(request);
+        return DispatchRequestAsync();
 
-
-        async Task<HttpResponse> DelayRequestAsync(HttpRequestMessage request, TimeSpan delayTime)
+        async Task<HttpResponse> DelayRequestAsync(TimeSpan delayTime)
         {
-            this.Logger.LogWarning("Request to {Uri} delayed until {Time}", request.RequestUri.AbsolutePath, DateTime.Now + delayTime);
+            this.Logger.LogWarning("Request to {Uri} delayed until {Time} (attempt #{Attempt})", request.RequestUri.AbsolutePath, DateTime.Now.Add(delayTime), attemptCount);
 
             await Task.Delay(delayTime);
-            return await DispatchRequestAsync(request);
+            return await DispatchRequestAsync();
         }
 
-        async Task<HttpResponse> DispatchRequestAsync(HttpRequestMessage request)
+        async Task<HttpResponse> DispatchRequestAsync()
         {
-            this.Logger.LogDebug("Sending {Method} request to {Uri}", request.Method.Method, request.RequestUri);
+            this.Logger.LogDebug("Sending {Method} request to {Uri} (attempt #{Attempt})", request.Method.Method, request.RequestUri, ++attemptCount);
             using var response = await _client.SendAsync(request);
             this.Logger.LogDebug("Request to {Url} got {Status} response from Discord.", request.RequestUri.AbsolutePath, response.StatusCode);
 
-            RatelimitBucket bucket = null;
             if (response.Headers.TryGetValues("X-RateLimit-Bucket", out var headers))
             {
                 var bucketId = headers.FirstOrDefault();
-                if (_ratelimitBuckets.TryGetValue(bucketId, out bucket))
+                if (_ratelimitBuckets.TryGetValue(bucketId, out var bucket))
                 {
                     bucket.Update(response.Headers);
                     this.Logger.LogTrace("Updated existing ratelimit bucket {Id}", bucketId);
@@ -148,14 +148,17 @@ public class DiscordHttpClient
                     this.Logger.LogCritical("Hit global rate limit");
                 }
                 else
-                    this.Logger.LogWarning("Hit {Scope} ratelimit for {Url} ({Bucket})", scope, request.RequestUri.AbsolutePath, bucket.Id);
+                    this.Logger.LogWarning("Hit {Scope} ratelimit for {Url}", scope, request.RequestUri.AbsolutePath);
 
-                return await DelayRequestAsync(request, retryTime);
+                return await DelayRequestAsync(retryTime);
             }
             else
             {
                 using var responsePayload = await response.Content.ReadAsStreamAsync();
                 using var responseJson = await JsonDocument.ParseAsync(responsePayload);
+
+                var timeElapsed = DateTime.Now.Subtract(requestDate).TotalMilliseconds;
+                this.Logger.LogTrace("Completed request to {Url} after {Attempt} attempts over {Time}ms", request.RequestUri.AbsolutePath, attemptCount, timeElapsed);
 
                 return new HttpResponse()
                 {
@@ -166,10 +169,5 @@ public class DiscordHttpClient
             }
         }
     }
-}
-
-public class RequestFailedEventArgs : EventArgs
-{
-    public string
 }
 

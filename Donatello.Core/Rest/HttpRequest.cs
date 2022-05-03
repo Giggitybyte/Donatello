@@ -4,16 +4,16 @@ using System;
 using System.Net.Http;
 
 /// <summary></summary>
-public struct HttpRequest
+public ref struct HttpRequest
 {
     /// <summary></summary>
-    public HttpMethod Method { get; internal set; }
+    public HttpMethod Method { get; internal init; }
 
     /// <summary></summary>
-    public string Endpoint { get; internal set; }
+    public string Endpoint { get; internal init; }
 
     /// <summary></summary>
-    public HttpContent Content { get; internal set; }
+    public HttpContent Content { get; internal init; }
 
     /// <summary></summary>
     public uint Attempts { get; internal set; }

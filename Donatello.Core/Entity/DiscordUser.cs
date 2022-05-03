@@ -1,5 +1,6 @@
 ﻿namespace Donatello.Entity;
 
+using Microsoft.Extensions.Caching.Memory;
 using System.Drawing;
 using System.Text.Json;
 
@@ -41,6 +42,22 @@ public class DiscordUser : DiscordEntity
     /// <summary>The user's banner color.</summary>
     public Color BannerColor => this.Json.TryGetProperty("accent_color", out var prop) ? Color.FromArgb(prop.GetInt32()) : Color.Empty;
 
+    /// <summary>Returns <see langword="true"/> if the user has chosen a color for their banner, <see langword="false"/> otherwise.</summary>
+    /// <param name="bannerColor">
+    /// When the method returns:<br/>
+    /// <see langword="true"/> this parameter will contain the user's banner color.<br/>
+    /// <see langword="false"/> this parameter will be <see cref="Color.Empty"/>.
+    /// </param>
+    public bool HasBanner(out Color bannerColor)
+    {
+        if (this.Json.TryGetProperty("accent_color", out var prop) && prop.ValueKind is not JsonValueKind.Null)
+            bannerColor = Color.FromArgb(prop.GetInt32());
+        else
+            bannerColor = Color.Empty;
+
+        return bannerColor != Color.Empty;
+    }
+
     /// <summary>Returns <see langword="true"/> if the user has a banner image uploaded, <see langword="false"/> otherwise.</summary>
     /// <param name="bannerUrl">
     /// When the method returns:<br/>
@@ -50,15 +67,11 @@ public class DiscordUser : DiscordEntity
     public bool HasBanner(out string bannerUrl)
     {
         if (this.Json.TryGetProperty("banner", out var prop) && prop.ValueKind is not JsonValueKind.Null)
-        {
             bannerUrl = $"https://cdn.discordapp.com/banners/{this.Id}/{prop.GetString()}";
-            return true;
-        }
         else
-        {
             bannerUrl = string.Empty;
-            return false;
-        }
+
+        return bannerUrl != string.Empty;
     }
 
     /// <summary>Returns the user's full tag and ID.</summary>

@@ -31,7 +31,7 @@ public static class UserEndpoints
 
     /// <summary>Changes user account settings.</summary>
     /// <returns>Updated <see href="https://discord.com/developers/docs/resources/user#user-object">user object</see>.</returns>
-    public static JsonElement ModifySelfAsync(this DiscordHttpClient httpClient, Action<Utf8JsonWriter> jsonWriter)
+    public static JsonElement ModifySelfAsync(this DiscordHttpClient httpClient, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Patch, "users/@me", jsonWriter);
 
     /// <summary>Fetchs all guilds that the current user is a member of.</summary>

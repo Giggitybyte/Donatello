@@ -11,14 +11,16 @@ public sealed class DiscordMember : DiscordUser
     private ulong _guildId;
     private JsonElement _member;
 
-    public DiscordMember(DiscordApiBot bot, ulong guildId, JsonElement memberJson, JsonElement userJson) : base(bot, userJson)
+    /// <summary></summary>
+    public DiscordMember(DiscordApiBot bot, ulong guildId, JsonElement userJson, JsonElement memberJson) : base(bot, userJson)
     {
         _member = memberJson;
         _guildId = guildId;
     }
 
     /// <summary></summary>
-    public string Nickname => _member.TryGetProperty("nick", out var prop) ? prop.GetString() : string.Empty;
+    public DiscordMember(DiscordApiBot bot, ulong guildId, DiscordUser user, JsonElement memberJson)
+        : this(bot, guildId, user.GetJson(), memberJson) { }
 
     /// <summary></summary>
     public override string AvatarUrl

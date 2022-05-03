@@ -84,7 +84,7 @@ public sealed class DiscordWebsocketShard
     }
 
     /// <summary>Sends a payload to the gateway containing an inner data object.</summary>
-    internal ValueTask SendPayloadAsync(int opcode, Action<Utf8JsonWriter> dataWriter)
+    public ValueTask SendPayloadAsync(int opcode, Action<Utf8JsonWriter> jsonDelegate)
     {
         var buffer = new ArrayBufferWriter<byte>();
         using var jsonWriter = new Utf8JsonWriter(buffer);
@@ -93,7 +93,7 @@ public sealed class DiscordWebsocketShard
         jsonWriter.WriteNumber("op", opcode);
 
         jsonWriter.WriteStartObject("d");
-        dataWriter(jsonWriter);
+        jsonDelegate(jsonWriter);
         jsonWriter.WriteEndObject();
 
         jsonWriter.WriteEndObject();
@@ -103,7 +103,7 @@ public sealed class DiscordWebsocketShard
     }
 
     /// <summary>Sends a payload to the gateway containing a single primitive data value.</summary>
-    internal ValueTask SendPayloadAsync(int opcode, JsonValueKind payloadType, object payloadValue = null)
+    public ValueTask SendPayloadAsync(int opcode, JsonValueKind payloadType, object payloadValue = null)
     {
         var buffer = new ArrayBufferWriter<byte>();
         using var jsonWriter = new Utf8JsonWriter(buffer);
@@ -112,9 +112,9 @@ public sealed class DiscordWebsocketShard
         jsonWriter.WriteNumber("op", opcode);
 
         if (payloadType is JsonValueKind.String && payloadValue is string)
-            jsonWriter.WriteString("d", (string)payloadValue);
-        else if (payloadType is JsonValueKind.Number && payloadValue is short or int or long)
-            jsonWriter.WriteNumber("d", (long)payloadValue);
+            jsonWriter.WriteString("d", payloadValue as string);
+        else if (payloadType is JsonValueKind.Number && payloadValue is short or int)
+            jsonWriter.WriteNumber("d", (int)payloadValue);
         else if (payloadType is JsonValueKind.True)
             jsonWriter.WriteBoolean("d", true);
         else if (payloadType is JsonValueKind.False)
@@ -128,18 +128,6 @@ public sealed class DiscordWebsocketShard
         jsonWriter.Flush();
 
         return _websocketClient.SendAsync(buffer.WrittenMemory, WebSocketMessageType.Text, true, CancellationToken.None);
-    }
-
-    /// <summary></summary>
-    private ValueTask SendHeartbeatAsync()
-    {
-        if (_wsHeartbeatTask is not null)
-            _heartbeatDelayCts.Cancel();
-
-        if (this.EventSequenceNumber is not 0)
-            return SendPayloadAsync(1, JsonValueKind.Number, this.EventSequenceNumber);
-        else
-            return SendPayloadAsync(1, JsonValueKind.Null);
     }
 
     /// <summary>
@@ -205,14 +193,6 @@ public sealed class DiscordWebsocketShard
 
             ArrayPool<byte>.Shared.Return(buffer, true);
         }
-
-        async Task ReconnectAsync()
-        {
-            await DisconnectAsync();
-
-            var websocketMetadata = await _httpClient.GetGatewayMetadataAsync();
-            await ConnectAsync(websocketMetadata.GetProperty("url").GetString());
-        }
     }
 
     /// <summary>
@@ -233,16 +213,35 @@ public sealed class DiscordWebsocketShard
                 missedHeartbeats = 0;
                 _receivedHeartbeatAck = false;
             }
-            else if (++missedHeartbeats >= 5)
+            else if (++missedHeartbeats > 3)
             {
-                var message = "Discord failed to acknowledge 5 heartbeat payloads; connection is likely dead.";
-
-                _logger.LogCritical(message);
-                throw new WebSocketException(message);
+                _logger.LogCritical("Discord failed to acknowledge 4 heartbeat payloads; attempting reconnect");
+                await ReconnectAsync();
             }
             else
                 _logger.LogWarning("Discord failed to acknowledge {Number} heartbeat payload(s).", missedHeartbeats);
         }
+    }
+
+    /// <summary></summary>
+    private async Task ReconnectAsync()
+    {
+        await DisconnectAsync();
+
+        var websocketMetadata = await _httpClient.GetGatewayMetadataAsync();
+        await ConnectAsync(websocketMetadata.GetProperty("url").GetString());
+    }
+
+    /// <summary></summary>
+    private ValueTask SendHeartbeatAsync()
+    {
+        if (_wsHeartbeatTask is not null)
+            _heartbeatDelayCts.Cancel();
+
+        if (this.EventSequenceNumber is not 0)
+            return SendPayloadAsync(1, JsonValueKind.Number, this.EventSequenceNumber);
+        else
+            return SendPayloadAsync(1, JsonValueKind.Null);
     }
 }
 

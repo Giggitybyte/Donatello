@@ -1,4 +1,5 @@
 ﻿namespace Donatello.Rest.Guild;
+
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -12,8 +13,8 @@ public static class GuildEndpoints
     /// <summary>Creates a new guild owned by the current user.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#create-guild">Click to see valid JSON payload parameters</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/guild#guild-object">guild object</see></returns>
-    public static JsonElement CreateGuildAsync(this DiscordHttpClient httpClient, Action<Utf8JsonWriter> json)
-        => httpClient.SendRequestAsync(HttpMethod.Post, "guilds", json);
+    public static JsonElement CreateGuildAsync(this DiscordHttpClient httpClient, Action<Utf8JsonWriter> jsonDelegate)
+        => httpClient.SendRequestAsync(HttpMethod.Post, "guilds", jsonDelegate);
 
     /// <summary>Fetches a guild using its ID.</summary>
     /// <returns><see href="https://discord.com/developers/docs/resources/guild#guild-object">guild object</see></returns>
@@ -24,7 +25,7 @@ public static class GuildEndpoints
         if (response.Status is HttpStatusCode.OK)
             return response.Payload;
         else if (response.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
-            throw new ArgumentException("Guild ID was invalid", nameof(guildId));
+            throw new ArgumentException(response.Payload.GetProperty("message").GetString(), nameof(guildId));
         else
             throw new HttpRequestException($"Unable to fetch guild from Discord: {response.Message} ({(int)response.Status})");
     }
@@ -37,8 +38,8 @@ public static class GuildEndpoints
     /// <summary>Changes the settings of the guild.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#modify-guild-json-params">Click to see valid JSON payload parameters</see>.</remarks>
     /// <returns>Updated <see href="https://discord.com/developers/docs/resources/guild#guild-object">guild object</see>.</returns>
-    public static JsonElement ModifyGuildAsync(this DiscordHttpClient httpClient, ulong id, Action<Utf8JsonWriter> json)
-        => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{id}", json);
+    public static JsonElement ModifyGuildAsync(this DiscordHttpClient httpClient, ulong id, Action<Utf8JsonWriter> jsonDelegate)
+        => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{id}", jsonDelegate);
 
     /// <summary>Permanently deletes the guild.</summary>
     /// <remarks>The user associated with the token must be the owner of the guild.</remarks>
@@ -47,19 +48,28 @@ public static class GuildEndpoints
 
     /// <summary>Fetches all channels in a guild.</summary>
     /// <returns>Array of <see href="https://discord.com/developers/docs/resources/channel#channel-object">channel objects</see>.</returns>
-    public static JsonElement GetGuildChannelsAsync(this DiscordHttpClient httpClient, ulong guildId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/channels");
+    public static async Task<JsonElement> GetGuildChannelsAsync(this DiscordHttpClient httpClient, ulong guildId)
+    {
+        var response = await httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/channels");
+
+        if (response.Status is HttpStatusCode.OK)
+            return response.Payload;
+        else if (response.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+            throw new ArgumentException(response.Payload.GetProperty("message").GetString(), nameof(guildId));
+        else
+            throw new HttpRequestException($"Unable to fetch guild from Discord: {response.Message} ({(int)response.Status})");
+    }
 
     /// <summary>Creates a new channel.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#create-guild-channel-json-params">Click to see valid JSON payload parameters</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#channel-object">channel object</see></returns>
-    public static JsonElement CreateGuildChannelAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> json)
-        => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/channels", json);
+    public static JsonElement CreateGuildChannelAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonDelegate)
+        => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/channels", jsonDelegate);
 
     /// <summary>Changes the position of the provided channel.</summary>
     /// <remarks>Accepts an array; <see href="https://discord.com/developers/docs/resources/guild#modify-guild-channel-positions">click to see valid JSON payload parameters</see>.</remarks>
-    public static JsonElement ModifyChannelPositionAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> json)
-        => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/channels", json);
+    public static JsonElement ModifyChannelPositionAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonDelegate)
+        => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/channels", jsonDelegate);
 
     /// <summary>Fetches all active threads in the guild, including private and public threads.</summary>
     /// <returns><see href="https://discord.com/developers/docs/resources/guild#list-active-threads-response-body">active threads object</see></returns>
@@ -75,7 +85,7 @@ public static class GuildEndpoints
         if (response.Status is HttpStatusCode.Forbidden)
             throw new ArgumentException("Invalid guild ID.", nameof(guildId));
         else if (response.Status is HttpStatusCode.NotFound)
-            throw new ArgumentException(response.Payload.GetProperty("message").GetString(), nameof(userId));
+            throw new HttpRequestException(response.Payload.GetProperty("message").GetString());
         else
             return response.Payload;
 
@@ -97,19 +107,19 @@ public static class GuildEndpoints
     /// <see href="https://discord.com/developers/docs/resources/guild#add-guild-member">Click to read more and see valid JSON payload parameters</see>.
     /// </remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/guild#guild-member-object">guild member object</see></returns>
-    public static JsonElement AddGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, Action<Utf8JsonWriter> json)
-        => httpClient.SendRequestAsync(HttpMethod.Put, $"guilds/{guildId}/members/{userId}", json);
+    public static JsonElement AddGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, Action<Utf8JsonWriter> jsonDelegate)
+        => httpClient.SendRequestAsync(HttpMethod.Put, $"guilds/{guildId}/members/{userId}", jsonDelegate);
 
     /// <summary>Changes attributes of a guild member.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#modify-guild-member">Click to see valid JSON payload parameters</see>.</remarks>
     /// <returns>Updated <see href="https://discord.com/developers/docs/resources/guild#guild-member-object">guild member object</see>.</returns>
-    public static JsonElement ModifyGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, Action<Utf8JsonWriter> json)
-        => httpClient.SendRequestAsync(HttpMethod.Put, $"guilds/{guildId}/members/{userId}", json);
+    public static JsonElement ModifyGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, Action<Utf8JsonWriter> jsonDelegate)
+        => httpClient.SendRequestAsync(HttpMethod.Put, $"guilds/{guildId}/members/{userId}", jsonDelegate);
 
     /// <summary>Changes attributes of the current member.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#modify-current-member">Click to see valid JSON payload parameters</see>.</remarks>
     /// <returns>Updated <see href="https://discord.com/developers/docs/resources/guild#guild-member-object">guild member object</see>.</returns>
-    public static JsonElement ModifyGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> json)
+    public static JsonElement ModifyGuildMemberAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Put, $"guilds/{guildId}/members/@me", json);
 
     /// <summary>Adds a role to a guild member.</summary>
@@ -136,8 +146,8 @@ public static class GuildEndpoints
 
     /// <summary>Permanently bans a user from a guild.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#create-guild-ban">Click to see valid JSON payload parameters</see>.</remarks>
-    public static JsonElement CreateGuildBanAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, Action<Utf8JsonWriter> json = null)
-        => httpClient.SendRequestAsync(HttpMethod.Put, $"/guilds/{guildId}/bans/{userId}", json);
+    public static JsonElement CreateGuildBanAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId, Action<Utf8JsonWriter> jsonDelegate = null)
+        => httpClient.SendRequestAsync(HttpMethod.Put, $"/guilds/{guildId}/bans/{userId}", jsonDelegate);
 
     /// <summary>Removes a guild ban for a user.</summary>
     public static JsonElement DeleteGuildBanAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId)
@@ -150,18 +160,18 @@ public static class GuildEndpoints
     /// <summary>Creates a new role for the guild</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#create-guild-role">Click to see valid JSON parameters</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/topics/permissions#role-object">role object</see></returns>
-    public static JsonElement CreateGuildRoleAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> json = null)
+    public static JsonElement CreateGuildRoleAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonDelegate = null)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/roles", json);
 
     /// <summary>Changes the <see href="https://discord.com/developers/docs/topics/permissions#permission-hierarchy">position</see> of the roles provided in your JSON payload.</summary>
     /// <remarks>Accepts an array; <see href="https://discord.com/developers/docs/resources/guild#modify-guild-role-positions">click to see JSON object structure</see>.</remarks>
-    public static JsonElement ModifyGuildRolePositionAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> json)
+    public static JsonElement ModifyGuildRolePositionAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/roles", json);
 
     /// <summary>Changes the attributes of a role.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#modify-guild-role">Click to see valid JSON payload parameters</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/topics/permissions#role-object">role object</see></returns>
-    public static JsonElement ModifyGuildRoleAsync(this DiscordHttpClient httpClient, ulong guildId, ulong roleId, Action<Utf8JsonWriter> json)
+    public static JsonElement ModifyGuildRoleAsync(this DiscordHttpClient httpClient, ulong guildId, ulong roleId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/roles/{roleId}", json);
 
     /// <summary>Permanently deletes a role.</summary>
@@ -184,7 +194,7 @@ public static class GuildEndpoints
 
     /// <summary>Removes inactive guild members.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#begin-guild-prune">Click to see valid JSON parameters</see>.</remarks>
-    public static JsonElement PruneGuildMembersAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonWriter)
+    public static JsonElement PruneGuildMembersAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/prune", jsonWriter);
 
     /// <summary>Fetches available voice regions for a guild.</summary>
@@ -232,13 +242,13 @@ public static class GuildEndpoints
     /// <summary>Adds a new emoji to the guild.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/emoji#create-guild-emoji">Click to see valid JSON parameters</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/emoji#emoji-object">emoji object</see></returns>
-    public static JsonElement CreateGuildEmojiAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonWriter)
+    public static JsonElement CreateGuildEmojiAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/emojis", jsonWriter);
 
     /// <summary>Changes attributes of an emoji.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/emoji#modify-guild-emoji">Click to see valid JSON parameters</see>.</remarks>
     /// <returns>Updated <see href="https://discord.com/developers/docs/resources/emoji#emoji-object">emoji object</see>.</returns>
-    public static JsonElement ModifyGuildEmojiAsync(this DiscordHttpClient httpClient, ulong guildId, ulong emojiId, Action<Utf8JsonWriter> jsonWriter)
+    public static JsonElement ModifyGuildEmojiAsync(this DiscordHttpClient httpClient, ulong guildId, ulong emojiId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/emojis/{emojiId}");
 
     /// <summary>Permanently deletes a guild emoji.</summary>

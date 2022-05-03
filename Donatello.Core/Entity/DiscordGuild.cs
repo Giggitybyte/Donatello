@@ -11,12 +11,11 @@ using System.Threading.Tasks;
 /// <summary>A collection of channels and members.</summary>
 public sealed class DiscordGuild : DiscordEntity
 {
-    private MemoryCache _memberCache, _channelCache, _roleCache, _emojiCache;
+    private MemoryCache _memberCache, _roleCache, _emojiCache;
 
     public DiscordGuild(DiscordApiBot bot, JsonElement json) : base(bot, json)
     {
         _memberCache = new MemoryCache(new MemoryCacheOptions());
-        _channelCache = new MemoryCache(new MemoryCacheOptions());
         _roleCache = new MemoryCache(new MemoryCacheOptions());
         _emojiCache = new MemoryCache(new MemoryCacheOptions());
     }
@@ -72,7 +71,7 @@ public sealed class DiscordGuild : DiscordEntity
     /// </param>
     public bool HasInviteSplash(out string splashUrl)
     {
-        if (this.Json.TryGetProperty("discovery_splash", out var property) && property.ValueKind is not JsonValueKind.Null)
+        if (this.Json.TryGetProperty("splash", out var property) && property.ValueKind is not JsonValueKind.Null)
         {
             splashUrl = $"https://cdn.discordapp.com/splashes/{this.Id}/{property.GetString()}.png";
             return true;
@@ -94,7 +93,7 @@ public sealed class DiscordGuild : DiscordEntity
     {
         if (this.Json.TryGetProperty("discovery_splash", out var property) && property.ValueKind is not JsonValueKind.Null)
         {
-            splashUrl = $"https://cdn.discordapp.com/splashes/{this.Id}/{property.GetString()}.png";
+            splashUrl = $"https://cdn.discordapp.com/discovery-splashes/{this.Id}/{property.GetString()}.png";
             return true;
         }
         else
@@ -103,8 +102,6 @@ public sealed class DiscordGuild : DiscordEntity
             return true;
         }
     }
-
-
 
     /// <summary></summary>
     public ValueTask<DiscordUser> GetOwnerAsync()
@@ -123,27 +120,34 @@ public sealed class DiscordGuild : DiscordEntity
     }
 
     /// <summary></summary>
-    public async ValueTask<DiscordMember> GetMemberAsync(ulong userId)
+    public async Task<DiscordMember> GetMemberAsync(DiscordUser user)
     {
-        if (_memberCache.TryGetValue(userId, out DiscordMember member))
-            return member;
-        else
+        JsonElement memberJson;
+
+        if (_memberCache.TryGetValue(user.Id, out memberJson) is false)
         {
-            var json = await this.Bot.RestClient.GetGuildMemberAsync(this.Id, userId);
-            var member = new DiscordMember(this.Bot, json, userId);
+            memberJson = await this.Bot.RestClient.GetGuildMemberAsync(this.Id, user.Id);
+            UpdateMemberCache(user.Id, memberJson);
         }
+
+        return new DiscordMember(this.Bot, this.Id, user, memberJson);
     }
 
     /// <summary></summary>
-    public ValueTask<DiscordMember> GetMemberAsync(DiscordUser user)
-        => GetMemberAsync(user.Id);
+    public async Task<DiscordMember> GetMemberAsync(ulong userId)
+    {
+        var user = await this.Bot.GetUserAsync(userId);
+        var member = await GetMemberAsync(user);
+
+        return member;
+    }
 
     /// <summary></summary>
     public async ValueTask<EntityCollection<DiscordChannel>> GetChannelsAsync()
     {
 
-        var response = await this.Bot.RestClient.GetGuildChannelsAsync(this.Id);
-        var channels = new DiscordChannel[response.Payload.GetArrayLength()];
+        var channel = await this.Bot.RestClient.GetGuildChannelsAsync(this.Id);
+        var channels = new DiscordChannel[array.GetArrayLength()];
 
         int index = 0;
         foreach (var channelJson in response.Payload.EnumerateArray())
@@ -156,17 +160,16 @@ public sealed class DiscordGuild : DiscordEntity
         return new EntityCollection<DiscordChannel>(channels);
     }
 
-    /// <summary></summary>
-    internal void UpdateChannelCache(DiscordChannel channel)
+    internal void UpdateMemberCache(ulong userId, JsonElement member)
     {
         var entryConfig = new MemoryCacheEntryOptions()
-            .SetSlidingExpiration(TimeSpan.FromHours(1))
-            .RegisterPostEvictionCallback(LogChannelCacheEviction);
+            .SetAbsoluteExpiration(TimeSpan.FromMinutes(15))
+            .RegisterPostEvictionCallback(LogMemberCacheEviction);
 
-        _channelCache.Set(channel.Id, channel, entryConfig);
+        _memberCache.Set(userId, member, entryConfig);
 
-        void LogChannelCacheEviction(object key, object value, EvictionReason reason, object state)
-            => this.Bot.Logger.LogTrace("Removed entry {Id} from the channel cache ({Reason})", (ulong)key, reason);
+        void LogMemberCacheEviction(object key, object value, EvictionReason reason, object state)
+            => this.Bot.Logger.LogTrace("Removed entry {Id} from the member cache ({Reason})", (ulong)key, reason);
     }
 }
 

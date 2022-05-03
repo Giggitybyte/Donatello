@@ -1,6 +1,7 @@
 ﻿namespace Donatello.Extension.Internal;
 
 using Donatello.Entity;
+using Donatello.Rest;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,13 +21,13 @@ internal static class InternalExtensionMethods
     }
 
     /// <summary>Creates a <see cref="StringContent"/> object for REST requests using this delegate.</summary>
-    internal static StringContent ToContent(this Action<Utf8JsonWriter> jsonWriter)
+    internal static StringContent ToContent(this Action<Utf8JsonWriter> jsonDelegate)
     {
         using var jsonStream = new MemoryStream();
         using var writer = new Utf8JsonWriter(jsonStream);
 
         writer.WriteStartObject();
-        jsonWriter(writer);
+        jsonDelegate(writer);
         writer.WriteEndObject();
 
         writer.Flush();
@@ -58,7 +59,7 @@ internal static class InternalExtensionMethods
         return builder.ToString();
     }
 
-    /// <summary>Converts a JSON token to an array of strings.</summary>
+    /// <summary>Converts a JSON array to a native array of strings.</summary>
     internal static string[] ToStringArray(this JsonElement jsonArray)
     {
         if (jsonArray.ValueKind is not JsonValueKind.Array)
@@ -100,11 +101,12 @@ internal static class InternalExtensionMethods
         {
             0 => new DiscordGuildTextChannel(botInstance, jsonObject),
             1 => new DiscordDirectTextChannel(botInstance, jsonObject),
-            2 or 13 => new DiscordVoiceChannel(botInstance, jsonObject),
+            2 => new DiscordVoiceChannel(botInstance, jsonObject),
             3 => throw new NotSupportedException("Bot accounts cannot be in group DMs."),
             4 => new DiscordCategoryChannel(botInstance, jsonObject),
             5 => new DiscordAnnouncementChannel(botInstance, jsonObject),
             10 or 11 or 12 => new DiscordThreadTextChannel(botInstance, jsonObject),
+            13 => new DiscordStageChannel(botInstance, jsonObject),
             14 => throw new NotImplementedException("Ahahah"),
             _ => throw new JsonException("Unknown channel type.")
         };
@@ -112,7 +114,7 @@ internal static class InternalExtensionMethods
         return channel;
     }
 
-    /// <summary>Converts a JSON token to an array of Discord entities.</summary>
+    /// <summary>Converts a JSON array to an array of Discord entities.</summary>
     internal static T[] ToEntityArray<T>(this JsonElement jsonArray, DiscordApiBot botInstance) where T : DiscordEntity
     {
         if (jsonArray.ValueKind is not JsonValueKind.Array)
@@ -127,16 +129,19 @@ internal static class InternalExtensionMethods
         return array;
     }
 
-    /// <summary>Converts a JSON token to an array of key-value pairs, where the key is the snowflake ID for each value.</summary>
-    internal static Dictionary<ulong, T> ToEntityDictionary<T>(this JsonElement jsonArray, DiscordApiBot botInstance) where T : DiscordEntity
+    /// <summary>
+    /// Converts each element in a JSON array to a <typeparamref name="TEntity"/> and returns 
+    /// the collection as a dictionary, where the key is the snowflake ID of each entity value.
+    /// </summary>
+    internal static Dictionary<ulong, TEntity> ToEntityDictionary<TEntity>(this JsonElement jsonArray, DiscordApiBot botInstance) where TEntity : DiscordEntity
     {
         if (jsonArray.ValueKind is not JsonValueKind.Array)
             throw new JsonException($"Expected an array; got {jsonArray.ValueKind} instead.");
 
-        var dictionary = new Dictionary<ulong, T>(jsonArray.GetArrayLength());
+        var dictionary = new Dictionary<ulong, TEntity>(jsonArray.GetArrayLength());
         foreach (var jsonElement in jsonArray.EnumerateArray())
         {
-            T entity = jsonElement.ToEntity<T>(botInstance);
+            TEntity entity = jsonElement.ToEntity<TEntity>(botInstance);
             dictionary.Add(entity.Id, entity);
         }
 

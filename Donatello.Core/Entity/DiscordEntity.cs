@@ -27,6 +27,10 @@ public abstract class DiscordEntity : IEquatable<DiscordEntity>
     /// <summary>Unique snowflake identifier.</summary>
     public virtual ulong Id => this.Json.GetProperty("id").ToUInt64();
 
+    /// <summary>Returns the underlying JSON object for this entity.</summary>
+    internal JsonElement GetJson()
+        => this.Json;
+
     public virtual bool Equals(DiscordEntity other)
         => this.Id == other?.Id;
 
