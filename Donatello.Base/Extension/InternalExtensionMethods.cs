@@ -31,15 +31,6 @@ internal static class InternalExtensionMethods
         return ulong.Parse(jsonProperty.GetString());
     }
 
-    /// <summary>Creates a new entity</summary>
-    internal static T ToEntity<T>(this JsonElement jsonObject, DiscordApiBot botInstance) where T : DiscordEntity
-    {
-        if (typeof(T) == typeof(DiscordChannel))
-            return jsonObject.ToChannelEntity(botInstance) as T;
-        else
-            return Activator.CreateInstance(typeof(T), botInstance, jsonObject) as T; // 
-    }
-
     /// <summary>Converts a JSON object to an appropriate Discord channel entity.</summary>
     internal static DiscordChannel ToChannelEntity(this JsonElement jsonObject, DiscordApiBot botInstance)
     {
@@ -63,31 +54,16 @@ internal static class InternalExtensionMethods
         return channel;
     }
 
-    /// <summary>Converts a JSON array to an array of Discord entities.</summary>
-    internal static T[] ToEntityArray<T>(this JsonElement jsonArray, DiscordApiBot botInstance) where T : DiscordEntity
-    {
-        if (jsonArray.ValueKind is not JsonValueKind.Array)
-            throw new JsonException($"Expected an array; got {jsonArray.ValueKind} instead.");
-
-        var array = new T[jsonArray.GetArrayLength()];
-        int index = 0;
-
-        foreach (var jsonElement in jsonArray.EnumerateArray())
-            array[index++] = jsonElement.ToEntity<T>(botInstance);
-
-        return array;
-    }
-
     /// <summary>
     /// Converts each element in a JSON array to a <typeparamref name="TEntity"/> and returns 
     /// the collection as a dictionary, where the key is the snowflake ID of each entity value.
     /// </summary>
-    internal static Dictionary<ulong, TEntity> ToEntityDictionary<TEntity>(this JsonElement jsonArray, DiscordApiBot botInstance) where TEntity : DiscordEntity
+    internal static Dictionary<DiscordSnowflake, TEntity> ToEntityDictionary<TEntity>(this JsonElement jsonArray, DiscordApiBot botInstance) where TEntity : DiscordEntity
     {
         if (jsonArray.ValueKind is not JsonValueKind.Array)
             throw new JsonException($"Expected an array; got {jsonArray.ValueKind} instead.");
 
-        var dictionary = new Dictionary<ulong, TEntity>(jsonArray.GetArrayLength());
+        var dictionary = new Dictionary<DiscordSnowflake, TEntity>(jsonArray.GetArrayLength());
         foreach (var jsonElement in jsonArray.EnumerateArray())
         {
             TEntity entity = jsonElement.ToEntity<TEntity>(botInstance);
