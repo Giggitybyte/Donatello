@@ -1,24 +1,21 @@
 ﻿namespace Donatello.Entity.Builder;
 
-using Donatello;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
 
 /// <summary></summary>
-public sealed class EmbedBuilder : PayloadBuilder
+public sealed class EmbedBuilder : EntityBuilder
 {
+    private record Field(string Title, string Content, bool IsInline);
+
     private string _title, _description, _footer;
     private List<Field> _fields;
 
-    internal EmbedBuilder()
+    /// <summary></summary>
+    public EmbedBuilder()
     {
         _fields = new List<Field>(25);
-    }
-
-    internal override void WriteJson(in Utf8JsonWriter json)
-    {
-        throw new NotImplementedException();
     }
 
     /// <summary></summary>
@@ -26,13 +23,8 @@ public sealed class EmbedBuilder : PayloadBuilder
     {
         if (_fields.Count + 1 > _fields.Capacity)
             throw new InvalidOperationException($"Embed can only contain {_fields.Capacity} fields.");
-
-        _fields.Add(new Field
-        {
-            Title = title,
-            Content = content,
-            IsInline = inline
-        });
+        
+        _fields.Add(new Field(title, content, inline));
 
         return this;
     }
@@ -99,10 +91,8 @@ public sealed class EmbedBuilder : PayloadBuilder
         throw new NotImplementedException();
     }
 
-    private struct Field
+    internal override void Build(in Utf8JsonWriter json)
     {
-        public string Title { get; set; }
-        public string Content { get; set; }
-        public bool IsInline { get; set; }
+        throw new NotImplementedException();
     }
 }

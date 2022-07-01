@@ -22,4 +22,8 @@
 		<InternalsVisibleTo Include="Donatello.Interaction" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\Donatello.Rest\Donatello.Rest.csproj" />
+	</ItemGroup>
+
 </Project>

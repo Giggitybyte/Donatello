@@ -4,7 +4,7 @@ using System;
 using System.Net.Http;
 
 /// <summary></summary>
-public ref struct HttpRequest
+public sealed class HttpRequest
 {
     /// <summary></summary>
     public HttpMethod Method { get; internal init; }

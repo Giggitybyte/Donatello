@@ -1,6 +1,5 @@
 ﻿namespace Donatello.Rest.Channel;
 
-using Donatello.Extension.Internal;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -82,7 +81,7 @@ public static class ChannelEndpoints
     /// <summary>Posts a message to a channel.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/channel#create-message-jsonform-params">Click here to see valid JSON parameters</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message object</see></returns>
-    public static JsonElement CreateMessageAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> jsonDelegate, IList<LocalFileAttachment> attachments)
+    public static JsonElement CreateMessageAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> jsonDelegate, IList<Attachment> attachments)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/messages", json, attachments);
 
     /// <summary>Crosspost a message in a news channel to following channels. </summary>

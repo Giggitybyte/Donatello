@@ -2,7 +2,7 @@
 
 using System.Text.Json;
 
-public sealed class GuildChannelBuilder : PayloadBuilder
+public sealed class GuildChannelBuilder : EntityBuilder
 {
     internal override void Build(in Utf8JsonWriter json)
     {

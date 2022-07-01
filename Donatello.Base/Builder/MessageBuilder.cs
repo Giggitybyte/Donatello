@@ -1,40 +1,41 @@
 ﻿namespace Donatello.Entity.Builder;
 
-using Donatello;
 using Donatello.Entity;
+using Donatello.Rest;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
 
-public sealed class MessageBuilder : PayloadBuilder
+public sealed class MessageBuilder : EntityBuilder
 {
     private string _content;
     private bool _tts;
-    private List<LocalFileAttachment> _attachments;
+    private List<Attachment> _attachments;
     private List<EmbedBuilder> _embeds;
     private List<string> _stickerIds;
     private DiscordMessage _messageReference;
     private MentionConfiguration _mentionConfiguration;
 
-    internal MessageBuilder()
+    /// <summary></summary>
+    public MessageBuilder()
     {
         _embeds = new List<EmbedBuilder>(10);
     }
 
-    internal override void WriteJson(in Utf8JsonWriter json)
+    internal override void Build(in Utf8JsonWriter jsonWriter)
     {
         if (_embeds.Count is 0 && _attachments.Count is 0 && _content is null && _stickerIds.Count is 0)
             throw new FormatException("A message requires an embed, file, sticker, or text content.");
 
-        json.WriteString("content", _content);
-        json.WriteBoolean("tts", _tts);
+        jsonWriter.WriteString("content", _content);
+        jsonWriter.WriteBoolean("tts", _tts);
 
-        json.WriteStartArray("embeds");
+        jsonWriter.WriteStartArray("embeds");
 
         foreach (var embedBuilder in _embeds)
-            embedBuilder.WriteJson(json);
+            embedBuilder.Build(jsonWriter);
 
-        json.WriteEndArray();
+        jsonWriter.WriteEndArray();
     }
 
     /// <summary>Add an embed to the message.</summary>

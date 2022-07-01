@@ -22,7 +22,7 @@ public sealed class DiscordMessage : DiscordEntity
 
     /// <summary></summary>
     public ValueTask<DiscordTextChannel> GetChannelAsync()
-        => this.Bot.GetChannelAsync<DiscordTextChannel>(this.Json.GetProperty("channel_id").ToUInt64());
+        => this.Bot.GetChannelAsync<DiscordTextChannel>(this.Json.GetProperty("channel_id").ToSnowflake());
 
     /// <summary></summary>
     public async ValueTask<EntityCollection<DiscordUser>> GetMentionedUsersAsync()
@@ -35,11 +35,11 @@ public sealed class DiscordMessage : DiscordEntity
         var userDictionary = new Dictionary<ulong, DiscordUser>();
         foreach (var partialUser in mentionedUsers.EnumerateArray())
         {
-            var userJson = await this.Bot.GetUserJsonAsync(partialUser.GetProperty("id").ToUInt64());
+            var userJson = await this.Bot.FetchUserJsonAsync(partialUser.GetProperty("id").ToSnowflake());
 
             if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
             {
-                var member = new DiscordMember(this.Bot, guildProp.ToUInt64(), userJson, memberJson);
+                var member = new DiscordMember(this.Bot, guildProp.ToSnowflake(), userJson, memberJson);
                 userDictionary.Add(member.Id, member);
             }
             else
@@ -110,13 +110,16 @@ public sealed class DiscordMessage : DiscordEntity
         if (this.Json.TryGetProperty("webhook_id", out _))
             return false;
 
-        var partialUserJson = this.Json.GetProperty("author"); // This is a partial user; figure out best way to fetch from cache.
-        var userJson = await this.Bot.GetUserJsonAsync(partialUser.GetProperty("id").ToUInt64());
+
+        var partialUserJson = this.Json.GetProperty("author");
+        if (this.Bot.TryGetCachedUser(partialUserJson.GetProperty("id").ToSnowflake(), out author) is false)
+            user = new DiscordUser(this.Bot, partialUserJson); // Good enough.
+
 
         if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
-            author = new DiscordMember(this.Bot, guildProp.ToUInt64(), userJson, memberJson);
+            author = new DiscordMember(this.Bot, guildProp.ToSnowflake(), user.GetJson(), memberJson);
         else
-            author = new DiscordUser(this.Bot, userJson);
+            author = new DiscordUser(this.Bot, user.GetJson());
 
         return author != null;
     }
@@ -125,7 +128,7 @@ public sealed class DiscordMessage : DiscordEntity
     public bool TryGetWebhook(out ulong webhookId) // Figure out best way to return an entity or merge with above.
     {
         if (this.Json.TryGetProperty("webhook_id", out var webhookProp))
-            webhookId = webhookProp.ToUInt64();
+            webhookId = webhookProp.ToSnowflake();
         else
             webhookId = 0;
 

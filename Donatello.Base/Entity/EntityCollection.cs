@@ -7,17 +7,17 @@ using System.Collections.Generic;
 /// <summary>Read-only collection of Discord entities accessable by snowflake ID.</summary>
 public sealed class EntityCollection<TEntity> : IEnumerable<TEntity> where TEntity : DiscordEntity
 {
-    private static EntityCollection<TEntity> _emptyInstance;
-    private IDictionary<ulong, TEntity> _entities;    
+    private readonly static EntityCollection<TEntity> _emptyInstance;
+    private IDictionary<DiscordSnowflake, TEntity> _entities;    
 
     static EntityCollection()
     {
-        var emptyDictionary = new Dictionary<ulong, TEntity>();
+        var emptyDictionary = new Dictionary<DiscordSnowflake, TEntity>();
         _emptyInstance = new EntityCollection<TEntity>(emptyDictionary);
     }
 
     /// <summary></summary>
-    public EntityCollection(IDictionary<ulong, TEntity> entities)
+    public EntityCollection(IDictionary<DiscordSnowflake, TEntity> entities)
     {
         _entities = entities;
     }
@@ -25,14 +25,14 @@ public sealed class EntityCollection<TEntity> : IEnumerable<TEntity> where TEnti
     /// <summary></summary>
     public EntityCollection(IEnumerable<TEntity> entities)
     {
-        _entities = new Dictionary<ulong, TEntity>();
+        _entities = new Dictionary<DiscordSnowflake, TEntity>();
 
         foreach (var entity in entities)
             _entities.Add(entity.Id, entity);
     }
 
     /// <summary></summary>
-    public TEntity this[ulong entityId]
+    public TEntity this[DiscordSnowflake entityId]
     {
         get
         {
@@ -47,11 +47,11 @@ public sealed class EntityCollection<TEntity> : IEnumerable<TEntity> where TEnti
     public static EntityCollection<TEntity> Empty => _emptyInstance;
 
     /// <summary></summary>
-    public bool ContainsEntity(ulong entityId)
+    public bool ContainsEntity(DiscordSnowflake entityId)
         => _entities.ContainsKey(entityId);
 
     /// <summary></summary>
-    public bool TryGetEntity(ulong entityId, out TEntity entity)
+    public bool TryGetEntity(DiscordSnowflake entityId, out TEntity entity)
         => _entities.TryGetValue(entityId, out entity);
 
     /// <inheritdoc/>

@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Rest;
 
-using Donatello.Extension.Internal;
+using Donatello.Rest.Extension.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -10,7 +10,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 
 /// <summary>HTTP client wrapper for the Discord REST API.</summary>
@@ -62,15 +61,15 @@ public class DiscordHttpClient
         => SendRequestCoreAsync(method, endpoint, jsonObject.ToContent());
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonDelegate, IList<LocalFileAttachment> attachments)
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonDelegate, IList<Attachment> attachments)
         => SendMultipartRequestAsync(method, endpoint, jsonDelegate.ToContent(), attachments);
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, IList<LocalFileAttachment> attachments)
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, IList<Attachment> attachments)
         => SendMultipartRequestAsync(method, endpoint, jsonObject.ToContent(), attachments);
 
     /// <summary>Sends a multi-part HTTP request to an endpoint.</summary>
-    private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, StringContent jsonContent, IList<LocalFileAttachment> attachments)
+    private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, StringContent jsonContent, IList<Attachment> attachments)
     {
         var multipartContent = new MultipartFormDataContent();
         multipartContent.Add(jsonContent, "payload_json");

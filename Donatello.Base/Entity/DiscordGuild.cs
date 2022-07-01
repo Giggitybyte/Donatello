@@ -105,7 +105,7 @@ public sealed class DiscordGuild : DiscordEntity
 
     /// <summary></summary>
     public ValueTask<DiscordUser> GetOwnerAsync()
-        => this.Bot.GetUserAsync(this.Json.GetProperty("owner_id").ToUInt64());
+        => this.Bot.GetUserAsync(this.Json.GetProperty("owner_id").ToSnowflake());
 
     /// <summary></summary>
     public async ValueTask<DiscordRole> GetRoleAsync(ulong roleId)

@@ -2,9 +2,9 @@
 
 using System.Text.Json;
 
-public sealed class ThreadChannelBuilder : PayloadBuilder
+public sealed class ThreadChannelBuilder : EntityBuilder
 {
-    internal void WriteJson(in Utf8JsonWriter json)
+    internal override void Build(in Utf8JsonWriter jsonWriter)
     {
         throw new System.NotImplementedException();
     }

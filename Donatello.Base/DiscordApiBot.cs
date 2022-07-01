@@ -10,6 +10,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -17,6 +18,7 @@ using System.Threading.Tasks;
 public abstract class DiscordApiBot
 {
     private MemoryCache _guildCache, _channelCache, _userCache;
+    private ConcurrentDictionary<DiscordSnowflake, MemoryCache> _messageCache;
 
     public DiscordApiBot(string token, ILogger logger = null)
     {
@@ -44,27 +46,65 @@ public abstract class DiscordApiBot
     /// <summary>Disconnects from the Discord API and releases any resources in use.</summary>
     public abstract ValueTask StopAsync();
 
+    /// <summary>Returns <see langword="true"/> if the specified user is in the cache, <see langword="false"/> otherwise.</summary>
+    /// <param name="iconUrl">
+    /// When the method returns:<br/>
+    /// <see langword="true"/> this parameter will contain the cached instance.<br/>
+    /// <see langword="false"/> this parameter will be <see langword="null"/>
+    /// </param>
+    public bool TryGetCachedUser(DiscordSnowflake id, out DiscordUser user)
+        => _userCache.TryGetValue(id, out user);
+
+    /// <summary>Returns <see langword="true"/> if the specified guild is in the cache, <see langword="false"/> otherwise.</summary>
+    /// <param name="iconUrl">
+    /// When the method returns:<br/>
+    /// <see langword="true"/> this parameter will contain the cached instance.<br/>
+    /// <see langword="false"/> this parameter will be <see langword="null"/>
+    /// </param>
+    public bool TryGetCachedGuild(DiscordSnowflake id, out DiscordGuild guild)
+        => _guildCache.TryGetValue(id, out guild);
+
+    /// <summary>Returns <see langword="true"/> if the specified channel is in the cache, <see langword="false"/> otherwise.</summary>
+    /// <param name="iconUrl">
+    /// When the method returns:<br/>
+    /// <see langword="true"/> this parameter will contain the cached instance.<br/>
+    /// <see langword="false"/> this parameter will be <see langword="null"/>
+    /// </param>
+    public bool TryGetCachedChannel(DiscordSnowflake id, out DiscordChannel channel)
+        => _channelCache.TryGetValue(id, out channel);
+
+
+    /// <summary>Fetches a user object using an ID.</summary>
+    public async ValueTask<DiscordUser> GetUserAsync(DiscordSnowflake userId)
+        => new DiscordUser(this, await FetchUserJsonAsync(userId));
+
     /// <summary>Fetches a guild object using an ID.</summary>
-    public async ValueTask<DiscordGuild> GetGuildAsync(ulong guildId)
-        => new DiscordGuild(this, await GetGuildJsonAsync(guildId));
+    public async ValueTask<DiscordGuild> GetGuildAsync(DiscordSnowflake guildId)
+        => new DiscordGuild(this, await FetchGuildJsonAsync(guildId));
 
     /// <summary>Fetches a channel using an ID and returns it as a <typeparamref name="TChannel"/> object.</summary>
-    public async ValueTask<TChannel> GetChannelAsync<TChannel>(ulong channelId) where TChannel : DiscordChannel
+    public async ValueTask<TChannel> GetChannelAsync<TChannel>(DiscordSnowflake channelId) where TChannel : DiscordChannel
     {
-        var json = await GetChannelJsonAsync(channelId);
+        var json = await FetchChannelJsonAsync(channelId);
         return (TChannel)json.ToChannelEntity(this);
     }
 
-    /// <summary>Fetches a user object using an ID.</summary>
-    public async ValueTask<DiscordUser> GetUserAsync(ulong userId)
-        => new DiscordUser(this, await GetUserJsonAsync(userId));
+    /// <summary>Returns a JSON user object for provided snowflake ID.</summary>
+    internal async ValueTask<JsonElement> FetchUserJsonAsync(DiscordSnowflake userId)
+    {
+        if (_userCache.TryGetValue(userId, out JsonElement user) is false)
+        {
+            user = await this.RestClient.GetUserAsync(userId);
+            UpdateUserCache(userId, user);
+        }
+
+        return user;
+    }
 
     /// <summary>Returns a JSON guild object for provided snowflake ID.</summary>
-    internal async ValueTask<JsonElement> GetGuildJsonAsync(ulong guildId)
+    internal async ValueTask<JsonElement> FetchGuildJsonAsync(DiscordSnowflake guildId)
     {
-        JsonElement guild;
-
-        if (_guildCache.TryGetValue(guildId, out guild) is false)
+        if (_guildCache.TryGetValue(guildId, out JsonElement guild) is false)
         {
             guild = await this.RestClient.GetGuildAsync(guildId);
             UpdateGuildCache(guildId, guild);
@@ -74,11 +114,9 @@ public abstract class DiscordApiBot
     }
 
     /// <summary>Returns a JSON channel object for provided snowflake ID.</summary>
-    internal async ValueTask<JsonElement> GetChannelJsonAsync(ulong channelId)
+    internal async ValueTask<JsonElement> FetchChannelJsonAsync(DiscordSnowflake channelId)
     {
-        JsonElement channel;
-
-        if (_channelCache.TryGetValue(channelId, out channel) is false)
+        if (_channelCache.TryGetValue(channelId, out JsonElement channel) is false)
         {
             channel = await this.RestClient.GetChannelAsync(channelId);
             UpdateChannelCache(channelId, channel);
@@ -87,22 +125,10 @@ public abstract class DiscordApiBot
         return channel;
     }
 
-    /// <summary>Returns a JSON user object for provided snowflake ID.</summary>
-    internal async ValueTask<JsonElement> GetUserJsonAsync(ulong userId)
-    {
-        JsonElement user;
-
-        if (_userCache.TryGetValue(userId, out user) is false)
-        {
-            user = await this.RestClient.GetUserAsync(userId);
-            UpdateUserCache(userId, user);
-        }
-
-        return user;
-    }
+    internal async ValueTask<JsonElement> FetchMessageJsonAsync(DiscordSnowflake chann)
 
     /// <summary>Adds or updates an entry in the guild cache.</summary>
-    protected void UpdateGuildCache(ulong id, JsonElement guild)
+    protected void UpdateGuildCache(DiscordSnowflake id, JsonElement guild)
     {
         var entryConfig = new MemoryCacheEntryOptions()
             .SetSlidingExpiration(TimeSpan.FromMinutes(30))
@@ -116,7 +142,7 @@ public abstract class DiscordApiBot
     }
 
     /// <summary>Adds or updates an entry in the channel cache.</summary>
-    protected void UpdateChannelCache(ulong id, JsonElement channel)
+    protected void UpdateChannelCache(DiscordSnowflake id, JsonElement channel)
     {
         var entryConfig = new MemoryCacheEntryOptions()
                 .SetSlidingExpiration(TimeSpan.FromMinutes(30))
@@ -130,7 +156,7 @@ public abstract class DiscordApiBot
     }
 
     /// <summary>Adds or updates an entry in the user cache.</summary>
-    protected void UpdateUserCache(ulong id, JsonElement user)
+    protected void UpdateUserCache(DiscordSnowflake id, JsonElement user)
     {
         var entryConfig = new MemoryCacheEntryOptions()
                 .SetSlidingExpiration(TimeSpan.FromMinutes(15))
@@ -141,6 +167,6 @@ public abstract class DiscordApiBot
         this.Logger.LogTrace("Updated {Id} in user cache", id);
 
         void LogUserCacheEviction(object key, object value, EvictionReason reason, object state)
-            => this.Logger.LogTrace("Removed {Id} from user cache", (ulong)key);
+            => this.Logger.LogTrace("Removed {Id} from user cache", (DiscordSnowflake)key);
     }
 }

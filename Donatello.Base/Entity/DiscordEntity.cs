@@ -25,7 +25,7 @@ public abstract class DiscordEntity : IEquatable<DiscordEntity>
     protected JsonElement Json { get; private init; }
 
     /// <summary>Unique snowflake identifier.</summary>
-    public virtual ulong Id => this.Json.GetProperty("id").ToUInt64();
+    public virtual DiscordSnowflake Id => this.Json.GetProperty("id").ToSnowflake();
 
     /// <summary>Returns the underlying JSON object for this entity.</summary>
     internal JsonElement GetJson()
