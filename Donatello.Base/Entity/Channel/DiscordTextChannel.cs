@@ -37,10 +37,19 @@ public abstract class DiscordTextChannel : DiscordChannel
     }
 
     /// <summary></summary>
-    public async Task<DiscordMessage> SendMessageAsync(MessageBuilder messageBuilder)
+    public async Task<DiscordMessage> SendMessageAsync(MessageBuilder builder)
     {
-        var messageJson = await this.Bot.RestClient.CreateMessageAsync(this.Id, jsonWriter => messageBuilder.Build(jsonWriter));
+        var messageJson = await this.Bot.RestClient.CreateMessageAsync(this.Id, jsonWriter => builder.Build(jsonWriter));
         return new DiscordMessage(this.Bot, messageJson);
+    }
+
+    /// <summary></summary>
+    public Task<DiscordMessage> SendMessageAsync(Action<MessageBuilder> builderDelegate)
+    {
+        var messageBuilder = new MessageBuilder();
+        builderDelegate(messageBuilder);
+
+        return SendMessageAsync(messageBuilder);
     }
 
     /// <summary></summary>
