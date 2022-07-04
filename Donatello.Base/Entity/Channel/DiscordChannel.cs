@@ -10,6 +10,7 @@ public abstract class DiscordChannel : DiscordEntity
     internal DiscordChannel(DiscordApiBot bot, JsonElement json) : base(bot, json)
     {
         var jsonType = json.GetProperty("type").GetInt32();
+
         if (Enum.IsDefined(typeof(ChannelType), jsonType))
             this.Type = (ChannelType)jsonType;
         else

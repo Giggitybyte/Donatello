@@ -17,8 +17,7 @@ using System.Threading.Tasks;
 /// <summary></summary>
 public abstract class DiscordApiBot
 {
-    private MemoryCache _guildCache, _channelCache, _userCache;
-    private ConcurrentDictionary<DiscordSnowflake, MemoryCache> _messageCache;
+    private MemoryCache _guildCache, _userCache, _channelCache;
 
     public DiscordApiBot(string token, ILogger logger = null)
     {
@@ -125,8 +124,6 @@ public abstract class DiscordApiBot
         return channel;
     }
 
-    internal async ValueTask<JsonElement> FetchMessageJsonAsync(DiscordSnowflake chann)
-
     /// <summary>Adds or updates an entry in the guild cache.</summary>
     protected void UpdateGuildCache(DiscordSnowflake id, JsonElement guild)
     {
@@ -167,6 +164,6 @@ public abstract class DiscordApiBot
         this.Logger.LogTrace("Updated {Id} in user cache", id);
 
         void LogUserCacheEviction(object key, object value, EvictionReason reason, object state)
-            => this.Logger.LogTrace("Removed {Id} from user cache", (DiscordSnowflake)key);
+            => this.Logger.LogTrace("Removed {Id} from user cache", (ulong)key);
     }
 }

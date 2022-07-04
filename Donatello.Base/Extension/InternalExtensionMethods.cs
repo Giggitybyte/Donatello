@@ -46,8 +46,8 @@ internal static class InternalExtensionMethods
             5 => new DiscordAnnouncementChannel(botInstance, jsonObject),
             10 or 11 or 12 => new DiscordThreadTextChannel(botInstance, jsonObject),
             13 => new DiscordStageChannel(botInstance, jsonObject),
-            14 => throw new NotImplementedException("lol, lmao"),
-            15 => throw new NotImplementedException("lmao, lol"),
+            14 => new DiscordDirectoryChannel(botInstance, jsonObject),
+            15 => DiscordForumChannel(botInstance, jsonObject),
             _ => throw new JsonException("Unknown channel type.")
         };
 
@@ -64,9 +64,15 @@ internal static class InternalExtensionMethods
             throw new JsonException($"Expected an array; got {jsonArray.ValueKind} instead.");
 
         var dictionary = new Dictionary<DiscordSnowflake, TEntity>(jsonArray.GetArrayLength());
-        foreach (var jsonElement in jsonArray.EnumerateArray())
+        foreach (var entityJson in jsonArray.EnumerateArray())
         {
-            TEntity entity = jsonElement.ToEntity<TEntity>(botInstance);
+            TEntity entity;
+
+            if (typeof(TEntity) == typeof(DiscordChannel))
+                entity = entityJson.ToChannelEntity(botInstance) as TEntity;
+            else
+                entity = Activator.CreateInstance(typeof(TEntity), botInstance, entityJson) as TEntity;
+
             dictionary.Add(entity.Id, entity);
         }
 

@@ -122,9 +122,7 @@ public sealed class DiscordGuild : DiscordEntity
     /// <summary></summary>
     public async Task<DiscordMember> GetMemberAsync(DiscordUser user)
     {
-        JsonElement memberJson;
-
-        if (_memberCache.TryGetValue(user.Id, out memberJson) is false)
+        if (_memberCache.TryGetValue(user.Id, out JsonElement memberJson) is false)
         {
             memberJson = await this.Bot.RestClient.GetGuildMemberAsync(this.Id, user.Id);
             UpdateMemberCache(user.Id, memberJson);

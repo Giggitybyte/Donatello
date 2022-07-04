@@ -29,13 +29,13 @@ public sealed class DiscordSnowflake : IComparable<DiscordSnowflake>
     /// <summary>Time since the Discord epoch.</summary>
     public DateTimeOffset Timestamp { get; init; }
 
-    /// <summary>The internal worker's ID that was used to generate the snowflake.</summary>
+    /// <summary>The internal worker's ID that was used by Discord to generate the snowflake.</summary>
     public byte InternalWorkerId { get; init; }
 
-    /// <summary>The internal process' ID that was used to generate the snowflake.</summary>
+    /// <summary>The internal process' ID that was used by Discord to generate the snowflake.</summary>
     public byte InternalProcessId { get; init; }
 
-    /// <summary>A number incremented by 1 every time the snowflake is generated.</summary>
+    /// <summary>A number incremented by Discord every time a snowflake is generated.</summary>
     public ushort InternalIncrement { get; init; }
 
     /// <summary>Returns the 64-bit integer representation of this snowflake as a string.</summary>
