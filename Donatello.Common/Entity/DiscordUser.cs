@@ -33,29 +33,13 @@ public class DiscordUser : DiscordEntity
     }
 
     /// <summary>Whether the user is an automated bot user.</summary>
-    public bool IsBot => this.Json.TryGetProperty("bot", out var prop) && prop.GetBoolean();
+    public bool BotUser => this.Json.TryGetProperty("bot", out var prop) && prop.GetBoolean();
 
     /// <summary>Whether the user is an urgent message system user.</summary>
-    public bool IsSystem => this.Json.TryGetProperty("system", out var prop) && prop.GetBoolean();
+    public bool SystemUser => this.Json.TryGetProperty("system", out var prop) && prop.GetBoolean();
 
     /// <summary>The user's banner color.</summary>
     public Color BannerColor => this.Json.TryGetProperty("accent_color", out var prop) ? Color.FromArgb(prop.GetInt32()) : Color.Empty;
-
-    /// <summary>Returns <see langword="true"/> if the user has chosen a color for their banner, <see langword="false"/> otherwise.</summary>
-    /// <param name="bannerColor">
-    /// When the method returns:<br/>
-    /// <see langword="true"/> this parameter will contain the user's banner color.<br/>
-    /// <see langword="false"/> this parameter will be <see cref="Color.Empty"/>.
-    /// </param>
-    public bool HasBanner(out Color bannerColor)
-    {
-        if (this.Json.TryGetProperty("accent_color", out var prop) && prop.ValueKind is not JsonValueKind.Null)
-            bannerColor = Color.FromArgb(prop.GetInt32());
-        else
-            bannerColor = Color.Empty;
-
-        return bannerColor != Color.Empty;
-    }
 
     /// <summary>Returns <see langword="true"/> if the user has a banner image uploaded, <see langword="false"/> otherwise.</summary>
     /// <param name="bannerUrl">
@@ -63,7 +47,7 @@ public class DiscordUser : DiscordEntity
     /// <see langword="true"/> this parameter will contain the banner URL,<br/>
     /// <see langword="false"/> this parameter will contain an empty string.
     /// </param>
-    public bool HasBanner(out string bannerUrl)
+    public bool HasBannerImage(out string bannerUrl)
     {
         if (this.Json.TryGetProperty("banner", out var prop) && prop.ValueKind is not JsonValueKind.Null)
             bannerUrl = $"https://cdn.discordapp.com/banners/{this.Id}/{prop.GetString()}";

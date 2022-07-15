@@ -12,7 +12,7 @@ public sealed class DiscordSnowflake : IComparable<DiscordSnowflake>
     /// <param name="rawValue">64-bit integer representing a Discord snowflake.</param>
     internal DiscordSnowflake(ulong rawValue)
     {
-        this.Timestamp = DiscordEpoch.AddMilliseconds(rawValue >> 22);
+        this.CreationDate = DiscordEpoch.AddMilliseconds(rawValue >> 22);
         this.InternalWorkerId = (byte)((rawValue & 0x3E0000) >> 17);
         this.InternalProcessId = (byte)((rawValue & 0x1F000) >> 12);
         this.InternalIncrement = (ushort)(rawValue & 0xFFF);
@@ -26,8 +26,8 @@ public sealed class DiscordSnowflake : IComparable<DiscordSnowflake>
     /// <summary>64-bit integer representation of this snowflake.</summary>
     public ulong Value { get; init; }
 
-    /// <summary>Time since the Discord epoch.</summary>
-    public DateTimeOffset Timestamp { get; init; }
+    /// <summary>The date this snowflake was generated.</summary>
+    public DateTimeOffset CreationDate { get; init; }
 
     /// <summary>The internal worker's ID that was used by Discord to generate the snowflake.</summary>
     public byte InternalWorkerId { get; init; }
@@ -44,7 +44,7 @@ public sealed class DiscordSnowflake : IComparable<DiscordSnowflake>
 
     /// <inheritdoc/>
     public override int GetHashCode()
-        => HashCode.Combine(this.Value, this.Timestamp, this.InternalWorkerId, this.InternalProcessId, this.InternalIncrement);
+        => HashCode.Combine(this.Value, this.CreationDate, this.InternalWorkerId, this.InternalProcessId, this.InternalIncrement);
 
     /// <inheritdoc/>
     public int CompareTo(DiscordSnowflake other)

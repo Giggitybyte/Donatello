@@ -35,6 +35,10 @@ public sealed class DiscordInteractionBot : DiscordApiBot
     private AsynchronousEvent<CommandExecutedEventArgs> _commandExecutedEvent;
     private AsynchronousEvent<CommandExecutionFailedEventArgs> _commandExecutionFailedEvent;
 
+    /// <param name="apiToken"></param>
+    /// <param name="publicKey"></param>
+    /// <param name="port"></param>
+    /// <param name="logger"></param>
     public DiscordInteractionBot(string apiToken, string publicKey, ushort port = 8080, ILogger logger = null) : base(apiToken, logger)
     {
         if (string.IsNullOrWhiteSpace(apiToken))
@@ -42,9 +46,8 @@ public sealed class DiscordInteractionBot : DiscordApiBot
         else if (string.IsNullOrWhiteSpace(publicKey))
             throw new ArgumentException("Public key cannot be empty.", nameof(publicKey));
 
-        this.Logger = logger ?? NullLogger.Instance;
-
         _publicKey = PublicKey.Import(SignatureAlgorithm.Ed25519, Convert.FromHexString(publicKey), KeyBlobFormat.PkixPublicKeyText);
+        _port = port;
 
         _commandExecutedEvent = new AsynchronousEvent<CommandExecutedEventArgs>(EventExceptionLogger);
         _commandExecutionFailedEvent = new AsynchronousEvent<CommandExecutionFailedEventArgs>(EventExceptionLogger);
@@ -67,9 +70,6 @@ public sealed class DiscordInteractionBot : DiscordApiBot
         add => _commandExecutionFailedEvent.Hook(value);
         remove => _commandExecutionFailedEvent.Unhook(value);
     }
-
-    /// <summary></summary>
-    internal ILogger Logger { get; private init; }
 
     /// <summary>Whether this instance is listening for interactions.</summary>
     public bool IsRunning => _interactionListenerTask.Status == TaskStatus.Running;
@@ -149,64 +149,63 @@ public sealed class DiscordInteractionBot : DiscordApiBot
         }
 
         listener.Stop();
+    }
 
+    private async Task ProcessInteractionAsync(string stringData, HttpListenerResponse response)
+    {
+        using var payload = JsonDocument.Parse(stringData);
+        var interactionJson = payload.RootElement;
+        var interactionType = interactionJson.GetProperty("type").GetInt32();
 
-        async Task ProcessInteractionAsync(string stringData, HttpListenerResponse response)
+        var responseBuffer = new ArrayBufferWriter<byte>();
+        using var responseWriter = new Utf8JsonWriter(responseBuffer);
+
+        if (interactionType == 1) // Ping
+            responseWriter.WriteNumber("type", 1);
+        else if (interactionType == 2) // Command
         {
-            using var payload = JsonDocument.Parse(stringData);
-            var interactionJson = payload.RootElement;
-            var interactionType = interactionJson.GetProperty("type").GetInt32();
+            var data = interactionJson.GetProperty("data");
+            var commandType = (CommandType)(data.TryGetProperty("type", out var prop) ? prop.GetInt32() : 1);
 
-            var responseBuffer = new ArrayBufferWriter<byte>();
-            using var responseWriter = new Utf8JsonWriter(responseBuffer);
+            var name = data.GetProperty("name").GetString();
+            var result = _commandService.FindCommands(name)[0];
 
-            if (interactionType == 1) // Ping
-                responseWriter.WriteNumber("type", 1);
-            else if (interactionType == 2) // Command
+            if (result is not null)
             {
-                var data = interactionJson.GetProperty("data");
-                var commandType = (CommandType) (data.TryGetProperty("type", out var prop) ? prop.GetInt32() : 1);
-
-                var name = data.GetProperty("name").GetString();
-                var result = _commandService.FindCommands(name)[0];
-
-                if (result is not null)
-                {
-                    // ...
-                }
-                else
-                {
-                    response.StatusCode = 500;
-                    response.StatusDescription = "Command not found.";
-                }
-            }
-            else if (interactionType == 3) // Component
-            {
-                throw new NotImplementedException("Components");
-            }
-            else if (interactionType == 4) // Auto-complete
-            {
-                throw new NotImplementedException("Auto-complete");
+                // ...
             }
             else
             {
-                response.StatusCode = 501;
-                response.StatusDescription = "Unknown interaction type.";
-                return;
+                response.StatusCode = 500;
+                response.StatusDescription = "Command not found.";
             }
+        }
+        else if (interactionType == 3) // Component
+        {
+            throw new NotImplementedException("Components");
+        }
+        else if (interactionType == 4) // Auto-complete
+        {
+            throw new NotImplementedException("Auto-complete");
+        }
+        else
+        {
+            response.StatusCode = 501;
+            response.StatusDescription = "Unknown interaction type.";
+            return;
+        }
 
 
-            if (responseWriter.BytesPending > 0)
-            {
-                await responseWriter.FlushAsync().ConfigureAwait(false);
-                await response.OutputStream.WriteAsync(responseBuffer.WrittenMemory).ConfigureAwait(false);
+        if (responseWriter.BytesPending > 0)
+        {
+            await responseWriter.FlushAsync().ConfigureAwait(false);
+            await response.OutputStream.WriteAsync(responseBuffer.WrittenMemory).ConfigureAwait(false);
 
-                response.StatusCode = 200;
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
+            response.StatusCode = 200;
+        }
+        else
+        {
+            throw new NotImplementedException();
         }
     }
 

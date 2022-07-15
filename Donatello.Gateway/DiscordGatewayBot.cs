@@ -7,10 +7,10 @@ using System.Threading.Tasks;
 using Donatello;
 using Donatello.Enumeration;
 using Donatello.Gateway.Command;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Qmmands;
 using Qommon.Collections;
+using Qommon.Collections.ReadOnly;
 
 /// <summary>Implementation for Discord's real-time websocket API.</summary>
 /// <remarks>

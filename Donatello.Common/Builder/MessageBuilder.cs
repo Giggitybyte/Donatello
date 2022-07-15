@@ -8,6 +8,8 @@ using System.Text.Json;
 
 public sealed class MessageBuilder : EntityBuilder
 {
+    public sealed record MentionConfiguration(); // TODO
+
     private string _content;
     private bool _tts;
     private List<Attachment> _attachments;
@@ -22,30 +24,14 @@ public sealed class MessageBuilder : EntityBuilder
         _embeds = new List<EmbedBuilder>(10);
     }
 
-    internal override void Build(in Utf8JsonWriter jsonWriter)
-    {
-        if (_embeds.Count is 0 && _attachments.Count is 0 && _content is null && _stickerIds.Count is 0)
-            throw new FormatException("A message requires an embed, file, sticker, or text content.");
-
-        jsonWriter.WriteString("content", _content);
-        jsonWriter.WriteBoolean("tts", _tts);
-
-        jsonWriter.WriteStartArray("embeds");
-
-        foreach (var embedBuilder in _embeds)
-            embedBuilder.Build(jsonWriter);
-
-        jsonWriter.WriteEndArray();
-    }
-
     /// <summary>Add an embed to the message.</summary>
-    public MessageBuilder AppendEmbed(Action<EmbedBuilder> embed)
+    public MessageBuilder AppendEmbed(Action<EmbedBuilder> embedDelegate)
     {
         if (_embeds.Count + 1 > _embeds.Capacity)
             throw new InvalidOperationException($"Message cannot have more than {_embeds.Capacity} embeds.");
 
         var builder = new EmbedBuilder();
-        embed(builder);
+        embedDelegate(builder);
         _embeds.Add(builder);
 
         return this;
@@ -61,8 +47,8 @@ public sealed class MessageBuilder : EntityBuilder
         return this;
     }
 
-    /// <summary>Whether the message should be spoken aloud in the client using text-to-speech.</summary>
-    public MessageBuilder SetTts(bool value)
+    /// <summary>Whether the message should be spoken aloud in the client using text-to-speech (TTS).</summary>
+    public MessageBuilder SetTextToSpeech(bool value)
     {
         _tts = value;
         return this;
@@ -82,8 +68,19 @@ public sealed class MessageBuilder : EntityBuilder
         throw new NotImplementedException();
     }
 
-    public sealed class MentionConfiguration
+    internal override void Build(in Utf8JsonWriter jsonWriter)
     {
-        // TODO
+        if (_embeds.Count is 0 && _attachments.Count is 0 && _content is null && _stickerIds.Count is 0)
+            throw new FormatException("A message must have an embed, file, sticker, or text.");
+
+        jsonWriter.WriteString("content", _content);
+        jsonWriter.WriteBoolean("tts", _tts);
+
+        jsonWriter.WriteStartArray("embeds");
+
+        foreach (var embedBuilder in _embeds)
+            embedBuilder.Build(jsonWriter);
+
+        jsonWriter.WriteEndArray();
     }
 }

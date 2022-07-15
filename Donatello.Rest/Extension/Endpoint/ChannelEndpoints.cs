@@ -24,22 +24,6 @@ public static class ChannelEndpoints
             throw new HttpRequestException($"Unable to fetch channel from Discord: {response.Message} ({(int)response.Status})");
     }
 
-    /// <summary></summary>
-    internal static async Task<JsonElement> SendRequestAsync(this DiscordHttpClient httpClient, HttpMethod method, string endpoint)
-    {
-        var response = await httpClient.SendRequestAsync(method, endpoint);
-
-        if (response.Status is HttpStatusCode.OK)
-            return response.Payload;
-        else if (response.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
-            throw new ArgumentException(response.Payload.GetProperty("message").GetString());
-        else
-        {
-            var message = response.Payload.TryGetProperty("message", out var prop) ? prop.GetString() : response.Message;
-            throw new HttpRequestException($"Unable to fetch entity guild from Discord: {message} ({(int)response.Status})");
-        }   
-    }
-
     /// <summary>Updates the settings for a channel.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/channel#modify-channel">Click here to see valid JSON parameters</see>.</remarks>
     /// <returns>Updated <see href="https://discord.com/developers/docs/resources/channel#channel-object">channel object</see>.</returns>
@@ -52,8 +36,13 @@ public static class ChannelEndpoints
 
     /// <summary>Fetches a specific message in a channnel.</summary>
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message object</see></returns>
-    public static JsonElement GetChannelMessageAsync(this DiscordHttpClient httpClient, ulong channelId, ulong messageId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/messages/{messageId}");
+    public static async Task<JsonElement> GetChannelMessageAsync(this DiscordHttpClient httpClient, ulong channelId, ulong messageId)
+    {
+        var response = await httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/messages/{messageId}");
+
+        if (response.Status is HttpStatusCode.OK)
+            return response.Payload;
+    }
 
     /// <summary>Fetches up to 100 messages from a channel.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/channel#get-channel-messages-query-string-params">Click here to see valid query parameters</see>.</remarks>
@@ -64,9 +53,9 @@ public static class ChannelEndpoints
     /// <summary>Posts a message to a channel.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/channel#create-message-jsonform-params">Click here to see valid JSON parameters</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message object</see></returns>
-    public static async Task<JsonElement> CreateMessageAsync(this DiscordHttpClient httpClient, ulong channelId, in Action<Utf8JsonWriter> jsonDelegate)
+    public static async Task<JsonElement> CreateMessageAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> jsonDelegate)
     {
-        var response =  await httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/messages", json);
+        var response = await httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/messages", jsonDelegate);
 
         if (response.Status is HttpStatusCode.OK)
             return response.Payload;

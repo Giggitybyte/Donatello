@@ -90,6 +90,7 @@ public sealed partial class DiscordGatewayBot
                 "GUILD_MEMBER_UPDATE" => throw new NotImplementedException(),
                 "GUILD_MEMBERS_CHUNK" => throw new NotImplementedException(),
                 "GUILD_ROLE_CREATE" => throw new NotImplementedException(),
+                "GUILD_ROLE_UPDATE" => throw new NotImplementedException(),
                 "GUILD_ROLE_DELETE" => throw new NotImplementedException(),
                 "GUILD_SCHEDULED_EVENT_CREATE" => throw new NotImplementedException(),
                 "GUILD_SCHEDULED_EVENT_UPDATE" => throw new NotImplementedException(),

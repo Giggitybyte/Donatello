@@ -3,6 +3,7 @@
 using Donatello.Entity;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 /// <summary>Read-only collection of Discord entities accessable by snowflake ID.</summary>
 public sealed class EntityCollection<TEntity> : IEnumerable<TEntity> where TEntity : DiscordEntity
@@ -19,6 +20,7 @@ public sealed class EntityCollection<TEntity> : IEnumerable<TEntity> where TEnti
     /// <summary></summary>
     public EntityCollection(IDictionary<DiscordSnowflake, TEntity> entities)
     {
+        _entities = new Sort
         _entities = entities;
     }
 
@@ -53,6 +55,9 @@ public sealed class EntityCollection<TEntity> : IEnumerable<TEntity> where TEnti
     /// <summary></summary>
     public bool TryGetEntity(DiscordSnowflake entityId, out TEntity entity)
         => _entities.TryGetValue(entityId, out entity);
+
+    public bool ContainsRange(DiscordSnowflake start, DiscordSnowflake end)
+        => _entities.OrderBy(kvp => kvp.Key).
 
     /// <inheritdoc/>
     public IEnumerator<TEntity> GetEnumerator()

@@ -19,8 +19,7 @@ public sealed class DiscordMember : DiscordUser
     }
 
     /// <summary></summary>
-    public DiscordMember(DiscordApiBot bot, ulong guildId, DiscordUser user, JsonElement memberJson)
-        : this(bot, guildId, user.GetJson(), memberJson) { }
+    public DiscordMember(DiscordApiBot bot, ulong guildId, DiscordUser user, JsonElement memberJson) : this(bot, guildId, user.Json, memberJson) { }
 
     /// <summary></summary>
     public override string AvatarUrl
@@ -59,15 +58,11 @@ public sealed class DiscordMember : DiscordUser
     public bool HasNickname(out string nickname)
     {
         if (_member.TryGetProperty("nick", out var prop) && prop.ValueKind is not JsonValueKind.Null)
-        {
             nickname = prop.GetString();
-            return true;
-        }
         else
-        {
             nickname = string.Empty;
-            return false;
-        }
+
+        return nickname != string.Empty;
     }
 
     /// <summary></summary>
@@ -83,7 +78,7 @@ public sealed class DiscordMember : DiscordUser
     {
         var guild = await GetGuildAsync();
         var roleIds = _member.GetProperty("roles");
-        var roles = new Dictionary<ulong, DiscordRole>(roleIds.GetArrayLength());
+        var roles = new Dictionary<DiscordSnowflake, DiscordRole>(roleIds.GetArrayLength());
 
         foreach (var roleId in roleIds.EnumerateArray())
         {
@@ -97,21 +92,21 @@ public sealed class DiscordMember : DiscordUser
     /// <summary>
     /// Returns <see langword="true"/> if the member is 
     /// <see href="https://support.discord.com/hc/en-us/articles/360028038352">boosting</see> 
-    /// its associated guild; <see langword="false"/> otherwise.
+    /// its guild; <see langword="false"/> otherwise.
     /// </summary>
-    /// <param name="startDate">Date when the member started boosting its guild.</param>
+    /// <param name="startDate">
+    /// When the method returns:<br/>
+    /// <see langword="true"/> this parameter will contain the date when the member began boosting its guild.<br/>
+    /// <see langword="false"/> this parameter will be <see cref="DateTimeOffset.MinValue"/>.
+    /// </param>
     public bool IsBooster(out DateTimeOffset startDate)
     {
         if (_member.TryGetProperty("premium_since", out var property))
-        {
             startDate = property.GetDateTimeOffset();
-            return true;
-        }
         else
-        {
-            startDate = DateTimeOffset.MaxValue;
-            return false;
-        }
+            startDate = DateTimeOffset.MinValue;
+
+        return startDate != DateTimeOffset.MinValue;
     }
 
     /// <summary>

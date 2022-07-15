@@ -1,10 +1,12 @@
 ﻿namespace Donatello.Entity;
 
+using Donatello.Enumeration;
 using Donatello.Extension.Internal;
 using Donatello.Rest.Guild;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -22,6 +24,9 @@ public sealed class DiscordGuild : DiscordEntity
 
     /// <summary>The guild name.</summary>
     public string Name => this.Json.GetProperty("name").GetString();
+
+    /// <summary>Permissions in the guild, excluding channel overwrites.</summary>
+    public GuildPermission Permissions => throw new NotImplementedException();
 
     /// <summary>Returns whether this guild has a specific feature enabled.</summary>
     public bool HasFeature(string feature)
@@ -46,21 +51,16 @@ public sealed class DiscordGuild : DiscordEntity
     /// </param>
     public bool HasIcon(out string iconUrl)
     {
-        var iconProp = this.Json.GetProperty("icon");
-
-        if (iconProp.ValueKind is not JsonValueKind.Null)
+        if (this.Json.TryGetProperty("icon", out var prop) && prop.ValueKind is not JsonValueKind.Null)
         {
-            var iconHash = iconProp.GetString();
+            var iconHash = prop.GetString();
             var extension = iconHash.StartsWith("a_") ? "gif" : "png";
             iconUrl = $"https://cdn.discordapp.com/icons/{this.Id}/{iconHash}.{extension}";
-
-            return true;
         }
         else
-        {
             iconUrl = string.Empty;
-            return false;
-        }
+
+        return iconUrl != string.Empty;
     }
 
     /// <summary>Returns <see langword="true"/> if the guild has an invite splash image uploaded, <see langword="false"/> otherwise.</summary>
@@ -72,15 +72,11 @@ public sealed class DiscordGuild : DiscordEntity
     public bool HasInviteSplash(out string splashUrl)
     {
         if (this.Json.TryGetProperty("splash", out var property) && property.ValueKind is not JsonValueKind.Null)
-        {
             splashUrl = $"https://cdn.discordapp.com/splashes/{this.Id}/{property.GetString()}.png";
-            return true;
-        }
         else
-        {
             splashUrl = string.Empty;
-            return false;
-        }
+
+        return splashUrl != string.Empty;
     }
 
     /// <summary>Returns <see langword="true"/> if the guild has an discovery splash image uploaded, <see langword="false"/> otherwise.</summary>
@@ -92,16 +88,14 @@ public sealed class DiscordGuild : DiscordEntity
     public bool HasDiscoverySplash(out string splashUrl)
     {
         if (this.Json.TryGetProperty("discovery_splash", out var property) && property.ValueKind is not JsonValueKind.Null)
-        {
             splashUrl = $"https://cdn.discordapp.com/discovery-splashes/{this.Id}/{property.GetString()}.png";
-            return true;
-        }
         else
-        {
             splashUrl = string.Empty;
-            return true;
-        }
+
+        return splashUrl != string.Empty;
     }
+
+    public bool HasAfkChannel(out DiscordVoice)
 
     /// <summary></summary>
     public ValueTask<DiscordUser> GetOwnerAsync()
@@ -120,44 +114,32 @@ public sealed class DiscordGuild : DiscordEntity
     }
 
     /// <summary></summary>
-    public async Task<DiscordMember> GetMemberAsync(DiscordUser user)
+    public async Task<DiscordMember> GetMemberAsync(DiscordSnowflake userId)
     {
-        if (_memberCache.TryGetValue(user.Id, out JsonElement memberJson) is false)
+        if (_memberCache.TryGetValue(userId, out JsonElement memberJson) is false)
         {
-            memberJson = await this.Bot.RestClient.GetGuildMemberAsync(this.Id, user.Id);
-            UpdateMemberCache(user.Id, memberJson);
+            memberJson = await this.Bot.RestClient.GetGuildMemberAsync(this.Id, userId);
+            UpdateMemberCache(userId, memberJson);
         }
 
+        var user = await this.Bot.GetUserAsync(userId);
         return new DiscordMember(this.Bot, this.Id, user, memberJson);
     }
 
     /// <summary></summary>
-    public async Task<DiscordMember> GetMemberAsync(ulong userId)
-    {
-        var user = await this.Bot.GetUserAsync(userId);
-        var member = await GetMemberAsync(user);
-
-        return member;
-    }
+    public async Task<DiscordMember> GetMemberAsync(DiscordUser user)
+        => await GetMemberAsync(user.Id);
 
     /// <summary></summary>
     public async ValueTask<EntityCollection<DiscordChannel>> GetChannelsAsync()
     {
-
-        var channel = await this.Bot.RestClient.GetGuildChannelsAsync(this.Id);
-        var channels = new DiscordChannel[array.GetArrayLength()];
-
-        int index = 0;
-        foreach (var channelJson in response.Payload.EnumerateArray())
-        {
-            var channel = channelJson.ToChannelEntity(this.Bot);
-            channels[index++] = channel;
-
-        }
+        var channelArray = await this.Bot.RestClient.GetGuildChannelsAsync(this.Id);
+        var channels = channelArray.EnumerateArray().Select(json => json.ToChannelEntity(this.Bot));
 
         return new EntityCollection<DiscordChannel>(channels);
     }
 
+    /// <summary></summary>
     internal void UpdateMemberCache(ulong userId, JsonElement member)
     {
         var entryConfig = new MemoryCacheEntryOptions()

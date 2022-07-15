@@ -41,7 +41,7 @@ internal static class InternalExtensionMethods
             0 => new DiscordGuildTextChannel(botInstance, jsonObject),
             1 => new DiscordDirectTextChannel(botInstance, jsonObject),
             2 => new DiscordVoiceChannel(botInstance, jsonObject),
-            3 => throw new NotSupportedException("Bot accounts cannot be in group DMs."),
+            3 => new DiscordGroupTextChannel(botInstance, jsonObject),
             4 => new DiscordCategoryChannel(botInstance, jsonObject),
             5 => new DiscordAnnouncementChannel(botInstance, jsonObject),
             10 or 11 or 12 => new DiscordThreadTextChannel(botInstance, jsonObject),

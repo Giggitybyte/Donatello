@@ -2,36 +2,42 @@
 
 using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 public static class InternalExtensionMethods
 {
-    /// <summary>Converts this JSON object to a <see cref="StringContent"/> object for REST requests.</summary>
-    internal static StringContent ToContent(this JsonElement jsonObject)
+    /// <summary></summary>
+    internal static async Task<JsonElement> FetchJson(this DiscordHttpClient httpClient, HttpMethod method, string endpoint)
     {
-        if (jsonObject.ValueKind is not JsonValueKind.Object)
-            throw new JsonException($"Expected an object; got {jsonObject.ValueKind} instead.");
+        var response = await httpClient.SendRequestAsync(method, endpoint);
 
-        return new StringContent(jsonObject.GetRawText(), Encoding.UTF8, "application/json");
-    }
+        if (response.Status is HttpStatusCode.OK)
+            return response.Payload;
 
-    /// <summary>Creates a <see cref="StringContent"/> object for REST requests using this delegate.</summary>
-    internal static StringContent ToContent(this Action<Utf8JsonWriter> jsonDelegate)
-    {
-        using var jsonStream = new MemoryStream();
-        using var writer = new Utf8JsonWriter(jsonStream);
+        if (response.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+            throw new ArgumentException(response.Payload.GetProperty("message").GetString());
+        else
+        {
+            var message = new StringBuilder();
 
-        writer.WriteStartObject();
-        jsonDelegate(writer);
-        writer.WriteEndObject();
+            if (response.HasErrors(out var errors))
+            {
+                foreach (var error in errors)
+                {
+                    message.AppendLine(error.ParameterName + ": ");
+                    message.Append("    ").AppendLine(error.Message);
+                    message.Append("    ").AppendLine(error.Code);
+                }
+            }
+            else
+                message.Append(response.Message);
 
-        writer.Flush();
-        jsonStream.Seek(0, SeekOrigin.Begin);
-
-        var json = new StreamReader(jsonStream).ReadToEnd();
-        return new StringContent(json, Encoding.UTF8, "application/json");
+            throw new HttpRequestException($"Unable to fetch entity from Discord: {message} ({(int)response.Status})");
+        }
     }
 
     /// <summary>Converts the key-value pairs contained in a <see cref="ValueTuple"/> array to a URL query parameter string.</summary>

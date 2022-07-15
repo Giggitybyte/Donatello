@@ -3,10 +3,11 @@
 using Donatello.Extension.Internal;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-/// <summary>A message sent in a channel within Discord.</summary>
+/// <summary>A message sent in a channel.</summary>
 public sealed class DiscordMessage : DiscordEntity
 {
     public DiscordMessage(DiscordApiBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
@@ -15,10 +16,10 @@ public sealed class DiscordMessage : DiscordEntity
     public DateTimeOffset SendDate => this.Json.GetProperty("time").GetDateTimeOffset();
 
     /// <summary>Returns whether this was a text-to-speech (TTS) message.</summary>
-    public bool IsTts => this.Json.GetProperty("tts").GetBoolean();
+    public bool TextToSpeech => this.Json.GetProperty("tts").GetBoolean();
 
     /// <summary>Whether this message contains an <c>@everyone</c> string mention.</summary>
-    public bool HasEveryoneMention => this.Json.GetProperty("mention_everyone").GetBoolean();
+    public bool EveryoneMention => this.Json.GetProperty("mention_everyone").GetBoolean();
 
     /// <summary></summary>
     public ValueTask<DiscordTextChannel> GetChannelAsync()
@@ -33,9 +34,10 @@ public sealed class DiscordMessage : DiscordEntity
             return EntityCollection<DiscordUser>.Empty;
 
         var userDictionary = new Dictionary<ulong, DiscordUser>();
-        foreach (var partialUser in mentionedUsers.EnumerateArray())
+
+        foreach (var userId in mentionedUsers.EnumerateArray().Select(partialUser => partialUser.GetProperty("id").ToSnowflake()))
         {
-            var userJson = await this.Bot.FetchUserJsonAsync(partialUser.GetProperty("id").ToSnowflake());
+            var userJson = await this.Bot.FetchUserJsonAsync(userId);
 
             if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
             {
@@ -54,21 +56,21 @@ public sealed class DiscordMessage : DiscordEntity
 
     public async ValueTask<EntityCollection<DiscordRole>> GetMentionedRolesAsync()
     {
-        var mentionedRoles = this.Json.GetProperty("mention_roles");
+        var mentionedRoleIds = this.Json.GetProperty("mention_roles");
 
-        if (mentionedRoles.GetArrayLength() is 0)
+        if (mentionedRoleIds.GetArrayLength() is 0)
             return EntityCollection<DiscordRole>.Empty;
 
         
 
-        var roleDictionary = new Dictionary<ulong, DiscordRole>();
-        foreach (var role in mentionedRoles.EnumerateArray())
+        var roleDictionary = new Dictionary<DiscordSnowflake, DiscordRole>();
+        foreach (var roleId in mentionedRoleIds.EnumerateArray())
         {
-            
+            var roleJson = await this.Bot.RestClient.GetRoleAsync()
         }
     }
 
-    /// <summary>Returns <see langword="true"/> if this message had any <see cref="string"/> content sent, <see langword="false"/> otherwise.</summary>
+    /// <summary>Returns <see langword="true"/> if this message contained any <see cref="string"/> content, <see langword="false"/> otherwise.</summary>
     /// <param name="content">
     /// When the method returns:<br/>
     /// <see langword="true"/> this parameter will contain the string value of the message.<br/>
@@ -77,7 +79,7 @@ public sealed class DiscordMessage : DiscordEntity
     public bool HasContent(out string content)
     {
         content = this.Json.GetProperty("content").GetString();
-        return string.IsNullOrEmpty(content);
+        return !string.IsNullOrEmpty(content);
     }
 
     /// <summary>Returns <see langword="true"/> if this message was edited at any point, <see langword="false"/> otherwise.</summary>

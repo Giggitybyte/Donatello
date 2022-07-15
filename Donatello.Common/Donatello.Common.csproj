@@ -13,8 +13,8 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="6.0.1" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.1" />
-		<PackageReference Include="NSec.Cryptography" Version="22.4.0-preview3" />
-		<PackageReference Include="Qmmands" Version="5.0.1" />
+		<PackageReference Include="NSec.Cryptography" Version="22.4.0" />
+		<PackageReference Include="Qmmands" Version="5.0.2" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -24,6 +24,10 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="..\Donatello.Rest\Donatello.Rest.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Command\" />
 	</ItemGroup>
 
 </Project>

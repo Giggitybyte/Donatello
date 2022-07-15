@@ -22,4 +22,6 @@ public abstract class DiscordChannel : DiscordEntity
 
     /// <summary>Name of the channel.</summary>
     public string Name => this.Json.GetProperty("name").GetString();
+
+    public EntityCollection<DiscordInvite>
 }

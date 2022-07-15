@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Donatello.Base\Donatello.Base.csproj" />
+    <ProjectReference Include="..\Donatello.Common\Donatello.Common.csproj" />
   </ItemGroup>
 
 </Project>

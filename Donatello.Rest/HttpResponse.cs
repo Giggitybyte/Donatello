@@ -1,11 +1,23 @@
 ﻿namespace Donatello.Rest;
 
+using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Text.Json;
 
 /// <summary></summary>
 public sealed class HttpResponse
 {
+    public sealed record Error(string ParameterName, string Code, string Message);
+
+    internal HttpResponse()
+    {
+        this.Errors = Array.Empty<Error>();
+    }
+
+    /// <summary></summary>
+    internal IList<Error> Errors { get; init; }
+
     /// <summary>Response status code.</summary>
     public HttpStatusCode Status { get; internal init; }
 
@@ -14,4 +26,11 @@ public sealed class HttpResponse
 
     /// <summary>JSON response payload.</summary>
     public JsonElement Payload { get; internal init; }
+
+    /// <summary></summary>
+    public bool HasErrors(out IEnumerable<Error> errors)
+    {
+        errors = this.Errors;
+        return this.Errors.Count > 0;
+    }
 }

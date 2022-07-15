@@ -22,14 +22,10 @@ public abstract class DiscordEntity : IEquatable<DiscordEntity>
     protected DiscordApiBot Bot { get; private init; }
 
     /// <summary>Backing JSON object for this entity.</summary>
-    protected JsonElement Json { get; private init; }
+    protected internal JsonElement Json { get; private init; }
 
     /// <summary>Unique snowflake identifier.</summary>
     public virtual DiscordSnowflake Id => this.Json.GetProperty("id").ToSnowflake();
-
-    /// <summary>Returns the underlying JSON object for this entity.</summary>
-    internal JsonElement GetJson()
-        => this.Json;
 
     public virtual bool Equals(DiscordEntity other)
         => this.Id == other?.Id;
