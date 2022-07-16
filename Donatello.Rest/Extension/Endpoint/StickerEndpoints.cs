@@ -1,4 +1,4 @@
-﻿namespace Donatello.Rest.Sticker;
+﻿namespace Donatello.Rest.Extension.Endpoint;
 
 public static class StickerEndpoints
 {

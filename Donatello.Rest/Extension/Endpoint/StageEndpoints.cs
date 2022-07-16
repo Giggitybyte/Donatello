@@ -1,4 +1,4 @@
-﻿namespace Donatello.Rest.Stage;
+﻿namespace Donatello.Rest.Extension.Endpoint;
 
 public static class StageEndpoints
 {

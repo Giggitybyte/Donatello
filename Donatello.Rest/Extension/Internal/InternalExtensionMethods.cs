@@ -1,7 +1,6 @@
 ﻿namespace Donatello.Rest.Extension.Internal;
 
 using System;
-using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -11,32 +10,32 @@ using System.Threading.Tasks;
 public static class InternalExtensionMethods
 {
     /// <summary></summary>
-    internal static async Task<JsonElement> FetchJson(this DiscordHttpClient httpClient, HttpMethod method, string endpoint)
+    internal static async Task<JsonElement> GetJsonAsync(this Task<HttpResponse> requestTask)
     {
-        var response = await httpClient.SendRequestAsync(method, endpoint);
+        var response = await requestTask;
 
-        if (response.Status is HttpStatusCode.OK)
+        if (response.Status is HttpStatusCode.OK or HttpStatusCode.NoContent)
             return response.Payload;
-
-        if (response.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
-            throw new ArgumentException(response.Payload.GetProperty("message").GetString());
         else
         {
-            var message = new StringBuilder();
+            var exceptionMessage = new StringBuilder();
 
-            if (response.HasErrors(out var errors))
+            if (response.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+                exceptionMessage.Append(response.Payload.GetProperty("message").GetString());
+            else if (response.HasErrors(out var errors))
             {
                 foreach (var error in errors)
                 {
-                    message.AppendLine(error.ParameterName + ": ");
-                    message.Append("    ").AppendLine(error.Message);
-                    message.Append("    ").AppendLine(error.Code);
+                    exceptionMessage.AppendLine(error.ParameterName + ": ");
+                    exceptionMessage.Append("    ").AppendLine(error.Message);
+                    exceptionMessage.Append("    ").AppendLine(error.Code);
                 }
             }
             else
-                message.Append(response.Message);
+                exceptionMessage.Append(response.Message);
 
-            throw new HttpRequestException($"Unable to fetch entity from Discord: {message} ({(int)response.Status})");
+
+            throw new HttpRequestException($"Discord returned an error:\n\n{exceptionMessage}");
         }
     }
 

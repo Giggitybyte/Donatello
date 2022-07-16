@@ -1,4 +1,4 @@
-﻿namespace Donatello.Rest.Bucket;
+﻿namespace Donatello.Rest;
 
 using System;
 using System.Linq;

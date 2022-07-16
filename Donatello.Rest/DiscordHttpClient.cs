@@ -1,13 +1,11 @@
 ﻿namespace Donatello.Rest;
 
-using Donatello.Rest.Bucket;
 using Donatello.Rest.Extension.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -20,7 +18,6 @@ using System.Threading.Tasks;
 /// <summary>HTTP client wrapper for the Discord REST API with integrated rate-limiter.</summary>
 public class DiscordHttpClient
 {
-    public enum TokenType { Bot, Bearer }
 
     private HttpClient _client;
     private ConcurrentDictionary<Uri, string> _routeBucketIds;
@@ -30,7 +27,7 @@ public class DiscordHttpClient
     /// <param name="token">Discord token.</param>
     /// <param name="logger">Logger instance.</param>
     /// <param name="isBearerToken"><see langword="true"/>: OAuth2 bearer token.<br/><see langword="false"/>: application bot token.</param>
-    public DiscordHttpClient(string token TokenType tokenType = TokenType.Bot, ILogger logger = null)
+    public DiscordHttpClient(string token, TokenType tokenType = TokenType.Bot, ILogger logger = null)
     {
         var handler = new SocketsHttpHandler
         {
@@ -118,15 +115,11 @@ public class DiscordHttpClient
 
         return requestTask;
 
-
         async Task<HttpResponse> DispatchRequestAsync()
         {
             this.Logger.LogDebug("Sending request to {Method} {Uri} (attempt #{Attempt})", request.Method.Method, request.RequestUri, ++attemptCount);
-
-            var stopwatch = Stopwatch.StartNew();
             using var response = await _client.SendAsync(request);
-
-            this.Logger.LogDebug("Request to {Url} got {Status} response from Discord after {Time}ms", request.RequestUri.AbsolutePath, response.StatusCode, stopwatch.ElapsedMilliseconds);
+            this.Logger.LogDebug("Request to {Url} got {Status} response from Discord.", request.RequestUri.AbsolutePath, response.StatusCode);
 
             if (response.Headers.TryGetValues("X-RateLimit-Bucket", out var values))
                 UpdateRatelimitBucket(values.Single(), response.Headers);
@@ -147,28 +140,34 @@ public class DiscordHttpClient
 
             using var responseStream = await response.Content.ReadAsStreamAsync();
             using var responseJson = await JsonDocument.ParseAsync(responseStream);
-            var errors = ParseErrorMessages(responseJson.RootElement);
 
-            stopwatch.Stop();
-            this.Logger.LogTrace("Completed request to {Url} after {Attempt} attempts over {Time}ms", request.RequestUri.AbsolutePath, attemptCount, stopwatch.ElapsedMilliseconds);
+            this.Logger.LogTrace("Request to {Url} completed after {Attempt} attempts.", request.RequestUri.AbsolutePath, attemptCount);
 
             return new HttpResponse()
             {
                 Status = response.StatusCode,
                 Message = response.ReasonPhrase,
-                Payload = responseJson.RootElement.Clone(),
-                Errors = errors
+                Errors = ParseErrorMessages(responseJson.RootElement),
+                Payload = responseJson.RootElement.Clone()
             };
         }
 
-        async Task<HttpResponse> DelayRequestAsync(TimeSpan delayTime)
+        void UpdateRatelimitBucket(string bucketId, HttpResponseHeaders headers)
         {
-            this.Logger.LogWarning("Request to {Uri} delayed until {Time} (attempt #{Attempt})", request.RequestUri.AbsolutePath, DateTime.Now.Add(delayTime), attemptCount);
+            _routeBucketIds[request.RequestUri] = bucketId;
 
-            await Task.Delay(delayTime);
-            var response = await DispatchRequestAsync();
+            if (_routeBuckets.TryGetValue(bucketId, out var bucket))
+            {
+                bucket.Update(headers);
+                this.Logger.LogTrace("Updated existing ratelimit bucket {Id}", bucketId);
+            }
+            else
+            {
+                bucket = new RatelimitBucket(bucketId, headers);
 
-            return response;
+                _routeBuckets.TryAdd(bucketId, bucket);
+                this.Logger.LogTrace("Created new ratelimit bucket {Id}", bucketId);
+            }
         }
 
         IList<HttpResponse.Error> ParseErrorMessages(JsonElement responseJson)
@@ -205,22 +204,14 @@ public class DiscordHttpClient
             }
         }
 
-        void UpdateRatelimitBucket(string bucketId, HttpResponseHeaders headers)
+        async Task<HttpResponse> DelayRequestAsync(TimeSpan delayTime)
         {
-            _routeBucketIds[request.RequestUri] = bucketId;
+            this.Logger.LogWarning("Request to {Uri} delayed until {Time} (attempt #{Attempt})", request.RequestUri.AbsolutePath, DateTime.Now.Add(delayTime), attemptCount);
 
-            if (_routeBuckets.TryGetValue(bucketId, out var bucket))
-            {
-                bucket.Update(headers);
-                this.Logger.LogTrace("Updated existing ratelimit bucket {Id}", bucketId);
-            }
-            else
-            {
-                bucket = new RatelimitBucket(bucketId, headers);
+            await Task.Delay(delayTime);
+            var response = await DispatchRequestAsync();
 
-                _routeBuckets.TryAdd(bucketId, bucket);
-                this.Logger.LogTrace("Created new ratelimit bucket {Id}", bucketId);
-            }
+            return response;
         }
     }
 

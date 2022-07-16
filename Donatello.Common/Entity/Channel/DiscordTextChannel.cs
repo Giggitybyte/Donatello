@@ -1,7 +1,7 @@
 ﻿namespace Donatello.Entity;
 
 using Donatello.Entity.Builder;
-using Donatello.Rest.Channel;
+using Donatello.Rest.Extension.Endpoint;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using System;
@@ -23,14 +23,20 @@ public abstract class DiscordTextChannel : DiscordChannel
     {
         if (_messageCache.TryGetValue(messageId, out DiscordMessage message) is false)
         {
-            message = await this.Bot.RestClient.GetChannelMessageAsync(this.Id, messageId);
+            var messageJson = await this.Bot.RestClient.GetChannelMessageAsync(this.Id, messageId);
+            message = new DiscordMessage(this.Bot, messageJson);
 
+            UpdateMessageCache(messageId, message);
         }
 
+        return message;
     }
 
     /// <summary></summary>
-    public virtual ValueTask<EntityCollection<DiscordMessage>> GetMessagesAsync();
+    public virtual ValueTask<EntityCollection<DiscordMessage>> GetMessagesAsync(ushort limit = 100)
+    {
+
+    }
 
     /// <summary></summary>
     public ValueTask<EntityCollection<DiscordMessage>> GetMessagesAsync(DateTimeOffset start, DateTimeOffset end)

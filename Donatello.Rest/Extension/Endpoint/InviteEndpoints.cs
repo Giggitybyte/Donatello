@@ -1,4 +1,5 @@
-﻿namespace Donatello.Rest.Invite;
+﻿namespace Donatello.Rest.Extension.Endpoint;
+
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
