@@ -1,13 +1,13 @@
 ﻿namespace Donatello.Entity;
-
 using Donatello.Enumeration;
 using System;
+using System.Collections.ObjectModel;
 using System.Text.Json;
 
 /// <summary></summary>
-public abstract class DiscordChannel : DiscordEntity
+public abstract class DiscordChannel : DiscordEntity, IChannel
 {
-    internal DiscordChannel(DiscordApiBot bot, JsonElement json) : base(bot, json)
+    internal DiscordChannel(DiscordBot bot, JsonElement json) : base(bot, json)
     {
         var jsonType = json.GetProperty("type").GetInt32();
 
@@ -19,9 +19,12 @@ public abstract class DiscordChannel : DiscordEntity
 
     /// <summary>Type of this channel.</summary>
     internal ChannelType Type { get; private init; }
+    ChannelType IChannel.Type => this.Type;
 
     /// <summary>Name of the channel.</summary>
     public string Name => this.Json.GetProperty("name").GetString();
 
-    public EntityCollection<DiscordInvite>
+    /// <summary></summary>
+    public ReadOnlyCollection<DiscordInvite> Invites { get; }
+
 }

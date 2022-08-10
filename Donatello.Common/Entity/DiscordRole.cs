@@ -4,5 +4,5 @@ using System.Text.Json;
 
 public sealed class DiscordRole : DiscordEntity
 {
-    public DiscordRole(DiscordApiBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
+    public DiscordRole(DiscordBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
 }

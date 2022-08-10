@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 /// <summary>A message sent in a channel.</summary>
 public sealed class DiscordMessage : DiscordEntity
 {
-    public DiscordMessage(DiscordApiBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
+    public DiscordMessage(DiscordBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
 
     /// <summary>Date when this message was sent.</summary>
     public DateTimeOffset SendDate => this.Json.GetProperty("time").GetDateTimeOffset();
@@ -28,27 +28,24 @@ public sealed class DiscordMessage : DiscordEntity
     /// <summary></summary>
     public async ValueTask<EntityCollection<DiscordUser>> GetMentionedUsersAsync()
     {
-        var mentionedUsers = this.Json.GetProperty("mentions");
+        var mentionArray = this.Json.GetProperty("mentions");
 
-        if (mentionedUsers.GetArrayLength() is 0)
+        if (mentionArray.GetArrayLength() is 0)
             return EntityCollection<DiscordUser>.Empty;
 
-        var userDictionary = new Dictionary<ulong, DiscordUser>();
+        var userDictionary = new Dictionary<DiscordSnowflake, DiscordUser>();
 
-        foreach (var userId in mentionedUsers.EnumerateArray().Select(partialUser => partialUser.GetProperty("id").ToSnowflake()))
+        foreach (var userId in mentionArray.EnumerateArray().Select(partialUser => partialUser.GetProperty("id").ToSnowflake()))
         {
-            var userJson = await this.Bot.FetchUserJsonAsync(userId);
+            var user = await this.Bot.GetUserAsync(userId);
 
             if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
             {
-                var member = new DiscordMember(this.Bot, guildProp.ToSnowflake(), userJson, memberJson);
+                var member = new DiscordMember(this.Bot, guildProp.ToSnowflake(), user, memberJson);
                 userDictionary.Add(member.Id, member);
             }
             else
-            {
-                var user = new DiscordUser(this.Bot, userJson);
                 userDictionary.Add(user.Id, user);
-            }
         }
 
         return new EntityCollection<DiscordUser>(userDictionary);
@@ -56,17 +53,15 @@ public sealed class DiscordMessage : DiscordEntity
 
     public async ValueTask<EntityCollection<DiscordRole>> GetMentionedRolesAsync()
     {
-        var mentionedRoleIds = this.Json.GetProperty("mention_roles");
+        var mentionArray = this.Json.GetProperty("mention_roles");
+        var channel = await GetChannelAsync();
 
-        if (mentionedRoleIds.GetArrayLength() is 0)
+        if (channel is not DiscordGuildTextChannel ||  mentionArray.GetArrayLength() is 0)
             return EntityCollection<DiscordRole>.Empty;
 
-        
-
         var roleDictionary = new Dictionary<DiscordSnowflake, DiscordRole>();
-        foreach (var roleId in mentionedRoleIds.EnumerateArray())
+        foreach (var roleId in mentionArray.EnumerateArray())
         {
-            var roleJson = await this.Bot.RestClient.GetRoleAsync()
         }
     }
 
@@ -112,16 +107,12 @@ public sealed class DiscordMessage : DiscordEntity
         if (this.Json.TryGetProperty("webhook_id", out _))
             return false;
 
-
-        var partialUserJson = this.Json.GetProperty("author");
-        if (this.Bot.TryGetCachedUser(partialUserJson.GetProperty("id").ToSnowflake(), out author) is false)
-            user = new DiscordUser(this.Bot, partialUserJson); // Good enough.
-
+        var partialUserJson = this.Json.GetProperty("author");        
 
         if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
-            author = new DiscordMember(this.Bot, guildProp.ToSnowflake(), user.GetJson(), memberJson);
+            author = new DiscordMember(this.Bot, guildProp.ToSnowflake(), partialUserJson, memberJson);
         else
-            author = new DiscordUser(this.Bot, user.GetJson());
+            author = new DiscordUser(this.Bot, partialUserJson);
 
         return author != null;
     }

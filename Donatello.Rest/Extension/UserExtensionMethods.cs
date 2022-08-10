@@ -1,4 +1,4 @@
-﻿namespace Donatello.Rest.Extension.Internal;
+﻿namespace Donatello.Rest.Extension;
 
 using System;
 using System.Net;
@@ -7,10 +7,10 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-public static class InternalExtensionMethods
+public static class UserExtensionMethods
 {
     /// <summary></summary>
-    internal static async Task<JsonElement> GetJsonAsync(this Task<HttpResponse> requestTask)
+    public static async Task<JsonElement> GetJsonAsync(this Task<HttpResponse> requestTask)
     {
         var response = await requestTask;
 
@@ -37,28 +37,6 @@ public static class InternalExtensionMethods
 
             throw new HttpRequestException($"Discord returned an error:\n\n{exceptionMessage}");
         }
-    }
-
-    /// <summary>Converts the key-value pairs contained in a <see cref="ValueTuple"/> array to a URL query parameter string.</summary>
-    internal static string ToParamString(this (string key, string value)[] paramArray)
-    {
-        if (paramArray is null || paramArray.Length is 0)
-            return string.Empty;
-
-        var builder = new StringBuilder();
-        foreach (var param in paramArray)
-        {
-            if (builder.Length > 0)
-                builder.Append('&');
-            else
-                builder.Append('?');
-
-            builder.Append(param.key);
-            builder.Append('=');
-            builder.Append(param.value);
-        }
-
-        return builder.ToString();
     }
 }
 

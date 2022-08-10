@@ -12,14 +12,19 @@ public sealed class DiscordMember : DiscordUser
     private JsonElement _member;
 
     /// <summary></summary>
-    public DiscordMember(DiscordApiBot bot, ulong guildId, JsonElement userJson, JsonElement memberJson) : base(bot, userJson)
+    public DiscordMember(DiscordBot bot, DiscordSnowflake guildId, JsonElement userJson, JsonElement memberJson) 
+        : base(bot, userJson)
     {
         _member = memberJson;
         _guildId = guildId;
     }
 
     /// <summary></summary>
-    public DiscordMember(DiscordApiBot bot, ulong guildId, DiscordUser user, JsonElement memberJson) : this(bot, guildId, user.Json, memberJson) { }
+    public DiscordMember(DiscordBot bot, DiscordSnowflake guildId, DiscordUser user, JsonElement memberJson) 
+        : this(bot, guildId, user.Json, memberJson) 
+    { 
+
+    }
 
     /// <summary></summary>
     public override string AvatarUrl

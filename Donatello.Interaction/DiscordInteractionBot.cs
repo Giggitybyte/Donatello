@@ -1,29 +1,27 @@
 ﻿namespace Donatello.Interaction;
 
+using Donatello;
+using Donatello.Command;
+using Donatello.Enumeration;
+using Microsoft.Extensions.Logging;
+using NSec.Cryptography;
+using Qmmands;
+using Qommon.Events;
 using System;
 using System.Buffers;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Donatello;
-using Donatello.Enumeration;
-using Donatello.Interaction.Command.Module;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using NSec.Cryptography;
-using Qmmands;
-using Qommon.Events;
 
 /// <summary>
 /// Bot framework for Discord's interaction API model.<br/>
 /// Interactions are received from Discord through an integrated webhook listener.
 /// </summary>
-public sealed class DiscordInteractionBot : DiscordApiBot
+public sealed class DiscordInteractionBot : DiscordBot
 {
     private readonly PublicKey _publicKey;
 
@@ -151,9 +149,9 @@ public sealed class DiscordInteractionBot : DiscordApiBot
         listener.Stop();
     }
 
-    private async Task ProcessInteractionAsync(string stringData, HttpListenerResponse response)
+    private async ValueTask ProcessInteractionAsync(string data, HttpListenerResponse response)
     {
-        using var payload = JsonDocument.Parse(stringData);
+        using var payload = JsonDocument.Parse(data);
         var interactionJson = payload.RootElement;
         var interactionType = interactionJson.GetProperty("type").GetInt32();
 
@@ -161,8 +159,36 @@ public sealed class DiscordInteractionBot : DiscordApiBot
         using var responseWriter = new Utf8JsonWriter(responseBuffer);
 
         if (interactionType == 1) // Ping
-            responseWriter.WriteNumber("type", 1);
-        else if (interactionType == 2) // Command
+            responseWriter.WriteNumber("type", 1); // Pong
+        else if (interactionType == 2)
+            ProcessCommand();
+        else if (interactionType == 3)
+            ProcessComponent();
+        else if (interactionType == 4)
+            ProcessCommandAutoComplete();
+        else if (interactionType == 5)
+            ProcessModalSubmission();
+        else
+        {
+            response.StatusCode = 501;
+            response.StatusDescription = "Unsupported interaction type.";
+
+            return;
+        }
+
+        if (responseWriter.BytesPending > 0)
+        {
+            await responseWriter.FlushAsync();
+            await response.OutputStream.WriteAsync(responseBuffer.WrittenMemory);
+
+            response.StatusCode = 200;
+        }
+        else
+        {
+            throw new NotImplementedException();
+        }
+
+        void ProcessCommand()
         {
             var data = interactionJson.GetProperty("data");
             var commandType = (CommandType)(data.TryGetProperty("type", out var prop) ? prop.GetInt32() : 1);
@@ -180,32 +206,20 @@ public sealed class DiscordInteractionBot : DiscordApiBot
                 response.StatusDescription = "Command not found.";
             }
         }
-        else if (interactionType == 3) // Component
+
+        void ProcessComponent()
         {
-            throw new NotImplementedException("Components");
+            throw new NotImplementedException("Component");
         }
-        else if (interactionType == 4) // Auto-complete
+
+        void ProcessCommandAutoComplete()
         {
             throw new NotImplementedException("Auto-complete");
         }
-        else
-        {
-            response.StatusCode = 501;
-            response.StatusDescription = "Unknown interaction type.";
-            return;
-        }
 
-
-        if (responseWriter.BytesPending > 0)
+        void ProcessModalSubmission()
         {
-            await responseWriter.FlushAsync().ConfigureAwait(false);
-            await response.OutputStream.WriteAsync(responseBuffer.WrittenMemory).ConfigureAwait(false);
-
-            response.StatusCode = 200;
-        }
-        else
-        {
-            throw new NotImplementedException();
+            throw new NotImplementedException("Modal");
         }
     }
 

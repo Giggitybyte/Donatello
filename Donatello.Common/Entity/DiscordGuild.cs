@@ -2,7 +2,7 @@
 
 using Donatello.Enumeration;
 using Donatello.Extension.Internal;
-using Donatello.Rest.Guild;
+using Donatello.Rest.Extension.Endpoint;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using System;
@@ -13,13 +13,12 @@ using System.Threading.Tasks;
 /// <summary>A collection of channels and members.</summary>
 public sealed class DiscordGuild : DiscordEntity
 {
-    private MemoryCache _memberCache, _roleCache, _emojiCache;
+    private MemoryCache _memberCache, _roleCache;
 
-    public DiscordGuild(DiscordApiBot bot, JsonElement json) : base(bot, json)
+    public DiscordGuild(DiscordBot bot, JsonElement json) : base(bot, json)
     {
         _memberCache = new MemoryCache(new MemoryCacheOptions());
         _roleCache = new MemoryCache(new MemoryCacheOptions());
-        _emojiCache = new MemoryCache(new MemoryCacheOptions());
     }
 
     /// <summary>The guild name.</summary>
@@ -32,15 +31,7 @@ public sealed class DiscordGuild : DiscordEntity
     public bool HasFeature(string feature)
     {
         var features = this.Json.GetProperty("features");
-
-        if (features.GetArrayLength() is not 0)
-        {
-            foreach (var featureElement in features.EnumerateArray())
-                if (featureElement.GetString() == feature.ToUpper())
-                    return true;
-        }
-
-        return false;
+        return features.EnumerateArray().Any(featureElement => featureElement.GetString() == feature.ToUpper());
     }
 
     /// <summary>Returns <see langword="true"/> if the guild has an icon image uploaded, <see langword="false"/> otherwise.</summary>
@@ -71,7 +62,7 @@ public sealed class DiscordGuild : DiscordEntity
     /// </param>
     public bool HasInviteSplash(out string splashUrl)
     {
-        if (this.Json.TryGetProperty("splash", out var property) && property.ValueKind is not JsonValueKind.Null)
+        if (this.Json.GetProperty("splash", out var property) && property.ValueKind is not JsonValueKind.Null)
             splashUrl = $"https://cdn.discordapp.com/splashes/{this.Id}/{property.GetString()}.png";
         else
             splashUrl = string.Empty;
@@ -95,20 +86,35 @@ public sealed class DiscordGuild : DiscordEntity
         return splashUrl != string.Empty;
     }
 
-    public bool HasAfkChannel(out DiscordVoice)
+    /// <summary>Returns <see langword="true"/> if the guild has an AFK voice channel set, <see langword="false"/> otherwise.</summary>
+    /// <param name="afkChannel">
+    /// When the method returns:<br/>
+    /// <see langword="true"/> this parameter will conatain a voice channel.<br/>
+    /// <see langword="false"/> this parameter will be <see langword="null"/>.
+    /// </param>
+    public bool HasAfkChannel(out DiscordVoiceChannel afkChannel)
+    {
+
+    }
 
     /// <summary></summary>
     public ValueTask<DiscordUser> GetOwnerAsync()
         => this.Bot.GetUserAsync(this.Json.GetProperty("owner_id").ToSnowflake());
 
     /// <summary></summary>
-    public async ValueTask<DiscordRole> GetRoleAsync(ulong roleId)
+    public async ValueTask<DiscordRole> GetRoleAsync(DiscordSnowflake roleId)
     {
         if (_roleCache.TryGetValue(roleId, out DiscordRole role))
             return role;
         else
         {
-            var json = await this.Bot.RestClient.GetGuildRolesAsync(this.Id);
+            var jsonRoles = await this.Bot.RestClient.GetGuildRolesAsync(this.Id);
+
+            foreach (var roleJson in jsonRoles.EnumerateArray())
+            {
+                role = new DiscordRole(this.Bot, roleJson);
+                
+            }
 
         }
     }
@@ -127,8 +133,8 @@ public sealed class DiscordGuild : DiscordEntity
     }
 
     /// <summary></summary>
-    public async Task<DiscordMember> GetMemberAsync(DiscordUser user)
-        => await GetMemberAsync(user.Id);
+    public Task<DiscordMember> GetMemberAsync(DiscordUser user)
+        => GetMemberAsync(user.Id);
 
     /// <summary></summary>
     public async ValueTask<EntityCollection<DiscordChannel>> GetChannelsAsync()
@@ -140,13 +146,26 @@ public sealed class DiscordGuild : DiscordEntity
     }
 
     /// <summary></summary>
-    internal void UpdateMemberCache(ulong userId, JsonElement member)
+    internal void UpdateMemberCache(DiscordSnowflake userId, JsonElement member)
     {
         var entryConfig = new MemoryCacheEntryOptions()
-            .SetAbsoluteExpiration(TimeSpan.FromMinutes(15))
+            .SetSlidingExpiration(TimeSpan.FromHours(1))
             .RegisterPostEvictionCallback(LogMemberCacheEviction);
 
         _memberCache.Set(userId, member, entryConfig);
+
+        void LogMemberCacheEviction(object key, object value, EvictionReason reason, object state)
+            => this.Bot.Logger.LogTrace("Removed entry {Id} from the member cache ({Reason})", (ulong)key, reason);
+    }
+
+    /// <summary></summary>
+    internal void UpdateRoleCache(DiscordRole role)
+    {
+        var entryConfig = new MemoryCacheEntryOptions()
+            .SetAbsoluteExpiration(TimeSpan.FromHours(1))
+            .RegisterPostEvictionCallback(LogMemberCacheEviction);
+
+        _memberCache.Set(role.Id, role, entryConfig);
 
         void LogMemberCacheEviction(object key, object value, EvictionReason reason, object state)
             => this.Bot.Logger.LogTrace("Removed entry {Id} from the member cache ({Reason})", (ulong)key, reason);

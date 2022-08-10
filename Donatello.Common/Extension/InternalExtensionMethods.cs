@@ -32,7 +32,7 @@ internal static class InternalExtensionMethods
     }
 
     /// <summary>Converts a JSON object to an appropriate Discord channel entity.</summary>
-    internal static DiscordChannel ToChannelEntity(this JsonElement jsonObject, DiscordApiBot botInstance)
+    internal static DiscordChannel ToChannelEntity(this JsonElement jsonObject, DiscordBot botInstance)
     {
         var type = jsonObject.GetProperty("type").GetInt32();
 
@@ -58,12 +58,12 @@ internal static class InternalExtensionMethods
     /// Converts each element in a JSON array to a <typeparamref name="TEntity"/> and returns 
     /// the collection as a dictionary, where the key is the snowflake ID of each entity value.
     /// </summary>
-    internal static Dictionary<DiscordSnowflake, TEntity> ToEntityDictionary<TEntity>(this JsonElement jsonArray, DiscordApiBot botInstance) where TEntity : DiscordEntity
+    internal static EntityCollection<TEntity> ToEntityCollection<TEntity>(this JsonElement jsonArray, DiscordBot botInstance) where TEntity : DiscordEntity
     {
         if (jsonArray.ValueKind is not JsonValueKind.Array)
             throw new JsonException($"Expected an array; got {jsonArray.ValueKind} instead.");
 
-        var dictionary = new Dictionary<DiscordSnowflake, TEntity>(jsonArray.GetArrayLength());
+        var entities = new Dictionary<DiscordSnowflake, TEntity>(jsonArray.GetArrayLength());
         foreach (var entityJson in jsonArray.EnumerateArray())
         {
             TEntity entity;
@@ -73,9 +73,9 @@ internal static class InternalExtensionMethods
             else
                 entity = Activator.CreateInstance(typeof(TEntity), botInstance, entityJson) as TEntity;
 
-            dictionary.Add(entity.Id, entity);
+            entities.Add(entity.Id, entity);
         }
 
-        return dictionary;
+        return new EntityCollection<TEntity>(entities);
     }
 }

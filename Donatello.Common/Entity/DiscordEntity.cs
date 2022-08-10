@@ -4,12 +4,11 @@ using Donatello.Extension.Internal;
 using System;
 using System.Text.Json;
 
-/// <summary></summary>
-public abstract class DiscordEntity : IEquatable<DiscordEntity>
+public abstract class DiscordEntity : IEntity
 {
     /// <param name="bot">Bot instance to provide convinence methods.</param>
     /// <param name="jsonObject">Backing JSON entity.</param>
-    protected DiscordEntity(DiscordApiBot bot, JsonElement jsonObject)
+    protected DiscordEntity(DiscordBot bot, JsonElement jsonObject)
     {
         if (jsonObject.ValueKind is not JsonValueKind.Object)
             throw new ArgumentException($"Expected JSON object, got {jsonObject.ValueKind}.", nameof(jsonObject));
@@ -19,12 +18,14 @@ public abstract class DiscordEntity : IEquatable<DiscordEntity>
     }
 
     /// <summary>Bot instance which contains and manages this object.</summary>
-    protected DiscordApiBot Bot { get; private init; }
+    protected DiscordBot Bot { get; private init; }
+    IBot IEntity.Bot => this.Bot;
 
     /// <summary>Backing JSON object for this entity.</summary>
     protected internal JsonElement Json { get; private init; }
+    JsonElement IEntity.Json => this.Json;
 
-    /// <summary>Unique snowflake identifier.</summary>
+    /// <inheritdoc/>
     public virtual DiscordSnowflake Id => this.Json.GetProperty("id").ToSnowflake();
 
     public virtual bool Equals(DiscordEntity other)
@@ -35,4 +36,6 @@ public abstract class DiscordEntity : IEquatable<DiscordEntity>
 
     public override int GetHashCode()
         => this.Id.GetHashCode();
+    
+    bool IEquatable<IEntity>.Equals(IEntity other) => this.Equals(other);
 }

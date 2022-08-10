@@ -14,11 +14,13 @@ public sealed class RatelimitBucket
         this.Limit = uint.MaxValue;
         this.Remaining = uint.MaxValue;
 
-        _resetIncrement = TimeSpan.FromSeconds(1);
-        this.ResetDate = DateTimeOffset.UtcNow + _resetIncrement;
-
         if (headers is not null)
             Update(headers);
+        else
+        {
+            _resetIncrement = TimeSpan.FromSeconds(1);
+            this.ResetDate = DateTimeOffset.UtcNow + _resetIncrement;
+        }
     }
 
     /// <summary>Bucket ID.</summary>
@@ -43,7 +45,7 @@ public sealed class RatelimitBucket
                 if (DateTimeOffset.UtcNow > this.ResetDate)
                 {
                     this.Remaining = this.Limit;
-                    this.ResetDate += _resetIncrement;
+                    this.ResetDate = DateTimeOffset.UtcNow + _resetIncrement;
                 }
                 else
                     return false;

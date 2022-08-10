@@ -5,21 +5,22 @@ using Donatello.Rest.Extension.Endpoint;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-/// <summary>A channel containing messages.</summary>
-public abstract class DiscordTextChannel : DiscordChannel
+/// <summary>Abstract implementation of <see cref="ITextChannel"/></summary>
+public abstract class DiscordTextChannel : DiscordChannel, ITextChannel
 {
     private MemoryCache _messageCache;
 
-    internal DiscordTextChannel(DiscordApiBot bot, JsonElement json) : base(bot, json)
+    internal DiscordTextChannel(DiscordBot bot, JsonElement json) : base(bot, json)
     {
         _messageCache = new MemoryCache(new MemoryCacheOptions());
     }
 
     /// <summary></summary>
-    public async virtual ValueTask<DiscordMessage> GetMessageAsync(DiscordSnowflake messageId)
+    public async ValueTask<DiscordMessage> GetMessageAsync(DiscordSnowflake messageId)
     {
         if (_messageCache.TryGetValue(messageId, out DiscordMessage message) is false)
         {
@@ -33,34 +34,33 @@ public abstract class DiscordTextChannel : DiscordChannel
     }
 
     /// <summary></summary>
-    public virtual ValueTask<EntityCollection<DiscordMessage>> GetMessagesAsync(ushort limit = 100)
-    {
-
-    }
+    public Task<EntityCollection<DiscordMessage>> GetMessagesAsync()
+        => GetMessagesCoreAsync();
 
     /// <summary></summary>
-    public ValueTask<EntityCollection<DiscordMessage>> GetMessagesAsync(DateTimeOffset start, DateTimeOffset end)
-    {
-        var startSnowflake = (ulong)(start.ToUnixTimeMilliseconds() - DiscordSnowflake.DiscordEpoch.ToUnixTimeMilliseconds()) << 22;
-        var endSnowflake = (ulong)(end.ToUnixTimeMilliseconds() - DiscordSnowflake.DiscordEpoch.ToUnixTimeMilliseconds()) << 22;
-
-        return GetMessagesAsync(startSnowflake, endSnowflake);
-    }
+    public Task<EntityCollection<DiscordMessage>> GetMessagesAroundAsync(DiscordSnowflake snowflake)
+        => GetMessagesCoreAsync(("around", snowflake.ToString()));
 
     /// <summary></summary>
-    public ValueTask<EntityCollection<DiscordMessage>> GetMessagesAsync(DiscordMessage start, DiscordMessage end)
-        => GetMessagesAsync(start.Id, end.Id);
+    public Task<EntityCollection<DiscordMessage>> GetMessagesBeforeAsync(DiscordSnowflake snowflake)
+        => GetMessagesCoreAsync(("before", snowflake.ToString()));
 
     /// <summary></summary>
-    public ValueTask<EntityCollection<DiscordMessage>> GetMessagesAsync(DiscordSnowflake start, DiscordSnowflake end)
-    {
+    public Task<EntityCollection<DiscordMessage>> GetMessagesAfterAsync(DiscordSnowflake snowflake)
+        => GetMessagesCoreAsync(("after", snowflake.ToString()));
 
+    private async Task<EntityCollection<DiscordMessage>> GetMessagesCoreAsync((string key, string value) query = default)
+    {
+        var messageArray = await this.Bot.RestClient.GetChannelMessagesAsync(this.Id, query, ("limit", "100"));
+        var messages = messageArray.EnumerateArray().Select(messageJson => new DiscordMessage(this.Bot, messageJson));
+
+        return new EntityCollection<DiscordMessage>(messages);
     }
 
     /// <summary></summary>
     public async Task<DiscordMessage> SendMessageAsync(MessageBuilder builder)
     {
-        var messageJson = await this.Bot.RestClient.CreateMessageAsync(this.Id, jsonWriter => builder.Build(jsonWriter));
+        var messageJson = await this.Bot.RestClient.CreateMessageAsync(this.Id, jsonWriter => builder.ConstructJson(jsonWriter));
         return new DiscordMessage(this.Bot, messageJson);
     }
 
@@ -84,7 +84,7 @@ public abstract class DiscordTextChannel : DiscordChannel
     }
 
     /// <summary>Adds or updates an entry in the message cache.</summary>
-    protected void UpdateMessageCache(DiscordSnowflake id, DiscordMessage message)
+    protected internal void UpdateMessageCache(DiscordSnowflake id, DiscordMessage message)
     {
         var entryConfig = new MemoryCacheEntryOptions()
                 .SetSlidingExpiration(TimeSpan.FromMinutes(30))

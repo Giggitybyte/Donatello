@@ -1,5 +1,6 @@
 ﻿namespace Donatello.Entity.Builder;
 
+using Donatello.Rest;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -56,7 +57,7 @@ public sealed class EmbedBuilder : EntityBuilder
     }
 
     /// <summary></summary>
-    public EmbedBuilder SetFooter(string footer, LocalFileAttachment icon)
+    public EmbedBuilder SetFooter(string footer, Attachment icon)
     {
 
     }
@@ -68,7 +69,7 @@ public sealed class EmbedBuilder : EntityBuilder
     }
 
     /// <summary></summary>
-    public EmbedBuilder SetThumbnail(LocalFileAttachment image)
+    public EmbedBuilder SetThumbnail(Attachment image)
     {
         throw new NotImplementedException();
     }
@@ -80,7 +81,7 @@ public sealed class EmbedBuilder : EntityBuilder
     }
 
     /// <summary></summary>
-    public EmbedBuilder SetImage(LocalFileAttachment image)
+    public EmbedBuilder SetImage(Attachment image)
     {
         throw new NotImplementedException();
     }
@@ -91,7 +92,7 @@ public sealed class EmbedBuilder : EntityBuilder
         throw new NotImplementedException();
     }
 
-    internal override void Build(in Utf8JsonWriter json)
+    internal override void ConstructJson(in Utf8JsonWriter json)
     {
         throw new NotImplementedException();
     }

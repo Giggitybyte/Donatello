@@ -6,7 +6,7 @@ using System.Text.Json;
 /// <summary></summary>
 public class DiscordUser : DiscordEntity
 {
-    public DiscordUser(DiscordApiBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
+    public DiscordUser(DiscordBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
 
     /// <summary>User's global display name.</summary>
     public string Username => this.Json.GetProperty("username").GetString();

@@ -5,6 +5,6 @@ using System.Text.Json;
 /// <summary></summary>
 public class DiscordGroupTextChannel : DiscordTextChannel
 {
-    public DiscordGroupTextChannel(DiscordApiBot bot, JsonElement json) : base(bot, json) { }
+    public DiscordGroupTextChannel(DiscordBot bot, JsonElement json) : base(bot, json) { }
 }
 

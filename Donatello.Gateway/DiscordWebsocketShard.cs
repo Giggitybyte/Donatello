@@ -1,87 +1,53 @@
 ﻿namespace Donatello.Gateway;
 
-using Donatello.Rest;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
 using System.Net.WebSockets;
+using System.Reactive.Subjects;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-/// <summary>
-/// Websocket client for the Discord API.
-/// </summary>
+/// <summary>Websocket client for the Discord API.</summary>
 public sealed class DiscordWebsocketShard
 {
-    private Task _wsReceieveTask, _wsHeartbeatTask;
-    private CancellationTokenSource _websocketCts, _heartbeatDelayCts;
-    private ChannelWriter<DiscordWebsocketShard> _identifyChannelWriter;
-    private ChannelWriter<DiscordEvent> _eventChannelWriter;
-    private ClientWebSocket _websocketClient;
-    private DiscordHttpClient _httpClient;
     private ILogger _logger;
-    private bool _receivedHeartbeatAck;
+    private ClientWebSocket _websocketClient;
+    private Subject<JsonElement> _eventSequence;
+    private ChannelWriter<DiscordWebsocketShard> _reconnectChannelWriter;
+    private CancellationTokenSource _websocketCts, _heartbeatDelayCts;
+    private Task _wsReceieveTask, _wsHeartbeatTask;
 
-    internal DiscordWebsocketShard(int shardId, DiscordHttpClient httpClient, ChannelWriter<DiscordWebsocketShard> identifyWriter, ChannelWriter<DiscordEvent> eventWriter, ILogger logger)
+    internal DiscordWebsocketShard(int id, ILogger logger, ChannelWriter<DiscordWebsocketShard> reconnectChannelWriter)
     {
-        _websocketCts = new CancellationTokenSource();
-        _heartbeatDelayCts = new CancellationTokenSource();
-
-        _identifyChannelWriter = identifyWriter;
-        _eventChannelWriter = eventWriter;
-        _httpClient = httpClient;
+        this.Id = id;
         _logger = logger;
-
-        this.Id = shardId;
+        _eventSequence = new Subject<JsonElement>();
+        _reconnectChannelWriter = reconnectChannelWriter;
     }
 
-    /// <summary></summary>
-    internal string SessionId { get; private set; }
+    /// <summary>Last received event sequence number.</summary>
+    internal int EventIndex { get; private set; }
 
-    /// <summary></summary>
-    internal int EventSequenceNumber { get; private set; }
+    /// <summary>An observable sequence of raw gateway payloads.</summary>
+    public IObservable<JsonElement> Events => _eventSequence;
+
+    /// <summary>Gateway session ID.</summary>
+    public string SessionId { get; private set; }
 
     /// <summary>Zero-based shard ID number.</summary>
     public int Id { get; private init; }
 
     /// <summary></summary>
-    public int Latency { get; }
+    public TimeSpan Latency { get; private set; }
 
     /// <summary>Returns <see langword="true"/> when the websocket connection is active.</summary>
-    public bool IsConnected { get => _websocketClient?.State == WebSocketState.Open; }
+    public bool IsConnected => _websocketClient?.State == WebSocketState.Open;
 
     /// <summary>Whether or not this shard is sending a regular heartbeat payload to the gateway.</summary>
-    public bool IsHeartbeatActive { get => _wsHeartbeatTask.Status == TaskStatus.Running; }
-
-    /// <summary>Connects to the Discord gateway.</summary>
-    internal async Task ConnectAsync(string gatewayUrl)
-    {
-        if (this.IsConnected)
-            throw new InvalidOperationException("Websocket is already connected.");
-
-        await _websocketClient.ConnectAsync(new Uri($"{gatewayUrl}?v=9&encoding=json"), CancellationToken.None);
-        _wsReceieveTask = WebsocketReceiveLoop(_websocketCts.Token);
-    }
-
-    /// <summary>Closes the connection with the Discord gateway.</summary>
-    internal async Task DisconnectAsync()
-    {
-        if (_websocketClient is null)
-            throw new InvalidOperationException("Websocket client was not initialized.");
-
-        if (!this.IsConnected)
-            throw new InvalidOperationException("Websocket is not connected.");
-
-        _websocketCts.Cancel();
-        await _wsReceieveTask;
-
-        _heartbeatDelayCts.Cancel();
-        await _wsHeartbeatTask;
-
-        await _websocketClient.CloseAsync(WebSocketCloseStatus.EndpointUnavailable, "", CancellationToken.None);
-    }
+    public bool IsHeartbeatActive => _wsHeartbeatTask?.Status == TaskStatus.Running;
 
     /// <summary>Sends a payload to the gateway containing an inner data object.</summary>
     public ValueTask SendPayloadAsync(int opcode, Action<Utf8JsonWriter> jsonDelegate)
@@ -122,7 +88,7 @@ public sealed class DiscordWebsocketShard
         else if (payloadType is JsonValueKind.Null)
             jsonWriter.WriteNull("d");
         else
-            throw new JsonException("Invalid payload type.");
+            throw new JsonException("Invalid payload.");
 
         jsonWriter.WriteEndObject();
         jsonWriter.Flush();
@@ -130,18 +96,51 @@ public sealed class DiscordWebsocketShard
         return _websocketClient.SendAsync(buffer.WrittenMemory, WebSocketMessageType.Text, true, CancellationToken.None);
     }
 
+    /// <summary>Connects to the Discord gateway.</summary>
+    internal Task ConnectAsync(string gatewayUrl)
+    {
+        if (this.IsConnected)
+            throw new InvalidOperationException("Websocket is already connected.");
+
+        _websocketClient = new ClientWebSocket();
+        _websocketCts = new CancellationTokenSource();
+        _wsReceieveTask = WebsocketReceiveLoop(_websocketCts.Token);
+
+        return _websocketClient.ConnectAsync(new Uri($"{gatewayUrl}?v=10&encoding=json"), CancellationToken.None);
+    }
+
+    /// <summary>Closes the connection with the Discord gateway.</summary>
+    internal async Task DisconnectAsync(bool invalidateSession = true)
+    {
+        if (_websocketClient is null)
+            throw new InvalidOperationException("Websocket client was not initialized.");
+
+        if (!this.IsConnected)
+            throw new InvalidOperationException("Websocket is not connected.");
+
+        _websocketCts.Cancel();
+        await _wsReceieveTask;
+        _heartbeatDelayCts.Cancel();
+        await _wsHeartbeatTask;
+
+        var closeStatus = invalidateSession ? WebSocketCloseStatus.EndpointUnavailable : WebSocketCloseStatus.Empty;
+        await _websocketClient.CloseAsync(closeStatus, "", CancellationToken.None);
+        _logger.LogInformation("Disconnected shard {Id} ({Session})", this.Id, this.SessionId);
+    }
+
     /// <summary>
     /// Receives incoming payloads from the gateway connection.
     /// </summary>
     private async Task WebsocketReceiveLoop(CancellationToken cancelToken)
     {
-        while (cancelToken.IsCancellationRequested)
+        var heartbeatAckChannel = Channel.CreateBounded<DateTime>(1);
+
+        while (!cancelToken.IsCancellationRequested)
         {
             var payloadLength = 0;
             var buffer = ArrayPool<byte>.Shared.Rent(8192);
             WebSocketReceiveResult response;
 
-            // Read incoming payload from websocket.
             do
             {
                 response = await _websocketClient.ReceiveAsync(buffer, CancellationToken.None);
@@ -152,96 +151,81 @@ public sealed class DiscordWebsocketShard
 
             } while (!response.EndOfMessage);
 
-            // Parse payload as JSON.
-            using var payload = JsonDocument.Parse(buffer.AsMemory(0, payloadLength));
-            var json = payload.RootElement;
-            var opcode = json.GetProperty("op").GetInt32();
+            using var eventPayload = JsonDocument.Parse(buffer.AsMemory(0, payloadLength));
+            var eventJson = eventPayload.RootElement;
+            var opcode = eventJson.GetProperty("op").GetInt32();
 
-            // Handle opcode.
-            if (opcode == 0) // Guild, channel, or user event
+            if (opcode is 0)
             {
-                this.EventSequenceNumber = json.GetProperty("s").GetInt32();
-                await _eventChannelWriter.WriteAsync(new DiscordEvent(this, json.Clone()));
+                if (eventJson.GetProperty("t").GetString() is "READY")
+                    this.SessionId = eventJson.GetProperty("d").GetProperty("session_id").GetString();
+
+                this.EventIndex = eventJson.GetProperty("s").GetInt32();
             }
-            else if (opcode == 1) // Heartbeat request
-                await SendHeartbeatAsync();
-            else if (opcode == 7) // Reconnect request
-                await ReconnectAsync();
-            else if (opcode == 9) // Invalid session
+            else if (opcode is 1)
+                _heartbeatDelayCts.Cancel();
+            else if (opcode is 7)
+                await _reconnectChannelWriter.WriteAsync(this);
+            else if (opcode is 9)
             {
-                var resumeable = json.GetProperty("d").GetBoolean();
-                if (resumeable is false)
+                if (eventJson.GetProperty("d").GetBoolean() is false)
                 {
                     this.SessionId = string.Empty;
-                    this.EventSequenceNumber = 0;
+                    this.EventIndex = 0;
                 }
 
-                await ReconnectAsync();
+                await _reconnectChannelWriter.WriteAsync(this);
             }
-            else if (opcode == 10) // Identify
+            else if (opcode is 10)
             {
-                var intervalMs = json.GetProperty("d").GetProperty("heartbeat_interval").GetInt32();
-                _wsHeartbeatTask = WebsocketHeartbeatLoop(intervalMs, cancelToken, _heartbeatDelayCts.Token);
-
-                await _identifyChannelWriter.WriteAsync(this);
+                var intervalMs = eventJson.GetProperty("d").GetProperty("heartbeat_interval").GetInt32();
+                _wsHeartbeatTask = WebsocketHeartbeatLoop(intervalMs, heartbeatAckChannel.Reader, cancelToken);
             }
-            else if (opcode == 11) // Heartbeat acknowledgement
-                _receivedHeartbeatAck = true;
-            else
-                throw new NotImplementedException($"Invalid opcode received: {opcode}");
+            else if (opcode is 11)
+                await heartbeatAckChannel.Writer.WriteAsync(DateTime.Now);
 
-
+            _eventSequence.OnNext(eventJson.Clone());
             ArrayPool<byte>.Shared.Return(buffer, true);
         }
-    }
 
-    /// <summary>
-    /// Sends a heartbeat payload to the gateway at a fixed interval.
-    /// </summary>
-    private async Task WebsocketHeartbeatLoop(int intervalMs, CancellationToken wsToken, CancellationToken delayToken)
-    {
-        await Task.Delay(intervalMs, delayToken);
-
-        var missedHeartbeats = 0;
-        while (!wsToken.IsCancellationRequested)
+        async Task WebsocketHeartbeatLoop(int intervalMs, ChannelReader<DateTime> ackChannelReader, CancellationToken wsToken)
         {
-            await SendHeartbeatAsync();
-            await Task.Delay(intervalMs, delayToken);
+            DateTime lastHeartbeartDate;
+            var missedHeartbeats = 0;
 
-            if (_receivedHeartbeatAck | delayToken.IsCancellationRequested)
+            while (!wsToken.IsCancellationRequested)
             {
-                missedHeartbeats = 0;
-                _receivedHeartbeatAck = false;
+                if (_heartbeatDelayCts is null || _heartbeatDelayCts.IsCancellationRequested)
+                    _heartbeatDelayCts = new CancellationTokenSource();
+
+                await Task.Delay(intervalMs, _heartbeatDelayCts.Token);
+
+                var heartbeatTask = this.EventIndex is not 0
+                    ? SendPayloadAsync(1, JsonValueKind.Number, this.EventIndex)
+                    : SendPayloadAsync(1, JsonValueKind.Null);
+
+                await heartbeatTask;
+                lastHeartbeartDate = DateTime.Now;
+
+                var acknowledgementCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                await ackChannelReader.WaitToReadAsync(acknowledgementCts.Token);
+
+                if (ackChannelReader.Count is not 0)
+                {
+                    var receiveDate = await ackChannelReader.ReadAsync();
+                    this.Latency = receiveDate - lastHeartbeartDate;
+                    
+                    missedHeartbeats = 0;
+                }
+                else if (++missedHeartbeats > 5)
+                {
+                    _logger.LogCritical("Discord failed to acknowledge more than 5 heartbeat payloads; attempting reconnect.");
+                    await _reconnectChannelWriter.WriteAsync(this);
+                }
+                else
+                    _logger.LogWarning("Discord failed to acknowledge {Number} heartbeat payload(s).", missedHeartbeats);
             }
-            else if (++missedHeartbeats > 3)
-            {
-                _logger.LogCritical("Discord failed to acknowledge 4 heartbeat payloads; attempting reconnect");
-                await ReconnectAsync();
-            }
-            else
-                _logger.LogWarning("Discord failed to acknowledge {Number} heartbeat payload(s).", missedHeartbeats);
         }
-    }
-
-    /// <summary></summary>
-    private async Task ReconnectAsync()
-    {
-        await DisconnectAsync();
-
-        var websocketMetadata = await _httpClient.GetGatewayMetadataAsync();
-        await ConnectAsync(websocketMetadata.GetProperty("url").GetString());
-    }
-
-    /// <summary></summary>
-    private ValueTask SendHeartbeatAsync()
-    {
-        if (_wsHeartbeatTask is not null)
-            _heartbeatDelayCts.Cancel();
-
-        if (this.EventSequenceNumber is not 0)
-            return SendPayloadAsync(1, JsonValueKind.Number, this.EventSequenceNumber);
-        else
-            return SendPayloadAsync(1, JsonValueKind.Null);
     }
 }
 

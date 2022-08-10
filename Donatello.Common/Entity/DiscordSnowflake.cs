@@ -3,7 +3,7 @@
 using System;
 using System.Globalization;
 
-// Modified from https://github.com/DSharpPlus/DSharpPlus/blob/1dc09e6c058868f6df8d11607336a91f60cb87da/DSharpPlus.Core/RestEntities/DiscordSnowflake.cs
+// Largely based off of: https://github.com/DSharpPlus/DSharpPlus/blob/1dc09e6c058868f6df8d11607336a91f60cb87da/DSharpPlus.Core/RestEntities/DiscordSnowflake.cs
 // Licensed LGPL 3.0 | https://www.gnu.org/licenses/lgpl-3.0.txt
 public sealed class DiscordSnowflake : IComparable<DiscordSnowflake>
 {
@@ -24,23 +24,26 @@ public sealed class DiscordSnowflake : IComparable<DiscordSnowflake>
     public static DateTimeOffset DiscordEpoch => _discordEpoch;
 
     /// <summary>64-bit integer representation of this snowflake.</summary>
-    public ulong Value { get; init; }
+    public ulong Value { get; private init; }
 
     /// <summary>The date this snowflake was generated.</summary>
-    public DateTimeOffset CreationDate { get; init; }
+    public DateTimeOffset CreationDate { get; private init; }
 
     /// <summary>The internal worker's ID that was used by Discord to generate the snowflake.</summary>
-    public byte InternalWorkerId { get; init; }
+    public byte InternalWorkerId { get; private init; }
 
     /// <summary>The internal process' ID that was used by Discord to generate the snowflake.</summary>
-    public byte InternalProcessId { get; init; }
+    public byte InternalProcessId { get; private init; }
 
     /// <summary>A number incremented by Discord every time a snowflake is generated.</summary>
-    public ushort InternalIncrement { get; init; }
+    public ushort InternalIncrement { get; private init; }
 
     /// <summary>Returns the 64-bit integer representation of this snowflake as a string.</summary>
     public override string ToString()
         => this.Value.ToString(CultureInfo.CurrentCulture);
+
+    public override bool Equals(object obj)
+        => obj is DiscordSnowflake snowflake && snowflake == this;
 
     /// <inheritdoc/>
     public override int GetHashCode()
@@ -49,6 +52,12 @@ public sealed class DiscordSnowflake : IComparable<DiscordSnowflake>
     /// <inheritdoc/>
     public int CompareTo(DiscordSnowflake other)
         => other is null ? 1 : this.Value.CompareTo(other.Value);
+
+    public static bool operator ==(DiscordSnowflake left, DiscordSnowflake right)
+        => left is not null & right is not null && left.Value == right.Value;
+
+    public static bool operator !=(DiscordSnowflake left, DiscordSnowflake right)
+        => left.Value != right.Value;
 
     public static bool operator <(DiscordSnowflake left, DiscordSnowflake right)
         => left is null ? right is not null : left.CompareTo(right) < 0;

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 /// <summary>Auto moderation trigger based on a criteria.</summary>
 public class DiscordModerationRule : DiscordEntity
 {
-    public DiscordModerationRule(DiscordApiBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
+    public DiscordModerationRule(DiscordBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
 
     /// <summary>The rule name.</summary>
     public string Name => this.Json.GetProperty("name").GetString();

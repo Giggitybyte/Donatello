@@ -68,7 +68,7 @@ public sealed class MessageBuilder : EntityBuilder
         throw new NotImplementedException();
     }
 
-    internal override void Build(in Utf8JsonWriter jsonWriter)
+    internal override void ConstructJson(in Utf8JsonWriter jsonWriter)
     {
         if (_embeds.Count is 0 && _attachments.Count is 0 && _content is null && _stickerIds.Count is 0)
             throw new FormatException("A message must have an embed, file, sticker, or text.");
@@ -79,7 +79,7 @@ public sealed class MessageBuilder : EntityBuilder
         jsonWriter.WriteStartArray("embeds");
 
         foreach (var embedBuilder in _embeds)
-            embedBuilder.Build(jsonWriter);
+            embedBuilder.ConstructJson(jsonWriter);
 
         jsonWriter.WriteEndArray();
     }

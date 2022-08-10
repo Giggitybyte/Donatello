@@ -1,6 +1,5 @@
 ﻿namespace Donatello.Rest;
 
-using Donatello.Rest.Extension.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -15,10 +14,19 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
+/// <summary></summary>
+public enum TokenType : ushort
+{
+    /// <summary></summary>
+    Bot,
+
+    /// <summary></summary>
+    Bearer
+}
+
 /// <summary>HTTP client wrapper for the Discord REST API with integrated rate-limiter.</summary>
 public class DiscordHttpClient
 {
-
     private HttpClient _client;
     private ConcurrentDictionary<Uri, string> _routeBucketIds;
     private ConcurrentDictionary<string, RatelimitBucket> _routeBuckets;
@@ -26,8 +34,8 @@ public class DiscordHttpClient
 
     /// <param name="token">Discord token.</param>
     /// <param name="logger">Logger instance.</param>
-    /// <param name="isBearerToken"><see langword="true"/>: OAuth2 bearer token.<br/><see langword="false"/>: application bot token.</param>
-    public DiscordHttpClient(string token, TokenType tokenType = TokenType.Bot, ILogger logger = null)
+    /// <param name="tokenType"><see langword="true"/>: OAuth2 bearer token.<br/><see langword="false"/>: application bot token.</param>
+    public DiscordHttpClient(TokenType tokenType, string token, ILogger logger = null)
     {
         var handler = new SocketsHttpHandler
         {
@@ -152,6 +160,16 @@ public class DiscordHttpClient
             };
         }
 
+        async Task<HttpResponse> DelayRequestAsync(TimeSpan delayTime)
+        {
+            this.Logger.LogWarning("Request to {Uri} delayed until {Time} (attempt #{Attempt})", request.RequestUri.AbsolutePath, DateTime.Now.Add(delayTime), attemptCount);
+
+            await Task.Delay(delayTime);
+            var response = await DispatchRequestAsync();
+
+            return response;
+        }
+
         void UpdateRatelimitBucket(string bucketId, HttpResponseHeaders headers)
         {
             _routeBucketIds[request.RequestUri] = bucketId;
@@ -182,36 +200,27 @@ public class DiscordHttpClient
                     foreach (var objectProp in errorObject.EnumerateObject())
                         foreach (var errorJson in objectProp.Value.GetProperty("_errors").EnumerateArray())
                             AddError(errorJson, objectProp.Name);
+
+                void AddError(JsonElement errorArray, string name)
+                {
+                    foreach (var errorJson in errorArray.EnumerateArray())
+                    {
+                        var code = errorJson.GetProperty("code").GetString();
+                        var message = errorJson.GetProperty("message").GetString();
+                        var error = new HttpResponse.Error() { ParameterName = name, Code = code, Message = message };
+
+                        errorMessages.Add(error);
+                    }
+                }
             }
             else if (responseJson.TryGetProperty("message", out var messageProp))
             {
                 var code = responseJson.GetProperty("code").GetString();
-                errorMessages.Add(new HttpResponse.Error(string.Empty, code, messageProp.GetString()));
+                var error = new HttpResponse.Error() { ParameterName = string.Empty, Code = code, Message = messageProp.GetString() };
+                errorMessages.Add(error);
             }
 
             return errorMessages;
-
-            void AddError(JsonElement errorArray, string name)
-            {
-                foreach (var errorJson in errorArray.EnumerateArray())
-                {
-                    var code = errorJson.GetProperty("code").GetString();
-                    var message = errorJson.GetProperty("message").GetString();
-                    var error = new HttpResponse.Error(name, code, message);
-
-                    errorMessages.Add(error);
-                }
-            }
-        }
-
-        async Task<HttpResponse> DelayRequestAsync(TimeSpan delayTime)
-        {
-            this.Logger.LogWarning("Request to {Uri} delayed until {Time} (attempt #{Attempt})", request.RequestUri.AbsolutePath, DateTime.Now.Add(delayTime), attemptCount);
-
-            await Task.Delay(delayTime);
-            var response = await DispatchRequestAsync();
-
-            return response;
         }
     }
 
@@ -241,4 +250,3 @@ public class DiscordHttpClient
         return new StringContent(json, Encoding.UTF8, "application/json");
     }
 }
-
