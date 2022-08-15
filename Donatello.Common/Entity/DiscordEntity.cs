@@ -19,11 +19,9 @@ public abstract class DiscordEntity : IEntity
 
     /// <summary>Bot instance which contains and manages this object.</summary>
     protected DiscordBot Bot { get; private init; }
-    IBot IEntity.Bot => this.Bot;
 
     /// <summary>Backing JSON object for this entity.</summary>
     protected internal JsonElement Json { get; private init; }
-    JsonElement IEntity.Json => this.Json;
 
     /// <inheritdoc/>
     public virtual DiscordSnowflake Id => this.Json.GetProperty("id").ToSnowflake();
@@ -36,6 +34,8 @@ public abstract class DiscordEntity : IEntity
 
     public override int GetHashCode()
         => this.Id.GetHashCode();
-    
+
+    IBot IEntity.Bot => this.Bot;
+    JsonElement IEntity.Json => this.Json;
     bool IEquatable<IEntity>.Equals(IEntity other) => this.Equals(other);
 }

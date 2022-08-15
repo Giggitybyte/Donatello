@@ -15,13 +15,11 @@ public sealed class EntityCollection<TEntity> : IEnumerable<TEntity> where TEnti
         _emptyInstance = new EntityCollection<TEntity>(emptyDictionary);
     }
 
-    /// <summary></summary>
     public EntityCollection(IDictionary<DiscordSnowflake, TEntity> entities)
     {
         _entities = entities;
     }
 
-    /// <summary></summary>
     public EntityCollection(IEnumerable<TEntity> entities)
     {
         _entities = new Dictionary<DiscordSnowflake, TEntity>();
@@ -33,15 +31,19 @@ public sealed class EntityCollection<TEntity> : IEnumerable<TEntity> where TEnti
     /// <summary></summary>
     public TEntity this[DiscordSnowflake entityId] => TryGetEntity(entityId, out var entity) ? entity : default;
 
-    /// <summary></summary>
+    /// <summary>Read-only instance which contains zero entities.</summary>
     public static EntityCollection<TEntity> Empty => _emptyInstance;
 
+    /// <summary>Returns <see langword="true"/> if this collection has an entity with the provided snowflake ID, <see langword="false"/> otherwise.</summary>
+    public bool ContainsEntity(DiscordSnowflake id)
+        => _entities.ContainsKey(id);
 
-    /// <summary></summary>
-    public bool ContainsEntity(DiscordSnowflake entityId)
-        => _entities.ContainsKey(entityId);
-
-    /// <summary></summary>
+    /// <summary>Returns <see langword="true"/> if this collection has an entity with the provided snowflake ID, <see langword="false"/> otherwise.</summary>
+    /// <param name="entity">
+    /// When the method returns:<br/>
+    /// <see langword="true"/> this parameter will contain the previously cached instance,<br/>
+    /// <see langword="false"/> this parameter will be <see langword="null"/>.
+    /// </param>
     public bool TryGetEntity(DiscordSnowflake entityId, out TEntity entity)
         => _entities.TryGetValue(entityId, out entity);
 
@@ -49,7 +51,6 @@ public sealed class EntityCollection<TEntity> : IEnumerable<TEntity> where TEnti
     public IEnumerator<TEntity> GetEnumerator()
         => _entities.Values.GetEnumerator();
 
-    IEnumerator IEnumerable.GetEnumerator() 
-        => GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 }
 

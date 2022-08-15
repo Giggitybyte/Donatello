@@ -17,9 +17,9 @@ public interface IBot
     /// <summary>Fetches a guild object using an ID.</summary>
     ValueTask<DiscordGuild> GetGuildAsync(DiscordSnowflake guildId);
 
+    /// <summary>Fetches a channel object using an ID.</summary>
+    ValueTask<DiscordChannel> GetChannelAsync(DiscordSnowflake channelId);
+
     /// <summary>Fetches a channel using an ID and returns it as a <typeparamref name="TChannel"/> object.</summary>
     ValueTask<TChannel> GetChannelAsync<TChannel>(DiscordSnowflake channelId) where TChannel : DiscordChannel;
-
-    /// <summary>Fetches a channel using a snowflake ID.</summary>
-    ValueTask<DiscordChannel> GetChannelAsync(DiscordSnowflake channelId);
 }

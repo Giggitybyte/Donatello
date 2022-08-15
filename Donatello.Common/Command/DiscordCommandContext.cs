@@ -3,10 +3,7 @@
 using Qmmands;
 using System;
 
-public abstract class DiscordCommandContext : CommandContext
+public abstract class DiscordCommandContext : ICommandContext
 {
-    public DiscordCommandContext(IServiceProvider serviceProvider) : base(serviceProvider)
-    {
-    }
 }
 

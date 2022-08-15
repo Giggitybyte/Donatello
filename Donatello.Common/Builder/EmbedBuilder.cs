@@ -8,7 +8,12 @@ using System.Text.Json;
 /// <summary></summary>
 public sealed class EmbedBuilder : EntityBuilder
 {
-    private record Field(string Title, string Content, bool IsInline);
+    private struct Field
+    {
+        public string Title { get; init; }
+        public string Content { get; init; }
+        public bool IsInline { get; init; }
+    }
 
     private string _title, _description, _footer;
     private List<Field> _fields;

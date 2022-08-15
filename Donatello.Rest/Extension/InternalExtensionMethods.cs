@@ -3,7 +3,7 @@
 using System;
 using System.Text;
 
-public static class InternalExtensionMethods
+internal static class InternalExtensionMethods
 {
     /// <summary>Converts the key-value pairs contained in a <see cref="ValueTuple"/> array to a URL query parameter string.</summary>
     /// <remarks><see langword="default"/> parameters as well as parameters with <see langword="null"/> keys will be ignored.</remarks>

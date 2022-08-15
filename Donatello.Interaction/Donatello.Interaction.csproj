@@ -13,4 +13,8 @@
     <ProjectReference Include="..\Donatello.Common\Donatello.Common.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Component\" />
+  </ItemGroup>
+
 </Project>

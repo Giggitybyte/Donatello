@@ -2,14 +2,20 @@
 
 using Donatello.Enumeration;
 using Donatello.Extension.Internal;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Text.Json;
 using System.Threading.Tasks;
 
 /// <summary></summary>
-public class DiscordThreadTextChannel : DiscordTextChannel
+public sealed class DiscordThreadTextChannel : DiscordTextChannel
 {
-    public DiscordThreadTextChannel(DiscordBot bot, JsonElement json) : base(bot, json) { }
+    private MemoryCache _memberCache;
+
+    public DiscordThreadTextChannel(DiscordBot bot, JsonElement json) : base(bot, json) 
+    {
+        _memberCache = new MemoryCache(new MemoryCacheOptions());
+    }
 
     /// <summary></summary>
     internal JsonElement Metadata => this.Json.GetProperty("thread_metadata");
@@ -30,10 +36,10 @@ public class DiscordThreadTextChannel : DiscordTextChannel
     public TimeSpan AutoArchiveDuration => TimeSpan.FromMinutes(this.Metadata.GetProperty("auto_archive_duration").GetInt32());
 
     /// <summary>Current number of messages contained within this thread</summary>
-    public uint MessageCount => this.Json.GetProperty("message_count").GetUInt32();
+    public int MessageCount => this.Json.GetProperty("message_count").GetInt32();
 
     /// <summary>Total number of messages ever sent in this thread.</summary>
-    public uint TotalMessageCount => this.Json.GetProperty("total_message_sent").GetUInt32();
+    public int TotalMessageCount => this.Json.GetProperty("total_message_sent").GetInt32();
 
     /// <summary>Returns <see langword="true"/> if this thread has a creation date field; <see langword="false"/> otherwise.</summary>
     /// <remarks>Only threads created after January 9, 2022 will have a creation date field.</remarks>
@@ -50,16 +56,25 @@ public class DiscordThreadTextChannel : DiscordTextChannel
         => this.Bot.GetGuildAsync(this.Json.GetProperty("guild_id").ToSnowflake());
 
     /// <summary>Fetches the user which created this thread.</summary>
-    public async ValueTask<DiscordMember> GetOwnerAsync()
+    public async Task<DiscordMember> GetCreatorAsync()
     {
         var guild = await GetGuildAsync();
-        var member = await guild.GetMemberAsync(this.Json.GetProperty("owner_id").ToSnowflake());
+        var userId = this.Json.GetProperty("owner_id").ToSnowflake();
+        var member = await guild.GetMemberAsync(userId);
 
         return member;
+    }
+
+    /// <summary></summary>
+    public async ValueTask<DiscordMember> GetMembersAsync()
+    {
+        _memberCache.
     }
 
     /// <summary>Fetches the channel which contains this thread.</summary>
     public ValueTask<DiscordGuildTextChannel> GetParentChannelAsync()
         => this.Bot.GetChannelAsync<DiscordGuildTextChannel>(this.Json.GetProperty("parent_id").ToSnowflake());
+
+    
 }
 

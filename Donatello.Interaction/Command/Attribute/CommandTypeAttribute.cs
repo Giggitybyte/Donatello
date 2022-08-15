@@ -14,5 +14,5 @@ public sealed class CommandTypeAttribute : Attribute
         _value = value;
     }
 
-    public CommandType Value { get => _value; }
+    public CommandType Value => _value;
 }

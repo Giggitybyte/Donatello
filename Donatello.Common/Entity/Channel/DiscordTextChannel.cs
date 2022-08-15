@@ -2,8 +2,6 @@
 
 using Donatello.Entity.Builder;
 using Donatello.Rest.Extension.Endpoint;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Text.Json;
@@ -12,26 +10,28 @@ using System.Threading.Tasks;
 /// <summary>Abstract implementation of <see cref="ITextChannel"/></summary>
 public abstract class DiscordTextChannel : DiscordChannel, ITextChannel
 {
-    private MemoryCache _messageCache;
-
     internal DiscordTextChannel(DiscordBot bot, JsonElement json) : base(bot, json)
     {
-        _messageCache = new MemoryCache(new MemoryCacheOptions());
+        this.MessageCache = new EntityCache<DiscordMessage>();
+        
     }
 
     /// <summary></summary>
     public async ValueTask<DiscordMessage> GetMessageAsync(DiscordSnowflake messageId)
     {
-        if (_messageCache.TryGetValue(messageId, out DiscordMessage message) is false)
+        if (this.MessageCache.TryGetEntity(messageId, out DiscordMessage message) is false)
         {
             var messageJson = await this.Bot.RestClient.GetChannelMessageAsync(this.Id, messageId);
             message = new DiscordMessage(this.Bot, messageJson);
 
-            UpdateMessageCache(messageId, message);
+            this.MessageCache.Add(message);
         }
 
         return message;
     }
+
+    /// <summary>Cached message instances.</summary>
+    public EntityCache<DiscordMessage> MessageCache { get; private init; }
 
     /// <summary></summary>
     public Task<EntityCollection<DiscordMessage>> GetMessagesAsync()
@@ -53,6 +53,9 @@ public abstract class DiscordTextChannel : DiscordChannel, ITextChannel
     {
         var messageArray = await this.Bot.RestClient.GetChannelMessagesAsync(this.Id, query, ("limit", "100"));
         var messages = messageArray.EnumerateArray().Select(messageJson => new DiscordMessage(this.Bot, messageJson));
+
+        foreach (var message in messages)
+            this.MessageCache.Add(message);
 
         return new EntityCollection<DiscordMessage>(messages);
     }
@@ -81,19 +84,5 @@ public abstract class DiscordTextChannel : DiscordChannel, ITextChannel
     public Task DeleteMessageAsync()
     {
         throw new NotImplementedException();
-    }
-
-    /// <summary>Adds or updates an entry in the message cache.</summary>
-    protected internal void UpdateMessageCache(DiscordSnowflake id, DiscordMessage message)
-    {
-        var entryConfig = new MemoryCacheEntryOptions()
-                .SetSlidingExpiration(TimeSpan.FromMinutes(30))
-                .RegisterPostEvictionCallback(LogMessageCacheEviction);
-
-        _messageCache.Set(id, message, entryConfig);
-        this.Bot.Logger.LogTrace("Updated entry {Id} in user cache", id);
-
-        void LogMessageCacheEviction(object key, object value, EvictionReason reason, object state)
-            => this.Bot.Logger.LogTrace("Removed stale entry {Id} from user cache", (ulong)key);
     }
 }

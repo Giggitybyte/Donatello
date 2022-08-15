@@ -2,11 +2,8 @@
 
 using Donatello;
 using Donatello.Command;
-using Donatello.Enumeration;
 using Microsoft.Extensions.Logging;
 using NSec.Cryptography;
-using Qmmands;
-using Qommon.Events;
 using System;
 using System.Buffers;
 using System.IO;
@@ -17,21 +14,14 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-/// <summary>
-/// Bot framework for Discord's interaction API model.<br/>
-/// Interactions are received from Discord through an integrated webhook listener.
-/// </summary>
+/// <summary>Bot framework for Discord's interaction API model.</summary>
+/// <remarks>Interactions are received from Discord through an integrated webhook listener.</remarks>
 public sealed class DiscordInteractionBot : DiscordBot
 {
     private readonly PublicKey _publicKey;
-
-    private CommandService _commandService;
     private Task _interactionListenerTask;
     private CancellationTokenSource _cts;
     private ushort _port;
-
-    private AsynchronousEvent<CommandExecutedEventArgs> _commandExecutedEvent;
-    private AsynchronousEvent<CommandExecutionFailedEventArgs> _commandExecutionFailedEvent;
 
     /// <param name="apiToken"></param>
     /// <param name="publicKey"></param>
@@ -46,27 +36,6 @@ public sealed class DiscordInteractionBot : DiscordBot
 
         _publicKey = PublicKey.Import(SignatureAlgorithm.Ed25519, Convert.FromHexString(publicKey), KeyBlobFormat.PkixPublicKeyText);
         _port = port;
-
-        _commandExecutedEvent = new AsynchronousEvent<CommandExecutedEventArgs>(EventExceptionLogger);
-        _commandExecutionFailedEvent = new AsynchronousEvent<CommandExecutionFailedEventArgs>(EventExceptionLogger);
-
-        _commandService = new CommandService(CommandServiceConfiguration.Default);
-        _commandService.CommandExecuted += (s, e) => _commandExecutedEvent.InvokeAsync(this, e);
-        _commandService.CommandExecutionFailed += (s, e) => _commandExecutionFailedEvent.InvokeAsync(this, e);
-    }
-
-    /// <summary>Fired when a command successfully executes.</summary>
-    public event AsynchronousEventHandler<CommandExecutedEventArgs> CommandExecuted
-    {
-        add => _commandExecutedEvent.Hook(value);
-        remove => _commandExecutedEvent.Unhook(value);
-    }
-
-    /// <summary>Fired when a command cannot complete execution.</summary>
-    public event AsynchronousEventHandler<CommandExecutionFailedEventArgs> CommandExecutionFailed
-    {
-        add => _commandExecutionFailedEvent.Hook(value);
-        remove => _commandExecutionFailedEvent.Unhook(value);
     }
 
     /// <summary>Whether this instance is listening for interactions.</summary>
@@ -127,13 +96,7 @@ public sealed class DiscordInteractionBot : DiscordBot
             var data = await streamReader.ReadToEndAsync();
             var signature = request.Headers.Get("X-Signature-Ed25519");
             var timestamp = request.Headers.Get("X-Signature-Timestamp");
-
-            bool isValidSignature = SignatureAlgorithm.Ed25519.Verify
-            (
-                _publicKey,
-                Encoding.UTF8.GetBytes($"{timestamp}{data}"),
-                Convert.FromHexString(signature)
-            );
+            bool isValidSignature = SignatureAlgorithm.Ed25519.Verify(_publicKey, Encoding.UTF8.GetBytes($"{timestamp}{data}"), Convert.FromHexString(signature));
 
             if (isValidSignature)
                 await ProcessInteractionAsync(data, response);

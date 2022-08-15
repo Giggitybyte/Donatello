@@ -207,7 +207,12 @@ public class DiscordHttpClient
                     {
                         var code = errorJson.GetProperty("code").GetString();
                         var message = errorJson.GetProperty("message").GetString();
-                        var error = new HttpResponse.Error() { ParameterName = name, Code = code, Message = message };
+                        var error = new HttpResponse.Error() 
+                        { 
+                            ParameterName = name, 
+                            Code = code, 
+                            Message = message 
+                        };
 
                         errorMessages.Add(error);
                     }

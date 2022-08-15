@@ -1,4 +1,5 @@
 ﻿namespace Donatello.Entity;
+
 using Donatello.Enumeration;
 using System;
 using System.Collections.ObjectModel;

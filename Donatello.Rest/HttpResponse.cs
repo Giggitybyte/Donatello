@@ -8,6 +8,18 @@ using System.Text.Json;
 /// <summary></summary>
 public sealed class HttpResponse
 {
+    public readonly struct Error
+    {
+        /// <summary></summary>
+        public string ParameterName { get; internal init; }
+
+        /// <summary></summary>
+        public string Code { get; internal init; }
+
+        /// <summary></summary>
+        public string Message { get; internal init; }
+    }
+
     internal HttpResponse()
     {
         this.Errors = Array.Empty<Error>();
@@ -30,17 +42,5 @@ public sealed class HttpResponse
     {
         errors = this.Errors;
         return this.Errors.Count > 0;
-    }
-
-    public readonly struct Error
-    {
-        /// <summary></summary>
-        public string ParameterName { get; internal init; }
-
-        /// <summary></summary>
-        public string Code { get; internal init; }
-
-        /// <summary></summary>
-        public string Message { get; internal init; }
     }
 }

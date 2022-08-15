@@ -11,20 +11,29 @@ public sealed class DiscordMember : DiscordUser
     private ulong _guildId;
     private JsonElement _member;
 
-    /// <summary></summary>
-    public DiscordMember(DiscordBot bot, DiscordSnowflake guildId, JsonElement userJson, JsonElement memberJson) 
-        : base(bot, userJson)
+    public DiscordMember(DiscordBot bot, DiscordSnowflake guildId, JsonElement userJson, JsonElement memberJson) : base(bot, userJson)
     {
         _member = memberJson;
         _guildId = guildId;
     }
 
-    /// <summary></summary>
-    public DiscordMember(DiscordBot bot, DiscordSnowflake guildId, DiscordUser user, JsonElement memberJson) 
-        : this(bot, guildId, user.Json, memberJson) 
+    public DiscordMember(DiscordBot bot, DiscordSnowflake guildId, DiscordUser user, JsonElement memberJson) : this(bot, guildId, user.Json.Clone(), memberJson) 
     { 
-
+        /* ^ . ^ */ 
     }
+
+    /// <summary>When the member joined the guild.</summary>
+    public DateTimeOffset JoinDate => _member.GetProperty("joined_at").GetDateTimeOffset();
+
+    /// <summary>Whether the member is deafened in guild voice channels.</summary>
+    public bool IsDeafened => _member.GetProperty("deaf").GetBoolean();
+
+    /// <summary>Whether the member is muted in guild voice channels.</summary>
+    public bool IsMuted => _member.GetProperty("mute").GetBoolean();
+
+    /// <summary>Whether the member has not yet met the guild's <see href="https://support.discord.com/hc/en-us/articles/1500000466882">membership screening</see> requirements.</summary>
+    /// <remarks>A pending member will not be able to interact with the server until they pass the screening requirements.</remarks>
+    public bool IsPending => _member.TryGetProperty("pending", out var property) && property.GetBoolean();
 
     /// <summary></summary>
     public override string AvatarUrl
@@ -40,19 +49,6 @@ public sealed class DiscordMember : DiscordUser
                 return base.AvatarUrl;
         }
     }
-
-    /// <summary>When the member joined the guild.</summary>
-    public DateTimeOffset JoinDate => _member.GetProperty("joined_at").GetDateTimeOffset();
-
-    /// <summary>Whether the member is "server" deafened in voice channels.</summary>
-    public bool IsDeafened => _member.GetProperty("deaf").GetBoolean();
-
-    /// <summary>Whether the member is "server" muted in voice channels.</summary>
-    public bool IsMuted => _member.GetProperty("mute").GetBoolean();
-
-    /// <summary>Whether the member has not yet met the guild's <see href="https://support.discord.com/hc/en-us/articles/1500000466882">membership screening</see> requirements.</summary>
-    /// <remarks>A pending member will not be able to interact with the server until they pass the screening requirements.</remarks>
-    public bool IsPending => _member.TryGetProperty("pending", out var property) && property.GetBoolean();
 
     /// <summary>Returns <see langword="true"/> if the member has a nickname set, <see langword="false"/> otherwise.</summary>
     /// <param name="nickname">
@@ -73,10 +69,6 @@ public sealed class DiscordMember : DiscordUser
     /// <summary></summary>
     public ValueTask<DiscordGuild> GetGuildAsync()
         => this.Bot.GetGuildAsync(_guildId);
-
-    /// <summary></summary>
-    public ValueTask<DiscordUser> GetUserAsync()
-        => this.Bot.GetUserAsync(this.Id);
 
     /// <summary></summary>
     public async ValueTask<EntityCollection<DiscordRole>> GetRolesAsync()

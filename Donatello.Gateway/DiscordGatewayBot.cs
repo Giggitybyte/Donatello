@@ -2,23 +2,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Reactive.Threading.Tasks;
-using System.Reflection;
 using System.Text.Json;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using Donatello;
 using Donatello.Entity;
 using Donatello.Enumeration;
 using Donatello.Extension.Internal;
 using Donatello.Gateway.Event;
-using Donatello.Gateway.Plugin;
 using Microsoft.Extensions.Logging;
-using Qmmands;
-using Qommon.Collections.ReadOnly;
 
 /// <summary>Implementation for Discord's real-time websocket API.</summary>
 /// <remarks>
@@ -30,9 +26,8 @@ public sealed class DiscordGatewayBot : DiscordBot
     private DiscordWebsocketShard[] _shards;
     private GatewayIntent _intents;
     private Subject<DiscordEvent> _eventSequence;
-    private Channel<DiscordWebsocketShard> _reconnectChannel;
-    private Task _reconnectTask;
     private List<DiscordSnowflake> _unavailableGuilds;
+    private DiscordSnowflake _botUserId;
 
     /// <param name="token"></param>
     /// <param name="intents"></param>
@@ -44,12 +39,11 @@ public sealed class DiscordGatewayBot : DiscordBot
 
         _intents = intents;
         _shards = Array.Empty<DiscordWebsocketShard>();
-        _reconnectTask = ReconnectShardsAsync(_reconnectChannel.Reader);
         _eventSequence = new Subject<DiscordEvent>();
     }
 
     /// <summary></summary>
-    internal IReadOnlyList<DiscordWebsocketShard> Shards => new ReadOnlyList<DiscordWebsocketShard>(_shards);
+    internal IReadOnlyList<DiscordWebsocketShard> Shards => new ReadOnlyCollection<DiscordWebsocketShard>(_shards);
 
     /// <summary></summary>
     public IObservable<DiscordEvent> Events => _eventSequence;
@@ -57,58 +51,36 @@ public sealed class DiscordGatewayBot : DiscordBot
     /// <summary></summary>
     public DiscordUser Self { get; private set; }
 
-    /// <summary>Searches the provided assembly for classes which inherit from <see cref="DiscordCommandModule"/> and registers each of their commands.</summary>
-    public void LoadCommandModules(Assembly assembly)
-        => throw new NotImplementedException();
-
-    /// <summary>Registers all commands found in the provided command module type.</summary>
-    public void LoadCommandModule<T>() // where T : DiscordCommandModule
-        => throw new NotImplementedException();
-
-    /// <summary></summary>
-    public void LoadCommandModule(Action<ModuleBuilder> moduleBuilder)
-        => throw new NotImplementedException();
-
-    /// <summary>Adds a plugin to this instance.</summary>
-    public ValueTask EnablePluginAsync<T>() where T : DonatelloGatewayPlugin
-        => throw new NotImplementedException();
-
-    /// <summary>Removes a plugin from this instance, releasing any resources if needed.</summary>
-    public ValueTask DisablePluginAsync<T>() where T : DonatelloGatewayPlugin
-        => throw new NotImplementedException();
-
     /// <summary>Connects to the Discord gateway.</summary>
     public override async ValueTask StartAsync()
     {
         var websocketMetadata = await this.RestClient.GetGatewayMetadataAsync();
-        var websocketUrl = websocketMetadata.GetProperty("url").GetString();
         var shardCount = websocketMetadata.GetProperty("shards").GetInt32();
+        var clusterSize = websocketMetadata.GetProperty("session_start_limit").GetProperty("max_concurrency").GetInt32();
 
         _shards = new DiscordWebsocketShard[shardCount];
 
         for (int shardId = 0; shardId < shardCount; shardId++)
         {
-            var shard = new DiscordWebsocketShard(shardId, this.Logger, _reconnectChannel.Writer);
+            var shard = new DiscordWebsocketShard(shardId, this.Logger);
 
             shard.Events.Where(e => e.GetProperty("op").GetInt32() is 0)
-                .SelectMany(e => PublishDiscordEvent(e).ToObservable())
+                .SelectMany(e => PublishDiscordEventAsync(e).ToObservable())
                 .Subscribe();
 
             shard.Events.Where(e => e.GetProperty("op").GetInt32() is 10)
-                .SelectMany(e => IdentifyShardAsync(shard).ToObservable())
+                .SelectMany(e => SendShardIdentityAsync(shard).ToObservable())
                 .Subscribe();
 
             _shards[shardId] = shard;
         }
 
-        var clusterSize = websocketMetadata.GetProperty("session_start_limit").GetProperty("max_concurrency").GetInt32();
-
         await Observable.Generate(0, (i => i < shardCount), (i => i + clusterSize), (i => _shards.Skip(i).Take(clusterSize)), (i => TimeSpan.FromSeconds(5)))
             .SelectMany(cluster => cluster.ToObservable())
-            .SelectMany(shard => shard.ConnectAsync(websocketUrl).ToObservable());
+            .SelectMany(shard => shard.ConnectAsync().ToObservable());
     }
 
-    /// <summary>Closes all websocket connections and disables all plugins.</summary>
+    /// <summary>Closes all websocket connections.</summary>
     public override async ValueTask StopAsync()
     {
         if (_shards.Length is 0)
@@ -124,9 +96,9 @@ public sealed class DiscordGatewayBot : DiscordBot
     }
 
     /// <summary></summary>
-    private async Task IdentifyShardAsync(DiscordWebsocketShard shard)
+    private async Task SendShardIdentityAsync(DiscordWebsocketShard shard)
     {
-        if (shard.SessionId is not null or "")
+        if (shard.SessionId is not null)
         {
             await shard.SendPayloadAsync(6, jsonWriter =>
             {
@@ -160,19 +132,7 @@ public sealed class DiscordGatewayBot : DiscordBot
     }
 
     /// <summary></summary>
-    private async Task ReconnectShardsAsync(ChannelReader<DiscordWebsocketShard> channelReader)
-    {
-        await foreach (var shard in channelReader.ReadAllAsync())
-        {
-            var websocketMetadata = await this.RestClient.GetGatewayMetadataAsync();
-
-            await shard.DisconnectAsync(invalidateSession: false);
-            await shard.ConnectAsync(websocketMetadata.GetProperty("url").GetString());
-        }
-    }
-
-    /// <summary></summary>
-    private async Task PublishDiscordEvent(JsonElement gatewayEvent)
+    private async Task PublishDiscordEventAsync(JsonElement gatewayEvent)
     {
         var eventName = gatewayEvent.GetProperty("t").GetString();
         var eventJson = gatewayEvent.GetProperty("d");
@@ -191,19 +151,19 @@ public sealed class DiscordGatewayBot : DiscordBot
             if (this.Self.Id is null && this.Self.Id != user.Id)
                 this.Self = user;
 
-            UpdateUserCache(user);
+            this.UserCache.Add(user);
         }
         else if (eventName is "CHANNEL_CREATE")
         {
             var channel = eventJson.ToChannelEntity(this);
             eventObject = new EntityCreatedEvent<DiscordChannel>() { Entity = channel };
 
-            UpdateChannelCache(channel);
+            this.ChannelCache.Add(channel);
         }
         else if (eventName is "CHANNEL_UPDATE")
         {
-            TryGetCachedChannel(eventJson.GetProperty("id").ToSnowflake(), out DiscordChannel outdatedChannel);
             var updatedChannel = eventJson.ToChannelEntity(this);
+            var outdatedChannel = this.ChannelCache.GetAndUpdate(updatedChannel);
 
             eventObject = new EntityUpdatedEvent<DiscordChannel>()
             {
@@ -211,21 +171,17 @@ public sealed class DiscordGatewayBot : DiscordBot
                 OutdatedEnity = outdatedChannel
             };
 
-            UpdateChannelCache(updatedChannel);
+            this.ChannelCache.Add(updatedChannel);
         }
         else if (eventName is "CHANNEL_DELETE")
         {
             var channelId = eventJson.GetProperty("id").ToSnowflake();
-            var cachedChannel = RemoveCachedChannel(channelId);
-            eventObject = new EntityDeletedEvent<DiscordChannel>() { EntityId = channelId, CachedEntity = cachedChannel };
-        }
-        else if (eventName is "CHANNEL_PINS_UPDATE")
-        {
-            eventObject = new ChannelPinsUpdatedEvent()
-            {
-                Guild = await GetGuildAsync(eventJson.GetProperty("guild_id").ToSnowflake()),
-                Channel = await GetChannelAsync(eventJson.GetProperty("channel_id").ToSnowflake()),
-                LastPinTimestamp = eventJson.GetProperty("last_pin_timestamp").GetDateTimeOffset(),
+            this.ChannelCache.TryRemoveEntity(channelId, out var cachedChannel);
+
+            eventObject = new EntityDeletedEvent<DiscordChannel>() 
+            { 
+                EntityId = channelId, 
+                CachedEntity = cachedChannel 
             };
         }
         else if (eventName is "THREAD_CREATE")
@@ -233,28 +189,47 @@ public sealed class DiscordGatewayBot : DiscordBot
             var threadChannel = eventJson.ToChannelEntity(this) as DiscordThreadTextChannel;
             eventObject = new EntityCreatedEvent<DiscordThreadTextChannel>() { Entity = threadChannel };
 
-            UpdateThreadCache(threadChannel);
+            var parentChannel = await threadChannel.GetParentChannelAsync();
+            parentChannel.ThreadCache.Add(threadChannel);
         }
         else if (eventName is "THREAD_UPDATE")
         {
-            TryGetCachedThread(eventJson.GetProperty("id").ToSnowflake(), out DiscordThreadTextChannel outdatedThread);
             var updatedThread = eventJson.ToChannelEntity(this) as DiscordThreadTextChannel;
+            var parentChannel = await updatedThread.GetParentChannelAsync();
+            var outdatedThread = parentChannel.ThreadCache.GetAndUpdate(updatedThread);
 
             eventObject = new EntityUpdatedEvent<DiscordThreadTextChannel>()
             {
                 UpdatedEntity = updatedThread,
                 OutdatedEnity = outdatedThread
             };
-
-            UpdateThreadCache(updatedThread);
         }
         else if (eventName is "THREAD_DELETE")
         {
             var threadId = eventJson.GetProperty("id").ToSnowflake();
-            var cachedThread = RemoveCachedThread(threadId);
-            eventObject = new EntityDeletedEvent<DiscordThreadTextChannel>() { EntityId = threadId, CachedEntity =  cachedThread };
+            var parentId = eventJson.GetProperty("parent_id").ToSnowflake();
+            var parentChannel = await GetChannelAsync<DiscordGuildTextChannel>(parentId);
+            parentChannel.ThreadCache.(threadId, out DiscordThreadTextChannel cachedThread);
+
+            eventObject = new EntityDeletedEvent<DiscordThreadTextChannel>() 
+            { 
+                EntityId = threadId, 
+                CachedEntity = cachedThread 
+            };
         }
         else if (eventName is "THREAD_LIST_SYNC")
+        {
+            foreach (var parentChannelId in eventJson.GetProperty("channel_ids").EnumerateArray().Select(json => json.ToSnowflake()))
+            {
+                var parentChannel = await GetChannelAsync<DiscordGuildTextChannel>(parentChannelId);
+                var updatedThreads = eventJson.GetProperty("threads").EnumerateArray()
+                    .Where(threadJson => threadJson.GetProperty("parent_id").ToSnowflake() == parentChannelId)
+                    .Select(threadJson => threadJson.ToChannelEntity(this) as DiscordThreadTextChannel);
+
+                parentChannel.ThreadCache.ReplaceAll(updatedThreads);
+            }
+        }
+        else if (eventName is "THREAD_MEMBER_UPDATE")
         {
 
         }
@@ -272,8 +247,8 @@ public sealed class DiscordGatewayBot : DiscordBot
         DiscordEvent eventObject = eventName switch
         {
             "WEBHOOKS_UPDATE" => throw new NotImplementedException(),
-
             "THREAD_LIST_SYNC" => throw new NotImplementedException(),
+
             "THREAD_MEMBER_UPDATE" => throw new NotImplementedException(),
 
             "GUILD_CREATE" => throw new NotImplementedException(),

@@ -2,7 +2,7 @@
 
 using System.Text.Json;
 
-/// <summary>An event sent by Discord which is not yet implemented by this library.</summary>
+/// <summary>An event sent by Discord which is not implemented by this library.</summary>
 public sealed class UnknownEvent : DiscordEvent
 {
     /// <summary>Event name.</summary>
