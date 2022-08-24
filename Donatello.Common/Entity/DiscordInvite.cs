@@ -2,9 +2,9 @@
 
 using System;
 
-public sealed class DiscordInvite
+public class DiscordInvite
 {
-    public sealed record InviteMetadata(uint Uses, uint MaxUses, TimeSpan MaxAge, DateTimeOffset CreationDate);
+    public record InviteMetadata(uint Uses, uint MaxUses, TimeSpan MaxAge, DateTimeOffset CreationDate);
 
 }
 

@@ -2,19 +2,19 @@
 
 using Donatello.Enumeration;
 using Donatello.Extension.Internal;
-using Microsoft.Extensions.Caching.Memory;
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
 
 /// <summary></summary>
-public sealed class DiscordThreadTextChannel : DiscordTextChannel
+public sealed class DiscordThreadTextChannel : DiscordGuildTextChannel
 {
-    private MemoryCache _memberCache;
+    private ObjectCache<JsonElement> _memberCache;
 
     public DiscordThreadTextChannel(DiscordBot bot, JsonElement json) : base(bot, json) 
     {
-        _memberCache = new MemoryCache(new MemoryCacheOptions());
+        _memberCache = new ObjectCache<JsonElement>();
     }
 
     /// <summary></summary>
@@ -56,9 +56,9 @@ public sealed class DiscordThreadTextChannel : DiscordTextChannel
         => this.Bot.GetGuildAsync(this.Json.GetProperty("guild_id").ToSnowflake());
 
     /// <summary>Fetches the user which created this thread.</summary>
-    public async Task<DiscordMember> GetCreatorAsync()
+    public async Task<DiscordGuildMember> GetCreatorAsync()
     {
-        var guild = await GetGuildAsync();
+        var guild = await this.GetGuildAsync();
         var userId = this.Json.GetProperty("owner_id").ToSnowflake();
         var member = await guild.GetMemberAsync(userId);
 
@@ -66,8 +66,7 @@ public sealed class DiscordThreadTextChannel : DiscordTextChannel
     }
 
     /// <summary></summary>
-    public async ValueTask<DiscordMember> GetMembersAsync()
-    {
+    public async IAsyncEnumerable<DiscordGuildMember>
         _memberCache.
     }
 

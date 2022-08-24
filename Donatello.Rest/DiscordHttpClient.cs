@@ -9,7 +9,6 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -64,23 +63,23 @@ public class DiscordHttpClient
 
     /// <summary>Sends an HTTP request to an endpoint.</summary>
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint)
-        => SendRequestCoreAsync(method, endpoint);
+        => this.SendRequestCoreAsync(method, endpoint);
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload.</summary>
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonDelegate)
-        => SendRequestCoreAsync(method, endpoint, CreateStringContent(jsonDelegate));
+        => this.SendRequestCoreAsync(method, endpoint, this.CreateStringContent(jsonDelegate));
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload.</summary>
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject)
-        => SendRequestCoreAsync(method, endpoint, CreateStringContent(jsonObject));
+        => this.SendRequestCoreAsync(method, endpoint, this.CreateStringContent(jsonObject));
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonDelegate, IList<Attachment> attachments)
-        => SendMultipartRequestAsync(method, endpoint, CreateStringContent(jsonDelegate), attachments);
+        => this.SendMultipartRequestAsync(method, endpoint, this.CreateStringContent(jsonDelegate), attachments);
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
     public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, IList<Attachment> attachments)
-        => SendMultipartRequestAsync(method, endpoint, CreateStringContent(jsonObject), attachments);
+        => this.SendMultipartRequestAsync(method, endpoint, this.CreateStringContent(jsonObject), attachments);
 
     /// <summary>Sends a multi-part HTTP request to an endpoint.</summary>
     private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, StringContent content, IList<Attachment> attachments)
@@ -94,35 +93,32 @@ public class DiscordHttpClient
             multipartContent.Add(attachment.Content, $"files[{index}]", attachment.Name);
         }
 
-        return SendRequestCoreAsync(method, endpoint, multipartContent);
+        return this.SendRequestCoreAsync(method, endpoint, multipartContent);
     }
 
     /// <summary>Sends an HTTP request.</summary>
     private Task<HttpResponse> SendRequestCoreAsync(HttpMethod method, string endpoint, HttpContent content = null)
     {
         var attemptCount = 0;
-        var requestDate = DateTimeOffset.UtcNow;
         var request = new HttpRequestMessage(method, endpoint.Trim('/'));
-        Task<HttpResponse> requestTask = null;
 
         if (content is not null)
             request.Content = content;
 
+        Task<HttpResponse> delayTask = null;
+
         if (_globalBucket.TryUse())
         {
-            if (_routeBucketIds.TryGetValue(request.RequestUri, out var bucketId) && _routeBuckets.TryGetValue(bucketId, out var routeBucket))
-            {
-                if (routeBucket.TryUse())
-                    requestTask = DispatchRequestAsync();
-                else
-                    requestTask = DelayRequestAsync(routeBucket.ResetDate - requestDate);
-            }
+            if (_routeBucketIds.TryGetValue(request.RequestUri, out var bucketId))
+                if (_routeBuckets.TryGetValue(bucketId, out var routeBucket) && (routeBucket.TryUse() is false))
+                    delayTask = DelayRequestAsync(routeBucket.ResetDate - DateTimeOffset.UtcNow);
         }
         else
-            requestTask = DelayRequestAsync(_globalBucket.ResetDate - requestDate);
+            delayTask = DelayRequestAsync(_globalBucket.ResetDate - DateTimeOffset.UtcNow);
+        
+        return delayTask ?? DispatchRequestAsync();
 
-        return requestTask;
-
+        // Send request, update ratelimit bucket, handle 429, return response.
         async Task<HttpResponse> DispatchRequestAsync()
         {
             this.Logger.LogDebug("Sending request to {Method} {Uri} (attempt #{Attempt})", request.Method.Method, request.RequestUri, ++attemptCount);
@@ -130,7 +126,23 @@ public class DiscordHttpClient
             this.Logger.LogDebug("Request to {Url} got {Status} response from Discord.", request.RequestUri.AbsolutePath, response.StatusCode);
 
             if (response.Headers.TryGetValues("X-RateLimit-Bucket", out var values))
-                UpdateRatelimitBucket(values.Single(), response.Headers);
+            {
+                var bucketId = values.Single();
+                _routeBucketIds[request.RequestUri] = bucketId;
+
+                if (_routeBuckets.TryGetValue(bucketId, out var bucket))
+                {
+                    bucket.Update(response.Headers);
+                    this.Logger.LogTrace("Updated existing ratelimit bucket {Id}", bucketId);
+                }
+                else
+                {
+                    bucket = new RatelimitBucket(bucketId, response.Headers);
+
+                    _routeBuckets[bucketId] = bucket;
+                    this.Logger.LogTrace("Created new ratelimit bucket {Id}", bucketId);
+                }
+            }
 
             if (response.StatusCode is HttpStatusCode.TooManyRequests)
             {
@@ -155,42 +167,24 @@ public class DiscordHttpClient
             {
                 Status = response.StatusCode,
                 Message = response.ReasonPhrase,
-                Errors = ParseErrorMessages(responseJson.RootElement),
+                Errors = ,
                 Payload = responseJson.RootElement.Clone()
             };
         }
 
-        async Task<HttpResponse> DelayRequestAsync(TimeSpan delayTime)
+        // Retries the request at a different time.
+        Task<HttpResponse> DelayRequestAsync(TimeSpan delayTime)
         {
             this.Logger.LogWarning("Request to {Uri} delayed until {Time} (attempt #{Attempt})", request.RequestUri.AbsolutePath, DateTime.Now.Add(delayTime), attemptCount);
-
-            await Task.Delay(delayTime);
-            var response = await DispatchRequestAsync();
-
-            return response;
+            return Task.Delay(delayTime).ContinueWith(t => DispatchRequestAsync()).Unwrap();
         }
 
-        void UpdateRatelimitBucket(string bucketId, HttpResponseHeaders headers)
-        {
-            _routeBucketIds[request.RequestUri] = bucketId;
-
-            if (_routeBuckets.TryGetValue(bucketId, out var bucket))
-            {
-                bucket.Update(headers);
-                this.Logger.LogTrace("Updated existing ratelimit bucket {Id}", bucketId);
-            }
-            else
-            {
-                bucket = new RatelimitBucket(bucketId, headers);
-
-                _routeBuckets.TryAdd(bucketId, bucket);
-                this.Logger.LogTrace("Created new ratelimit bucket {Id}", bucketId);
-            }
-        }
-
+        // Returns all error messages present.
         IList<HttpResponse.Error> ParseErrorMessages(JsonElement responseJson)
         {
             var errorMessages = new List<HttpResponse.Error>();
+
+            // TODO: array error
 
             if (responseJson.TryGetProperty("errors", out var errorObject))
             {
@@ -205,13 +199,11 @@ public class DiscordHttpClient
                 {
                     foreach (var errorJson in errorArray.EnumerateArray())
                     {
-                        var code = errorJson.GetProperty("code").GetString();
-                        var message = errorJson.GetProperty("message").GetString();
-                        var error = new HttpResponse.Error() 
-                        { 
-                            ParameterName = name, 
-                            Code = code, 
-                            Message = message 
+                        var error = new HttpResponse.Error()
+                        {
+                            ParameterName = name,
+                            Code = errorJson.GetProperty("code").GetString(),
+                            Message = errorJson.GetProperty("message").GetString()
                         };
 
                         errorMessages.Add(error);
@@ -220,8 +212,13 @@ public class DiscordHttpClient
             }
             else if (responseJson.TryGetProperty("message", out var messageProp))
             {
-                var code = responseJson.GetProperty("code").GetString();
-                var error = new HttpResponse.Error() { ParameterName = string.Empty, Code = code, Message = messageProp.GetString() };
+                var error = new HttpResponse.Error()
+                {
+                    ParameterName = string.Empty,
+                    Code = responseJson.GetProperty("code").GetString(),
+                    Message = messageProp.GetString()
+                };
+
                 errorMessages.Add(error);
             }
 

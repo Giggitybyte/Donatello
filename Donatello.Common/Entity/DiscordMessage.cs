@@ -1,5 +1,6 @@
 ﻿namespace Donatello.Entity;
 
+using Donatello.Enumeration;
 using Donatello.Extension.Internal;
 using System;
 using System.Collections.Generic;
@@ -8,7 +9,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 
 /// <summary>A message sent in a channel.</summary>
-public sealed class DiscordMessage : DiscordEntity
+public class DiscordMessage : DiscordEntity
 {
     public DiscordMessage(DiscordBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
 
@@ -26,42 +27,37 @@ public sealed class DiscordMessage : DiscordEntity
         => this.Bot.GetChannelAsync<DiscordTextChannel>(this.Json.GetProperty("channel_id").ToSnowflake());
 
     /// <summary></summary>
-    public async ValueTask<EntityCollection<DiscordUser>> GetMentionedUsersAsync()
+    public async IAsyncEnumerable<DiscordUser> GetMentionedUsersAsync()
     {
         var mentionArray = this.Json.GetProperty("mentions");
-
         if (mentionArray.GetArrayLength() is 0)
-            return EntityCollection<DiscordUser>.Empty;
+            yield break;
 
         var userDictionary = new Dictionary<DiscordSnowflake, DiscordUser>();
-
         foreach (var userId in mentionArray.EnumerateArray().Select(partialUser => partialUser.GetProperty("id").ToSnowflake()))
         {
             var user = await this.Bot.GetUserAsync(userId);
 
             if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
-            {
-                var member = new DiscordMember(this.Bot, guildProp.ToSnowflake(), user, memberJson);
-                userDictionary.Add(member.Id, member);
-            }
+                yield return new DiscordGuildMember(this.Bot, guildProp.ToSnowflake(), user, memberJson);
             else
-                userDictionary.Add(user.Id, user);
+                yield return user;
         }
-
-        return new EntityCollection<DiscordUser>(userDictionary);
     }
 
-    public async ValueTask<EntityCollection<DiscordRole>> GetMentionedRolesAsync()
+    /// <summary></summary>
+    public async IAsyncEnumerable<DiscordRole> GetMentionedRolesAsync()
     {
         var mentionArray = this.Json.GetProperty("mention_roles");
-        var channel = await GetChannelAsync();
+        var channel = await this.GetChannelAsync();
 
-        if (channel is not DiscordGuildTextChannel ||  mentionArray.GetArrayLength() is 0)
-            return EntityCollection<DiscordRole>.Empty;
+        if (channel is not DiscordGuildTextChannel guildChannel || mentionArray.GetArrayLength() is 0)
+            yield break;
 
-        var roleDictionary = new Dictionary<DiscordSnowflake, DiscordRole>();
-        foreach (var roleId in mentionArray.EnumerateArray())
+        foreach (var roleId in mentionArray.EnumerateArray().Select(json => json.ToSnowflake()))
         {
+            var guild = await guildChannel.GetGuildAsync();
+            yield return await guild.GetRoleAsync(roleId);
         }
     }
 
@@ -110,7 +106,7 @@ public sealed class DiscordMessage : DiscordEntity
         var partialUserJson = this.Json.GetProperty("author");        
 
         if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
-            author = new DiscordMember(this.Bot, guildProp.ToSnowflake(), partialUserJson, memberJson);
+            author = new DiscordGuildMember(this.Bot, guildProp.ToSnowflake(), partialUserJson, memberJson);
         else
             author = new DiscordUser(this.Bot, partialUserJson);
 

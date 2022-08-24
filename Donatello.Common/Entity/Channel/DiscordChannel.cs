@@ -8,7 +8,8 @@ using System.Text.Json;
 /// <summary></summary>
 public abstract class DiscordChannel : DiscordEntity, IChannel
 {
-    internal DiscordChannel(DiscordBot bot, JsonElement json) : base(bot, json)
+    internal DiscordChannel(DiscordBot bot, JsonElement json) 
+        : base(bot, json)
     {
         var jsonType = json.GetProperty("type").GetInt32();
 

@@ -18,15 +18,11 @@ public sealed class MessageBuilder : EntityBuilder
     private DiscordMessage _messageReference;
     private MentionConfiguration _mentionConfiguration;
 
-    /// <summary></summary>
-    public MessageBuilder()
-    {
-        _embeds = new List<EmbedBuilder>(10);
-    }
-
     /// <summary>Add an embed to the message.</summary>
     public MessageBuilder AppendEmbed(Action<EmbedBuilder> embedDelegate)
     {
+        _embeds ??= new List<EmbedBuilder>(10);
+
         if (_embeds.Count + 1 > _embeds.Capacity)
             throw new InvalidOperationException($"Message cannot have more than {_embeds.Capacity} embeds.");
 
@@ -70,7 +66,7 @@ public sealed class MessageBuilder : EntityBuilder
 
     internal override void ConstructJson(in Utf8JsonWriter jsonWriter)
     {
-        if (_embeds.Count is 0 && _attachments.Count is 0 && _content is null && _stickerIds.Count is 0)
+        if (_embeds is null && _attachments is null && _content is null && _stickerIds is null)
             throw new FormatException("A message must have an embed, file, sticker, or text.");
 
         jsonWriter.WriteString("content", _content);

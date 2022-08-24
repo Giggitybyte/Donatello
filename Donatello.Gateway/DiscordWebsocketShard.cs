@@ -1,5 +1,6 @@
 ﻿namespace Donatello.Gateway;
 
+using Donatello.Gateway.Extension;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
@@ -103,7 +104,7 @@ public sealed class DiscordWebsocketShard
 
         _websocketClient = new ClientWebSocket();
         _websocketCts = new CancellationTokenSource();
-        _wsReceieveTask = WebsocketReceiveLoop(_websocketCts.Token);
+        _wsReceieveTask = this.WebsocketReceiveLoop(_websocketCts.Token);
 
         string gatewayUrl = (_sessionResumeUrl is not null && this.SessionId is not null) ? _sessionResumeUrl : "wss://gateway.discord.gg";
         return _websocketClient.ConnectAsync(new Uri($"{gatewayUrl}?v=10&encoding=json"), CancellationToken.None);
@@ -142,8 +143,8 @@ public sealed class DiscordWebsocketShard
 
     private async Task ReconnectAsync()
     {
-        await DisconnectAsync(invalidateSession: false);
-        await ConnectAsync();
+        await this.DisconnectAsync(invalidateSession: false);
+        await this.ConnectAsync();
     }
 
     /// <summary>
@@ -188,7 +189,7 @@ public sealed class DiscordWebsocketShard
             else if (opcode is 1)
                 _heartbeatDelayCts.Cancel();
             else if (opcode is 7)
-                await ReconnectAsync();
+                await this.ReconnectAsync();
             else if (opcode is 9)
             {
                 if (eventJson.GetProperty("d").GetBoolean() is false)
@@ -197,7 +198,7 @@ public sealed class DiscordWebsocketShard
                     this.EventIndex = 0;
                 }
 
-                await ReconnectAsync();
+                await this.ReconnectAsync();
             }
             else if (opcode is 10)
             {
@@ -224,8 +225,8 @@ public sealed class DiscordWebsocketShard
                 await Task.Delay(intervalMs, _heartbeatDelayCts.Token);
 
                 var heartbeatTask = this.EventIndex is not 0
-                    ? SendPayloadAsync(1, JsonValueKind.Number, this.EventIndex)
-                    : SendPayloadAsync(1, JsonValueKind.Null);
+                    ? this.SendPayloadAsync(1, JsonValueKind.Number, this.EventIndex)
+                    : this.SendPayloadAsync(1, JsonValueKind.Null);
 
                 await heartbeatTask;
                 lastHeartbeartDate = DateTime.Now;
@@ -243,7 +244,7 @@ public sealed class DiscordWebsocketShard
                 else if (++missedHeartbeats > 3)
                 {
                     _logger.LogCritical("Discord failed to acknowledge more than 3 heartbeat payloads; reconnecting.");
-                    await ReconnectAsync();
+                    await this.ReconnectAsync();
                 }
                 else
                     _logger.LogWarning("Discord failed to acknowledge {Number} heartbeat payloads.", missedHeartbeats);

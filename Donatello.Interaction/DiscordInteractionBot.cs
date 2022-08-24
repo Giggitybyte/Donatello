@@ -55,7 +55,7 @@ public sealed class DiscordInteractionBot : DiscordBot
         if (this.IsRunning)
             throw new InvalidOperationException("Instance is already active.");
 
-        _interactionListenerTask = InteractionListenerLoop(_cts.Token);
+        _interactionListenerTask = this.InteractionListenerLoop(_cts.Token);
 
         foreach (var command in _commandService.GetAllCommands())
         {
@@ -99,7 +99,7 @@ public sealed class DiscordInteractionBot : DiscordBot
             bool isValidSignature = SignatureAlgorithm.Ed25519.Verify(_publicKey, Encoding.UTF8.GetBytes($"{timestamp}{data}"), Convert.FromHexString(signature));
 
             if (isValidSignature)
-                await ProcessInteractionAsync(data, response);
+                await this.ProcessInteractionAsync(data, response);
             else
             {
                 response.StatusCode = 401;

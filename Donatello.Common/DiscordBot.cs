@@ -6,20 +6,18 @@ using Donatello.Rest;
 using Donatello.Rest.Extension.Endpoint;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using System;
 using System.Threading.Tasks;
 
-/// <summary>Abstract implementation of <see cref="IBot"/>.</summary>
-public abstract class DiscordBot : IBot
+public abstract class DiscordBot
 {
     public DiscordBot(string token, ILogger logger = null)
     {
         this.Token = token;
         this.Logger = logger ?? NullLogger.Instance;
         this.RestClient = new DiscordHttpClient(TokenType.Bot, token, this.Logger);
-        this.UserCache = new EntityCache<DiscordUser>(TimeSpan.FromMinutes(30), TimeSpan.FromHours(1));
-        this.GuildCache = new EntityCache<DiscordGuild>(TimeSpan.FromMinutes(30), TimeSpan.FromHours(2));
-        this.ChannelCache = new EntityCache<DiscordChannel>(TimeSpan.FromMinutes(30), TimeSpan.FromHours(1));
+        this.UserCache = new ObjectCache<DiscordUser>();
+        this.GuildCache = new ObjectCache<DiscordGuild>();
+        this.ChannelCache = new ObjectCache<DiscordChannel>();
     }
 
     /// <summary>Discord API token string.</summary>
@@ -32,49 +30,63 @@ public abstract class DiscordBot : IBot
     protected internal DiscordHttpClient RestClient { get; private init; }
 
     /// <summary>Cached user instances.</summary>
-    public EntityCache<DiscordUser> UserCache { get; private init; }
+    public ObjectCache<DiscordUser> UserCache { get; private init; }
 
     /// <summary>Cached guild instances.</summary>
-    public EntityCache<DiscordGuild> GuildCache { get; private init; }
+    public ObjectCache<DiscordGuild> GuildCache { get; private init; }
 
     /// <summary>Cached channel instances.</summary>
-    public EntityCache<DiscordChannel> ChannelCache { get; private init; }
+    public ObjectCache<DiscordChannel> ChannelCache { get; private init; }
 
-    /// <inheritdoc cref="IBot.StartAsync"/>
+    /// <summary>Connects to the Discord API.</summary>
     public abstract ValueTask StartAsync();
 
-    /// <inheritdoc cref="IBot.StopAsync"/>
+    /// <summary>Disconnects from the Discord API and releases any resources in use.</summary>
     public abstract ValueTask StopAsync();
 
-    /// <inheritdoc cref="IBot.GetUserAsync(DiscordSnowflake)"/>
+    /// <summary>Fetches a user object using a snowflake ID.</summary>
     public virtual async ValueTask<DiscordUser> GetUserAsync(DiscordSnowflake userId)
     {
-        if (this.UserCache.TryGetEntity(userId, out DiscordUser user) is false)
+        if (this.UserCache.Contains(userId, out DiscordUser user) is false)
         {
             var userJson = await this.RestClient.GetUserAsync(userId);
             user = new DiscordUser(this, userJson);
 
-            this.UserCache.Add(user);
+            this.UserCache.Add(userId, user);
         }
 
         return user;
     }
 
-    /// <inheritdoc cref="IBot.GetGuildAsync(DiscordSnowflake)"/>
+    /// <summary>Fetches a guild object using an ID.</summary>
     public virtual async ValueTask<DiscordGuild> GetGuildAsync(DiscordSnowflake guildId)
     {
-        var guildJson = await this.RestClient.GetGuildAsync(guildId);
-        return new DiscordGuild(this, guildJson);
+        if (this.GuildCache.Contains(guildId, out DiscordGuild guild) is false)
+        {
+            var guildJson = await this.RestClient.GetGuildAsync(guildId);
+            guild = new DiscordGuild(this, guildJson);
+
+            this.GuildCache.Add(guildId, guild);
+        }
+
+        return guild;
     }
 
-    /// <inheritdoc cref="IBot.GetChannelAsync(DiscordSnowflake)"/>
+    /// <summary>Fetches a channel object using an ID.</summary>
     public virtual ValueTask<DiscordChannel> GetChannelAsync(DiscordSnowflake channelId)
-        => GetChannelAsync<DiscordChannel>(channelId);
+        => this.GetChannelAsync<DiscordChannel>(channelId);
 
     /// <summary>Fetches a channel using an ID and returns it as a <typeparamref name="TChannel"/> object.</summary>
     public virtual async ValueTask<TChannel> GetChannelAsync<TChannel>(DiscordSnowflake channelId) where TChannel : DiscordChannel
     {
-        var channelJson = await this.RestClient.GetChannelAsync(channelId);
-        return (TChannel)channelJson.ToChannelEntity(this);
+        if (this.ChannelCache.Contains(channelId, out DiscordChannel channel) is false)
+        {
+            var channelJson = await this.RestClient.GetChannelAsync(channelId);
+            channel = channelJson.ToChannelEntity(this);
+
+            this.ChannelCache.Add(channelId, channel);
+        }
+
+        return (TChannel)channel;
     }
 }

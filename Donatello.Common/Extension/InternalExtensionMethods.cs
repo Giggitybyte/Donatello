@@ -54,6 +54,8 @@ internal static class InternalExtensionMethods
         return channel;
     }
 
+    internal static DiscordChannel CreateChannelEntity<TExpected>(this DiscordBot )
+
     /// <summary>
     /// Converts each element in a JSON array to a <typeparamref name="TEntity"/> and returns 
     /// the collection as a dictionary, where the key is the snowflake ID of each entity value.

@@ -14,6 +14,7 @@ using Donatello.Entity;
 using Donatello.Enumeration;
 using Donatello.Extension.Internal;
 using Donatello.Gateway.Event;
+using Donatello.Gateway.Extension;
 using Microsoft.Extensions.Logging;
 
 /// <summary>Implementation for Discord's real-time websocket API.</summary>
@@ -27,7 +28,7 @@ public sealed class DiscordGatewayBot : DiscordBot
     private GatewayIntent _intents;
     private Subject<DiscordEvent> _eventSequence;
     private List<DiscordSnowflake> _unavailableGuilds;
-    private DiscordSnowflake _botUserId;
+    private DiscordSnowflake _id;
 
     /// <param name="token"></param>
     /// <param name="intents"></param>
@@ -48,9 +49,6 @@ public sealed class DiscordGatewayBot : DiscordBot
     /// <summary></summary>
     public IObservable<DiscordEvent> Events => _eventSequence;
 
-    /// <summary></summary>
-    public DiscordUser Self { get; private set; }
-
     /// <summary>Connects to the Discord gateway.</summary>
     public override async ValueTask StartAsync()
     {
@@ -65,12 +63,10 @@ public sealed class DiscordGatewayBot : DiscordBot
             var shard = new DiscordWebsocketShard(shardId, this.Logger);
 
             shard.Events.Where(e => e.GetProperty("op").GetInt32() is 0)
-                .SelectMany(e => PublishDiscordEventAsync(e).ToObservable())
-                .Subscribe();
+                .Subscribe(e => this.PublishDiscordEventAsync(shard, e).ToObservable());
 
             shard.Events.Where(e => e.GetProperty("op").GetInt32() is 10)
-                .SelectMany(e => SendShardIdentityAsync(shard).ToObservable())
-                .Subscribe();
+                .Subscribe(e => this.SendShardIdentityAsync(shard).ToObservable());
 
             _shards[shardId] = shard;
         }
@@ -94,6 +90,9 @@ public sealed class DiscordGatewayBot : DiscordBot
         await Task.WhenAll(disconnectTasks);
         Array.Clear(_shards, 0, _shards.Length);
     }
+
+    public ValueTask<DiscordUser> GetSelfAsync()
+        => this.GetUserAsync(_id);
 
     /// <summary></summary>
     private async Task SendShardIdentityAsync(DiscordWebsocketShard shard)
@@ -132,176 +131,134 @@ public sealed class DiscordGatewayBot : DiscordBot
     }
 
     /// <summary></summary>
-    private async Task PublishDiscordEventAsync(JsonElement gatewayEvent)
+    private async Task PublishDiscordEventAsync(DiscordWebsocketShard shard, JsonElement gatewayEvent)
     {
         var eventName = gatewayEvent.GetProperty("t").GetString();
         var eventJson = gatewayEvent.GetProperty("d");
 
-        DiscordEvent eventObject;
+        DiscordEvent eventObject = eventName switch
+        {
+            "READY" => Connected(),
+            "CHANNEL_CREATE" => ChannelCreated(),
+            "CHANNEL_UPDATE" => ChannelUpdated(),
+            "CHANNEL_DELETE" => ChannelDeleted(),
+            "THREAD_CREATE" => await ThreadCreated(),
+            "THREAD_UPDATE" => await ThreadUpdated(),
+            "THREAD_DELETE" => await ThreadDeleted(),
+            "THREAD_LIST_SYNC" => 
 
-        if (eventName is "READY")
+            _ => Unknown()
+        };
+
+        eventObject.Bot = this;
+        eventObject.Shard = shard;
+
+        _eventSequence.OnNext(eventObject);
+
+
+        ConnectedEvent Connected() // maybe these should be observable sequences??? yes
         {
             var shardId = eventJson.GetProperty("shard").EnumerateArray().First().GetInt16();
-            eventObject = new ConnectedEvent() { Shard = _shards[shardId] };
 
             foreach (var partialGuild in eventJson.GetProperty("guilds").EnumerateArray())
                 _unavailableGuilds.Add(partialGuild.GetProperty("id").ToSnowflake());
 
             var user = new DiscordUser(this, eventJson.GetProperty("user"));
-            if (this.Self.Id is null && this.Self.Id != user.Id)
-                this.Self = user;
+            _id = user.Id;
+            this.UserCache.Add(user.Id, user);
 
-            this.UserCache.Add(user);
+            return new()
+            {
+                Bot = this,
+                Shard = _shards[shardId],
+                User = user
+            };
         }
-        else if (eventName is "CHANNEL_CREATE")
+
+        EntityCreatedEvent<DiscordChannel> ChannelCreated()
         {
             var channel = eventJson.ToChannelEntity(this);
-            eventObject = new EntityCreatedEvent<DiscordChannel>() { Entity = channel };
+            this.ChannelCache.Add(channel.Id, channel);
 
-            this.ChannelCache.Add(channel);
+            return new() 
+            { 
+                Entity = channel 
+            };
         }
-        else if (eventName is "CHANNEL_UPDATE")
+
+        EntityUpdatedEvent<DiscordChannel> ChannelUpdated()
         {
             var updatedChannel = eventJson.ToChannelEntity(this);
-            var outdatedChannel = this.ChannelCache.GetAndUpdate(updatedChannel);
+            var outdatedChannel = this.ChannelCache.Replace(updatedChannel.Id, updatedChannel);
 
-            eventObject = new EntityUpdatedEvent<DiscordChannel>()
+            return new()
             {
                 UpdatedEntity = updatedChannel,
                 OutdatedEnity = outdatedChannel
             };
-
-            this.ChannelCache.Add(updatedChannel);
         }
-        else if (eventName is "CHANNEL_DELETE")
+
+        EntityDeletedEvent<DiscordChannel> ChannelDeleted()
         {
             var channelId = eventJson.GetProperty("id").ToSnowflake();
-            this.ChannelCache.TryRemoveEntity(channelId, out var cachedChannel);
+            var cachedChannel = this.ChannelCache.Remove(channelId);
 
-            eventObject = new EntityDeletedEvent<DiscordChannel>() 
-            { 
-                EntityId = channelId, 
-                CachedEntity = cachedChannel 
+            return new()
+            {
+                EntityId = channelId,
+                CachedEntity = cachedChannel
             };
         }
-        else if (eventName is "THREAD_CREATE")
+
+        async ValueTask<EntityCreatedEvent<DiscordThreadTextChannel>> ThreadCreated()
         {
             var threadChannel = eventJson.ToChannelEntity(this) as DiscordThreadTextChannel;
-            eventObject = new EntityCreatedEvent<DiscordThreadTextChannel>() { Entity = threadChannel };
+            var guild = await threadChannel.GetGuildAsync();
+            guild.ThreadCache.Add(threadChannel.Id, threadChannel);
 
-            var parentChannel = await threadChannel.GetParentChannelAsync();
-            parentChannel.ThreadCache.Add(threadChannel);
+            return new() 
+            { 
+                Entity = threadChannel 
+            };
         }
-        else if (eventName is "THREAD_UPDATE")
+
+        async ValueTask<EntityUpdatedEvent<DiscordThreadTextChannel>> ThreadUpdated()
         {
             var updatedThread = eventJson.ToChannelEntity(this) as DiscordThreadTextChannel;
-            var parentChannel = await updatedThread.GetParentChannelAsync();
-            var outdatedThread = parentChannel.ThreadCache.GetAndUpdate(updatedThread);
+            var guild = await updatedThread.GetGuildAsync();
+            var outdatedThread = guild.ThreadCache.Replace(updatedThread.Id, updatedThread);
 
-            eventObject = new EntityUpdatedEvent<DiscordThreadTextChannel>()
+            return new()
             {
                 UpdatedEntity = updatedThread,
                 OutdatedEnity = outdatedThread
             };
         }
-        else if (eventName is "THREAD_DELETE")
+
+        async ValueTask<EntityDeletedEvent<DiscordThreadTextChannel>> ThreadDeleted()
         {
             var threadId = eventJson.GetProperty("id").ToSnowflake();
-            var parentId = eventJson.GetProperty("parent_id").ToSnowflake();
-            var parentChannel = await GetChannelAsync<DiscordGuildTextChannel>(parentId);
-            parentChannel.ThreadCache.(threadId, out DiscordThreadTextChannel cachedThread);
+            var guildId = eventJson.GetProperty("guild_id").ToSnowflake();
+            var guild = await this.GetGuildAsync(guildId);
+            var cachedThread = guild.ThreadCache.Remove(threadId);
 
-            eventObject = new EntityDeletedEvent<DiscordThreadTextChannel>() 
-            { 
-                EntityId = threadId, 
-                CachedEntity = cachedThread 
+            return new()
+            {
+                EntityId = threadId,
+                CachedEntity = cachedThread
             };
         }
-        else if (eventName is "THREAD_LIST_SYNC")
-        {
-            foreach (var parentChannelId in eventJson.GetProperty("channel_ids").EnumerateArray().Select(json => json.ToSnowflake()))
-            {
-                var parentChannel = await GetChannelAsync<DiscordGuildTextChannel>(parentChannelId);
-                var updatedThreads = eventJson.GetProperty("threads").EnumerateArray()
-                    .Where(threadJson => threadJson.GetProperty("parent_id").ToSnowflake() == parentChannelId)
-                    .Select(threadJson => threadJson.ToChannelEntity(this) as DiscordThreadTextChannel);
 
-                parentChannel.ThreadCache.ReplaceAll(updatedThreads);
-            }
-        }
-        else if (eventName is "THREAD_MEMBER_UPDATE")
-        {
+        
 
-        }
-        else
+        UnknownEvent Unknown()
         {
             this.Logger.LogWarning("Received unknown gateway event: {EventName}", eventName);
-            eventObject = new UnknownEvent() { Name = eventName, Json = eventJson };
+            return new() 
+            { 
+                Name = eventName, 
+                Json = eventJson 
+            };
         }
-
-        eventObject.Bot = this;
-
-
-
-
-        DiscordEvent eventObject = eventName switch
-        {
-            "WEBHOOKS_UPDATE" => throw new NotImplementedException(),
-            "THREAD_LIST_SYNC" => throw new NotImplementedException(),
-
-            "THREAD_MEMBER_UPDATE" => throw new NotImplementedException(),
-
-            "GUILD_CREATE" => throw new NotImplementedException(),
-            "GUILD_UPDATE" => throw new NotImplementedException(),
-            "GUILD_DELETE" => throw new NotImplementedException(),
-            "GUILD_BAN_ADD" => throw new NotImplementedException(),
-            "GUILD_BAN_REMOVE" => throw new NotImplementedException(),
-            "GUILD_EMOJIS_UPDATE" => throw new NotImplementedException(),
-            "GUILD_STICKERS_UPDATE" => throw new NotImplementedException(),
-            "GUILD_INTREGRATIONS_UPDATE" => throw new NotImplementedException(),
-            "GUILD_MEMBER_ADD" => throw new NotImplementedException(),
-            "GUILD_MEMBER_REMOVE" => throw new NotImplementedException(),
-            "GUILD_MEMBER_UPDATE" => throw new NotImplementedException(),
-            "GUILD_MEMBERS_CHUNK" => throw new NotImplementedException(),
-            "GUILD_ROLE_CREATE" => throw new NotImplementedException(),
-            "GUILD_ROLE_UPDATE" => throw new NotImplementedException(),
-            "GUILD_ROLE_DELETE" => throw new NotImplementedException(),
-            "GUILD_SCHEDULED_EVENT_CREATE" => throw new NotImplementedException(),
-            "GUILD_SCHEDULED_EVENT_UPDATE" => throw new NotImplementedException(),
-            "GUILD_SCHEDULED_EVENT_DELETE" => throw new NotImplementedException(),
-            "GUILD_SCHEDULED_EVENT_USER_ADD" => throw new NotImplementedException(),
-            "GUILD_SCHEDULED_EVENT_USER_REMOVE" => throw new NotImplementedException(),
-
-            "INTEGRATION_CREATE" => throw new NotImplementedException(),
-            "INTEGRATION_UPDATE" => throw new NotImplementedException(),
-            "INTEGRATION_DELETE" => throw new NotImplementedException(),
-            "INTERACTION_CREATE" => throw new NotImplementedException(),
-
-            "INVITE_CREATE" => throw new NotImplementedException(),
-            "INVITE_DELETE" => throw new NotImplementedException(),
-
-            "MESSAGE_CREATE" => throw new NotImplementedException(),
-            "MESSAGE_UPDATE" => throw new NotImplementedException(),
-            "MESSAGE DELETE" => throw new NotImplementedException(),
-            "MESSAGE_DELETE_BULK" => throw new NotImplementedException(),
-            "MESSAGE_REACTION_ADD" => throw new NotImplementedException(),
-            "MESSAGE_REACTION_REMOVE" => throw new NotImplementedException(),
-            "MESSAGE_REACTION_REMOVE_EMOJI" => throw new NotImplementedException(),
-            "TYPING_START" => throw new NotImplementedException(),
-
-            "STAGE_INSTANCE_CREATE" => throw new NotImplementedException(),
-            "STAGE_INSTANCE_UPDATE" => throw new NotImplementedException(),
-            "STAGE_INSTANCE_DELETE" => throw new NotImplementedException(),
-
-            "VOICE_STATE_UPDATE" => throw new NotImplementedException(),
-            "VOICE_SERVER_UPDATE" => throw new NotImplementedException(),
-
-            "PRESENSE_UPDATE" => throw new NotImplementedException(),
-            "USER_UPDATE" => throw new NotImplementedException(),
-
-            _ => UnknownEvent()
-        };
-
-        _eventSequence.OnNext(eventObject);
     }
 }

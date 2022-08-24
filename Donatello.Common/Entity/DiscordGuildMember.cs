@@ -6,41 +6,46 @@ using System.Text.Json;
 using System.Threading.Tasks;
 
 /// <summary></summary>
-public sealed class DiscordMember : DiscordUser
+public class DiscordGuildMember : DiscordUser
 {
     private ulong _guildId;
-    private JsonElement _member;
+    protected JsonElement _guildMember;
 
-    public DiscordMember(DiscordBot bot, DiscordSnowflake guildId, JsonElement userJson, JsonElement memberJson) : base(bot, userJson)
+    public DiscordGuildMember(DiscordBot bot, DiscordSnowflake guildId, JsonElement userJson, JsonElement memberJson) 
+        : base(bot, userJson)
     {
-        _member = memberJson;
+        _guildMember = memberJson;
         _guildId = guildId;
     }
 
-    public DiscordMember(DiscordBot bot, DiscordSnowflake guildId, DiscordUser user, JsonElement memberJson) : this(bot, guildId, user.Json.Clone(), memberJson) 
-    { 
-        /* ^ . ^ */ 
-    }
+    public DiscordGuildMember(DiscordBot bot, DiscordSnowflake guildId, DiscordUser user, JsonElement memberJson) 
+        : this(bot, guildId, user.Json.Clone(), memberJson) { }
+
+    /// <summary>Backing guild member object.</summary>
+    protected internal new JsonElement Json => _guildMember;
+
+    /// <summary></summary>
+    protected internal JsonElement UserJson => base.Json;
 
     /// <summary>When the member joined the guild.</summary>
-    public DateTimeOffset JoinDate => _member.GetProperty("joined_at").GetDateTimeOffset();
+    public DateTimeOffset JoinDate => _guildMember.GetProperty("joined_at").GetDateTimeOffset();
 
     /// <summary>Whether the member is deafened in guild voice channels.</summary>
-    public bool IsDeafened => _member.GetProperty("deaf").GetBoolean();
+    public bool IsDeafened => _guildMember.GetProperty("deaf").GetBoolean();
 
     /// <summary>Whether the member is muted in guild voice channels.</summary>
-    public bool IsMuted => _member.GetProperty("mute").GetBoolean();
+    public bool IsMuted => _guildMember.GetProperty("mute").GetBoolean();
 
     /// <summary>Whether the member has not yet met the guild's <see href="https://support.discord.com/hc/en-us/articles/1500000466882">membership screening</see> requirements.</summary>
-    /// <remarks>A pending member will not be able to interact with the server until they pass the screening requirements.</remarks>
-    public bool IsPending => _member.TryGetProperty("pending", out var property) && property.GetBoolean();
+    /// <remarks>A pending member will not be able to interact with the guild until they pass the screening requirements.</remarks>
+    public bool IsPending => _guildMember.TryGetProperty("pending", out var property) && property.GetBoolean();
 
     /// <summary></summary>
     public override string AvatarUrl
     {
         get
         {
-            if (_member.TryGetProperty("avatar", out var avatarHash) && avatarHash.ValueKind is not JsonValueKind.Null)
+            if (_guildMember.TryGetProperty("avatar", out var avatarHash) && avatarHash.ValueKind is not JsonValueKind.Null)
             {
                 var extension = avatarHash.GetString().StartsWith("a_") ? "gif" : "png";
                 return $"https://cdn.discordapp.com/avatars/guilds/{_guildId}/users/{this.Id}/avatars/{avatarHash.GetString()}.{extension}";
@@ -58,7 +63,7 @@ public sealed class DiscordMember : DiscordUser
     /// </param>
     public bool HasNickname(out string nickname)
     {
-        if (_member.TryGetProperty("nick", out var prop) && prop.ValueKind is not JsonValueKind.Null)
+        if (_guildMember.TryGetProperty("nick", out var prop) && prop.ValueKind is not JsonValueKind.Null)
             nickname = prop.GetString();
         else
             nickname = string.Empty;
@@ -71,19 +76,14 @@ public sealed class DiscordMember : DiscordUser
         => this.Bot.GetGuildAsync(_guildId);
 
     /// <summary></summary>
-    public async ValueTask<EntityCollection<DiscordRole>> GetRolesAsync()
+    public async IAsyncEnumerable<DiscordRole> GetRolesAsync()
     {
-        var guild = await GetGuildAsync();
-        var roleIds = _member.GetProperty("roles");
+        var guild = await this.GetGuildAsync();
+        var roleIds = _guildMember.GetProperty("roles");
         var roles = new Dictionary<DiscordSnowflake, DiscordRole>(roleIds.GetArrayLength());
 
         foreach (var roleId in roleIds.EnumerateArray())
-        {
-            var role = await guild.GetRoleAsync(roleId.GetUInt64());
-            roles.Add(role.Id, role);
-        }
-
-        return new EntityCollection<DiscordRole>(roles);
+            yield return await guild.GetRoleAsync(roleId.GetUInt64());
     }
 
     /// <summary>
@@ -98,7 +98,7 @@ public sealed class DiscordMember : DiscordUser
     /// </param>
     public bool IsBooster(out DateTimeOffset startDate)
     {
-        if (_member.TryGetProperty("premium_since", out var property))
+        if (_guildMember.TryGetProperty("premium_since", out var property))
             startDate = property.GetDateTimeOffset();
         else
             startDate = DateTimeOffset.MinValue;
@@ -111,7 +111,7 @@ public sealed class DiscordMember : DiscordUser
     /// </summary>
     public bool IsCommunicationDisabled(out DateTimeOffset expirationDate)
     {
-        if (_member.TryGetProperty("communication_disabled_until", out var property) && property.ValueKind is not JsonValueKind.Null)
+        if (_guildMember.TryGetProperty("communication_disabled_until", out var property) && property.ValueKind is not JsonValueKind.Null)
         {
             var date = property.GetDateTimeOffset();
             if (DateTimeOffset.UtcNow < date)

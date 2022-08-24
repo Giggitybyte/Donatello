@@ -9,7 +9,7 @@ internal static class InternalExtensionMethods
     /// <remarks><see langword="default"/> parameters as well as parameters with <see langword="null"/> keys will be ignored.</remarks>
     internal static string ToParamString(this (string key, string value)[] paramArray)
     {
-        if (paramArray is null || paramArray.Length is 0)
+        if (paramArray == default || paramArray.Length is 0)
             return string.Empty;
 
         var builder = new StringBuilder();

@@ -15,7 +15,7 @@ public sealed class RatelimitBucket
         this.Remaining = uint.MaxValue;
 
         if (headers is not null)
-            Update(headers);
+            this.Update(headers);
         else
         {
             _resetIncrement = TimeSpan.FromSeconds(1);

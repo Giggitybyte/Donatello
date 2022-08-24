@@ -10,7 +10,7 @@ public interface IEntity : IEquatable<IEntity>
     protected internal JsonElement Json { get; }
 
     /// <summary>Bot instance which contains and manages this object.</summary>
-    protected IBot Bot { get; }
+    protected DiscordBot Bot { get; }
 
     /// <summary>Unique snowflake identifier.</summary>
     public DiscordSnowflake Id { get; }

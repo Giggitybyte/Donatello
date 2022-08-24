@@ -1,5 +1,6 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello;
 
+using Donatello.Entity;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -29,7 +30,7 @@ public sealed class EntityCollection<TEntity> : IEnumerable<TEntity> where TEnti
     }
 
     /// <summary></summary>
-    public TEntity this[DiscordSnowflake entityId] => TryGetEntity(entityId, out var entity) ? entity : default;
+    public TEntity this[DiscordSnowflake entityId] => this.TryGetEntity(entityId, out var entity) ? entity : default;
 
     /// <summary>Read-only instance which contains zero entities.</summary>
     public static EntityCollection<TEntity> Empty => _emptyInstance;

@@ -2,7 +2,7 @@
 
 using System.Text.Json;
 
-public sealed class DiscordRole : DiscordEntity
+public class DiscordRole : DiscordEntity
 {
     public DiscordRole(DiscordBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
 }

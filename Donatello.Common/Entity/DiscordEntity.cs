@@ -6,22 +6,28 @@ using System.Text.Json;
 
 public abstract class DiscordEntity : IEntity
 {
+    private readonly JsonElement _entity;
+
     /// <param name="bot">Bot instance to provide convinence methods.</param>
-    /// <param name="jsonObject">Backing JSON entity.</param>
-    protected DiscordEntity(DiscordBot bot, JsonElement jsonObject)
+    /// <param name="entityJson">Backing JSON entity.</param>
+    protected DiscordEntity(DiscordBot bot, JsonElement entityJson)
     {
-        if (jsonObject.ValueKind is not JsonValueKind.Object)
-            throw new ArgumentException($"Expected JSON object, got {jsonObject.ValueKind}.", nameof(jsonObject));
+        if (entityJson.ValueKind is not JsonValueKind.Object)
+            throw new ArgumentException($"Expected JSON object, got {entityJson.ValueKind}.", nameof(entityJson));
 
         this.Bot = bot;
-        this.Json = jsonObject;
+        _entity = entityJson;
     }
+
+    JsonElement IEntity.Json => this.Json;
+    DiscordBot IEntity.Bot => this.Bot;
+    bool IEquatable<IEntity>.Equals(IEntity other) => this.Equals(other);
+
+    /// <summary>Backing JSON object for this entity.</summary>
+    protected internal JsonElement Json => _entity;
 
     /// <summary>Bot instance which contains and manages this object.</summary>
     protected DiscordBot Bot { get; private init; }
-
-    /// <summary>Backing JSON object for this entity.</summary>
-    protected internal JsonElement Json { get; private init; }
 
     /// <inheritdoc/>
     public virtual DiscordSnowflake Id => this.Json.GetProperty("id").ToSnowflake();
@@ -30,12 +36,8 @@ public abstract class DiscordEntity : IEntity
         => this.Id == other?.Id;
 
     public override bool Equals(object obj)
-        => Equals(obj as DiscordEntity);
+        => this.Equals(obj as DiscordEntity);
 
     public override int GetHashCode()
         => this.Id.GetHashCode();
-
-    IBot IEntity.Bot => this.Bot;
-    JsonElement IEntity.Json => this.Json;
-    bool IEquatable<IEntity>.Equals(IEntity other) => this.Equals(other);
 }
