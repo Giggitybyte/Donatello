@@ -20,13 +20,13 @@ public sealed class HttpResponse
         public string Message { get; internal init; }
     }
 
-    internal HttpResponse()
+    internal HttpResponse(ICollection<Error> errors = null)
     {
-        this.Errors = Array.Empty<Error>();
+        this.Errors = errors ?? Array.Empty<Error>();
     }
 
     /// <summary></summary>
-    internal IList<Error> Errors { get; init; }
+    internal ICollection<Error> Errors { get; init; }
 
     /// <summary>Response status code.</summary>
     public HttpStatusCode Status { get; internal init; }
@@ -38,7 +38,7 @@ public sealed class HttpResponse
     public JsonElement Payload { get; internal init; }
 
     /// <summary></summary>
-    public bool HasErrors(out IEnumerable<Error> errors)
+    public bool HasErrors(out ICollection<Error> errors)
     {
         errors = this.Errors;
         return this.Errors.Count > 0;

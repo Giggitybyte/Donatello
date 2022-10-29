@@ -5,7 +5,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Text.Json;
 
-/// <summary></summary>
+/// <summary>Abstract implementation of <see cref="IChannel"/>.</summary>
 public abstract class DiscordChannel : DiscordEntity, IChannel
 {
     internal DiscordChannel(DiscordBot bot, JsonElement json) 
@@ -19,14 +19,44 @@ public abstract class DiscordChannel : DiscordEntity, IChannel
             throw new JsonException("Unknown channel type.");
     }
 
-    /// <summary>Type of this channel.</summary>
-    internal ChannelType Type { get; private init; }
     ChannelType IChannel.Type => this.Type;
+
+    /// <summary>Type of this channel.</summary>
+    protected internal ChannelType Type { get; private init; }
 
     /// <summary>Name of the channel.</summary>
     public string Name => this.Json.GetProperty("name").GetString();
 
     /// <summary></summary>
-    public ReadOnlyCollection<DiscordInvite> Invites { get; }
+    public ReadOnlyCollection<DiscordGuildInvite> Invites { get; }
 
+    /// <summary>Converts a JSON object to the appropriate Discord channel entity as attempts to return it as <typeparamref name="TChannel"/>.</summary>
+    internal protected static TChannel Create<TChannel>(JsonElement channelJson, DiscordBot botInstance) where TChannel : DiscordChannel
+    {
+        var type = channelJson.GetProperty("type").GetInt32();
+
+        DiscordChannel instance = type switch
+        {
+            0 => new DiscordGuildTextChannel(botInstance, channelJson),
+            1 => new DiscordDirectTextChannel(botInstance, channelJson),
+            2 => new DiscordGuildVoiceChannel(botInstance, channelJson),
+            3 => new DiscordGroupTextChannel(botInstance, channelJson),
+            4 => new DiscordCategoryChannel(botInstance, channelJson),
+            5 => new DiscordGuildNewsChannel(botInstance, channelJson),
+            10 or 11 or 12 => new DiscordThreadTextChannel(botInstance, channelJson),
+            13 => new DiscordStageChannel(botInstance, channelJson),
+            14 => new DiscordDirectoryChannel(botInstance, channelJson),
+            15 => new DiscordForumChannel(botInstance, channelJson),
+            _ => throw new JsonException("Unknown channel type.")
+        };
+
+        if (instance is TChannel channel)
+            return channel;
+        else
+            throw new InvalidCastException($"{typeof(TChannel).Name} is an incompatible type parameter for {instance.Type} channel objects.");
+    }
+
+    /// <summary>Converts a JSON object to an appropriate Discord channel entity.</summary>
+    internal protected static DiscordChannel Create(JsonElement channelJson, DiscordBot botInstance)
+        => Create<DiscordChannel>(channelJson, botInstance);
 }

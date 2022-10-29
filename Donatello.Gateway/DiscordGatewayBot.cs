@@ -4,8 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Reactive;
 using System.Reactive.Linq;
-using System.Reactive.Subjects;
 using System.Reactive.Threading.Tasks;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -26,9 +26,8 @@ public sealed class DiscordGatewayBot : DiscordBot
 {
     private DiscordWebsocketShard[] _shards;
     private GatewayIntent _intents;
-    private Subject<DiscordEvent> _eventSequence;
-    private List<DiscordSnowflake> _unavailableGuilds;
     private DiscordSnowflake _id;
+    private List<DiscordSnowflake> _unavailableGuilds;
 
     /// <param name="token"></param>
     /// <param name="intents"></param>
@@ -40,14 +39,21 @@ public sealed class DiscordGatewayBot : DiscordBot
 
         _intents = intents;
         _shards = Array.Empty<DiscordWebsocketShard>();
-        _eventSequence = new Subject<DiscordEvent>();
+        this.Events = Observable.Empty<DiscordEvent>();
+        this.DirectTextChannelCache = new EntityCache<DiscordDirectTextChannel>();
     }
 
     /// <summary></summary>
-    internal IReadOnlyList<DiscordWebsocketShard> Shards => new ReadOnlyCollection<DiscordWebsocketShard>(_shards);
+    internal EntityCache<DiscordDirectTextChannel> DirectTextChannelCache { get; private init; }
 
     /// <summary></summary>
-    public IObservable<DiscordEvent> Events => _eventSequence;
+    public IReadOnlyList<DiscordWebsocketShard> Shards => new ReadOnlyCollection<DiscordWebsocketShard>(_shards);
+
+    /// <summary></summary>
+    public IObservable<DiscordEvent> Events { get; private set; }
+
+    /// <summary>Whether this instance has an active websocket connection.</summary>
+    public override bool IsConnected => _shards.Length > 0 && _shards.All(shard => shard.IsConnected);
 
     /// <summary>Connects to the Discord gateway.</summary>
     public override async ValueTask StartAsync()
@@ -55,25 +61,29 @@ public sealed class DiscordGatewayBot : DiscordBot
         var websocketMetadata = await this.RestClient.GetGatewayMetadataAsync();
         var shardCount = websocketMetadata.GetProperty("shards").GetInt32();
         var clusterSize = websocketMetadata.GetProperty("session_start_limit").GetProperty("max_concurrency").GetInt32();
+        var events = Observable.Empty<DiscordEvent>();
 
-        _shards = new DiscordWebsocketShard[shardCount];
+        _shards = new DiscordWebsocketShard[shardCount];        
 
-        for (int shardId = 0; shardId < shardCount; shardId++)
+        for (int shardId = 0; shardId < shardCount - 1; shardId++)
         {
             var shard = new DiscordWebsocketShard(shardId, this.Logger);
+            events = this.CreateEventSequence(shard).Merge(events);
 
-            shard.Events.Where(e => e.GetProperty("op").GetInt32() is 0)
-                .Subscribe(e => this.PublishDiscordEventAsync(shard, e).ToObservable());
-
-            shard.Events.Where(e => e.GetProperty("op").GetInt32() is 10)
-                .Subscribe(e => this.SendShardIdentityAsync(shard).ToObservable());
+            shard.Events.Where(eventJson => eventJson.GetProperty("op").GetInt32() is 10)
+                .Select(eventJson => this.SendIdentityAsync(shard))
+                .SelectMany(identifyTask => identifyTask.ToObservable())
+                .Subscribe();
 
             _shards[shardId] = shard;
         }
 
-        await Observable.Generate(0, (i => i < shardCount), (i => i + clusterSize), (i => _shards.Skip(i).Take(clusterSize)), (i => TimeSpan.FromSeconds(5)))
+        IObservable<Unit> ConnectShards() => Observable.Generate(0, i => i < shardCount - 1, i => i + clusterSize, i => _shards.Skip(i).Take(clusterSize), i => TimeSpan.FromSeconds(5))
             .SelectMany(cluster => cluster.ToObservable())
-            .SelectMany(shard => shard.ConnectAsync().ToObservable());
+            .Select(shard => shard.ConnectAsync())
+            .SelectMany(connectionTask => connectionTask.ToObservable());
+
+        await ConnectShards();
     }
 
     /// <summary>Closes all websocket connections.</summary>
@@ -88,14 +98,14 @@ public sealed class DiscordGatewayBot : DiscordBot
             disconnectTasks[shard.Id] = shard.DisconnectAsync();
 
         await Task.WhenAll(disconnectTasks);
-        Array.Clear(_shards, 0, _shards.Length);
+        _shards = Array.Empty<DiscordWebsocketShard>();
     }
 
+    /// <summary>Fetches a user object for</summary>
     public ValueTask<DiscordUser> GetSelfAsync()
         => this.GetUserAsync(_id);
 
-    /// <summary></summary>
-    private async Task SendShardIdentityAsync(DiscordWebsocketShard shard)
+    private async Task SendIdentityAsync(DiscordWebsocketShard shard)
     {
         if (shard.SessionId is not null)
         {
@@ -131,134 +141,181 @@ public sealed class DiscordGatewayBot : DiscordBot
     }
 
     /// <summary></summary>
-    private async Task PublishDiscordEventAsync(DiscordWebsocketShard shard, JsonElement gatewayEvent)
+    private IObservable<DiscordEvent> CreateEventSequence(DiscordWebsocketShard shard)
     {
-        var eventName = gatewayEvent.GetProperty("t").GetString();
-        var eventJson = gatewayEvent.GetProperty("d");
-
-        DiscordEvent eventObject = eventName switch
+        IEnumerable<IObservable<DiscordEvent>> EventSequence()
         {
-            "READY" => Connected(),
-            "CHANNEL_CREATE" => ChannelCreated(),
-            "CHANNEL_UPDATE" => ChannelUpdated(),
-            "CHANNEL_DELETE" => ChannelDeleted(),
-            "THREAD_CREATE" => await ThreadCreated(),
-            "THREAD_UPDATE" => await ThreadUpdated(),
-            "THREAD_DELETE" => await ThreadDeleted(),
-            "THREAD_LIST_SYNC" => 
+            var discordEvents = shard.Events.Where(eventJson => eventJson.GetProperty("op").GetInt32() is 0);
 
-            _ => Unknown()
-        };
+            yield return discordEvents.Where(eventJson => eventJson.GetProperty("t").GetString() is "READY")
+                .Select(eventJson =>
+                {
+                    var guilds = eventJson.GetProperty("guilds").EnumerateArray()
+                        .Select(json => json.GetProperty("id").ToSnowflake());
 
-        eventObject.Bot = this;
-        eventObject.Shard = shard;
+                    _unavailableGuilds.AddRange(guilds);
 
-        _eventSequence.OnNext(eventObject);
+                    var user = new DiscordUser(this, eventJson.GetProperty("user"));
+                    this.UserCache.Add(user.Id, user);
+                    _id = user.Id;
+
+                    return new ConnectedEvent() 
+                    { 
+                        Shard = shard,
+                        User = user
+                    };
+                });
+
+            yield return discordEvents.Where(eventJson => eventJson.GetProperty("t").GetString() is "CHANNEL_CREATE")
+                .Select(eventJson => DiscordChannel.Create(eventJson, this))
+                .Select(async channel =>
+                {
+                    if (channel is DiscordDirectTextChannel dmChannel)
+                        this.DirectTextChannelCache.Add(dmChannel);
+                    else if (channel is DiscordGuildChannel guildChannel)
+                    {
+                        var guild = await guildChannel.GetGuildAsync();
+                        guild.ChannelCache.Add(guildChannel);
+                    }
+
+                    return new EntityAvailableEvent<DiscordChannel>() { Entity = channel };
+                })
+                .SelectMany(eventTask => eventTask.ToObservable());
 
 
-        ConnectedEvent Connected() // maybe these should be observable sequences??? yes
-        {
-            var shardId = eventJson.GetProperty("shard").EnumerateArray().First().GetInt16();
+            yield return discordEvents.Where(eventJson => eventJson.GetProperty("t").GetString() is "CHANNEL_UPDATE")
+                .Select(async eventJson =>
+                {
+                    var updatedChannel = DiscordChannel.Create(eventJson, this);
+                    DiscordChannel outdatedChannel = null;
 
-            foreach (var partialGuild in eventJson.GetProperty("guilds").EnumerateArray())
-                _unavailableGuilds.Add(partialGuild.GetProperty("id").ToSnowflake());
+                    if (updatedChannel is DiscordDirectTextChannel dmChannel)
+                        this.DirectTextChannelCache.Replace(dmChannel);
+                    else if (updatedChannel is DiscordGuildChannel guildChannel)
+                    {
+                        var guild = await guildChannel.GetGuildAsync();
+                        guild.ChannelCache.Add(guildChannel);
+                    }
 
-            var user = new DiscordUser(this, eventJson.GetProperty("user"));
-            _id = user.Id;
-            this.UserCache.Add(user.Id, user);
+                    return new EntityUpdatedEvent<DiscordChannel>()
+                    {
+                        UpdatedEntity = updatedChannel,
+                        OutdatedEnity = outdatedChannel
+                    };
+                })
+                .SelectMany(eventTask => eventTask.ToObservable());
 
-            return new()
-            {
-                Bot = this,
-                Shard = _shards[shardId],
-                User = user
-            };
+            yield return discordEvents.Where(eventJson => eventJson.GetProperty("t").GetString() is "CHANNEL_DELETE")
+                .Select(eventJson => DiscordChannel.Create(eventJson, this))
+                .Select(channel => new EntityDeletedEvent<DiscordChannel>()
+                {
+                    EntityId = channel.Id,
+                    Instance = channel
+                });
+
+            yield return discordEvents.Where(eventJson => eventJson.GetProperty("t").GetString() is "THREAD_CREATE")
+                .Select(eventJson => DiscordChannel.Create<DiscordThreadTextChannel>(eventJson, this))
+                .Select(async threadChannel =>
+                {
+                    var guild = await threadChannel.GetGuildAsync();
+                    guild.ThreadCache.Add(threadChannel.Id, threadChannel);
+
+                    return new EntityAvailableEvent<DiscordThreadTextChannel>() { Entity = threadChannel };
+                })
+                .SelectMany(eventTask => eventTask.ToObservable());
+
+            yield return discordEvents.Where(eventJson => eventJson.GetProperty("t").GetString() is "THREAD_UPDATE")
+                .Select(eventJson => DiscordChannel.Create<DiscordThreadTextChannel>(eventJson, this))
+                .Select(async threadChannel =>
+                {
+                    var guild = await threadChannel.GetGuildAsync();
+                    var outdatedThread = guild.ThreadCache.Replace(threadChannel.Id, threadChannel);
+
+                    return new EntityUpdatedEvent<DiscordThreadTextChannel>()
+                    {
+                        UpdatedEntity = threadChannel,
+                        OutdatedEnity = outdatedThread
+                    };
+                })
+                .SelectMany(eventTask => eventTask.ToObservable());
+
+            yield return discordEvents.Where(eventJson => eventJson.GetProperty("t").GetString() is "THREAD_DELETE")
+                .Select(async eventJson =>
+                {
+                    var threadId = eventJson.GetProperty("id").ToSnowflake();
+                    var guildId = eventJson.GetProperty("guild_id").ToSnowflake();
+                    var guild = await this.GetGuildAsync(guildId);
+
+                    return new EntityDeletedEvent<DiscordThreadTextChannel>()
+                    {
+                        EntityId = threadId,
+                        Instance = guild.ThreadCache.Remove(threadId)
+                    };
+                })
+                .SelectMany(eventTask => eventTask.ToObservable());
+
+
+            discordEvents.Where(eventJson => eventJson.GetProperty("t").GetString() is "THREAD_LIST_SYNC")
+               .Select(async eventJson =>
+               {
+                   var guild = await this.GetGuildAsync(eventJson.GetProperty("guild_id").ToSnowflake());
+
+                   if (eventJson.TryGetProperty("channel_ids", out JsonElement prop) is false || prop.GetArrayLength() is 0)
+                       guild.ThreadCache.Clear();
+
+                   var threads = eventJson.GetProperty("threads").EnumerateArray()
+                       .Select(json => DiscordChannel.Create<DiscordThreadTextChannel>(json, this));
+
+                   var members = eventJson.GetProperty("members").EnumerateArray();
+
+                   foreach (var thread in threads)
+                   {
+                       var threadMembers = members.Where(json => json.GetProperty("id").GetUInt64() == thread.Id);
+                       foreach (var member in threadMembers)
+                           thread.MemberCache.Add(member);
+
+                       guild.ThreadCache.Add(thread);
+                   }    
+               })
+               .SelectMany(eventTask => eventTask.ToObservable())
+               .Subscribe(); // How should I represent this to the end user??
+
+            var threadMembersUpdated = discordEvents.Where(eventJson => eventJson.GetProperty("t").GetString() is "THREAD_MEMBERS_UPDATE");
+
+
+            threadMembersUpdated.Where(eventJson => eventJson.TryGetProperty("added_members", out _))
+                .Select(async eventJson =>
+                {
+                    var guild = await this.GetGuildAsync(eventJson.GetProperty("guild_id").ToSnowflake());
+                    var thread = await guild.GetThreadAsync(eventJson.GetProperty("id").ToSnowflake());
+
+
+                });
+
+            discordEvents.Where(eventJson => eventJson.GetProperty("t").GetString() is "THREAD_MEMBERS_UPDATE")
+                .Select(async eventJson =>
+                {
+                    var guild = await this.GetGuildAsync(eventJson.GetProperty("guild_id").ToSnowflake());
+                    var thread = await guild.GetThreadAsync(eventJson.GetProperty("id").ToSnowflake());
+
+                    if (eventJson.TryGetProperty("added_members", out JsonElement addedMembers))
+                    {
+                        foreach (var threadMember in addedMembers.EnumerateArray())
+                            thread.MemberCache.Add(threadMember.GetProperty("user_id").ToSnowflake(), threadMember);
+
+                        yield return thread;
+                    }
+                    
+                    if (eventJson.TryGetProperty("removed_member_ids", out JsonElement removedUsers))
+                    {
+                        foreach (var userId in removedUsers.EnumerateArray())
+                            thread.MemberCache.Remove(userId.ToSnowflake());
+                    }
+                });
         }
 
-        EntityCreatedEvent<DiscordChannel> ChannelCreated()
-        {
-            var channel = eventJson.ToChannelEntity(this);
-            this.ChannelCache.Add(channel.Id, channel);
-
-            return new() 
-            { 
-                Entity = channel 
-            };
-        }
-
-        EntityUpdatedEvent<DiscordChannel> ChannelUpdated()
-        {
-            var updatedChannel = eventJson.ToChannelEntity(this);
-            var outdatedChannel = this.ChannelCache.Replace(updatedChannel.Id, updatedChannel);
-
-            return new()
-            {
-                UpdatedEntity = updatedChannel,
-                OutdatedEnity = outdatedChannel
-            };
-        }
-
-        EntityDeletedEvent<DiscordChannel> ChannelDeleted()
-        {
-            var channelId = eventJson.GetProperty("id").ToSnowflake();
-            var cachedChannel = this.ChannelCache.Remove(channelId);
-
-            return new()
-            {
-                EntityId = channelId,
-                CachedEntity = cachedChannel
-            };
-        }
-
-        async ValueTask<EntityCreatedEvent<DiscordThreadTextChannel>> ThreadCreated()
-        {
-            var threadChannel = eventJson.ToChannelEntity(this) as DiscordThreadTextChannel;
-            var guild = await threadChannel.GetGuildAsync();
-            guild.ThreadCache.Add(threadChannel.Id, threadChannel);
-
-            return new() 
-            { 
-                Entity = threadChannel 
-            };
-        }
-
-        async ValueTask<EntityUpdatedEvent<DiscordThreadTextChannel>> ThreadUpdated()
-        {
-            var updatedThread = eventJson.ToChannelEntity(this) as DiscordThreadTextChannel;
-            var guild = await updatedThread.GetGuildAsync();
-            var outdatedThread = guild.ThreadCache.Replace(updatedThread.Id, updatedThread);
-
-            return new()
-            {
-                UpdatedEntity = updatedThread,
-                OutdatedEnity = outdatedThread
-            };
-        }
-
-        async ValueTask<EntityDeletedEvent<DiscordThreadTextChannel>> ThreadDeleted()
-        {
-            var threadId = eventJson.GetProperty("id").ToSnowflake();
-            var guildId = eventJson.GetProperty("guild_id").ToSnowflake();
-            var guild = await this.GetGuildAsync(guildId);
-            var cachedThread = guild.ThreadCache.Remove(threadId);
-
-            return new()
-            {
-                EntityId = threadId,
-                CachedEntity = cachedThread
-            };
-        }
-
-        
-
-        UnknownEvent Unknown()
-        {
-            this.Logger.LogWarning("Received unknown gateway event: {EventName}", eventName);
-            return new() 
-            { 
-                Name = eventName, 
-                Json = eventJson 
-            };
-        }
+        return EventSequence()
+            .Merge()
+            .Do(eventObject => eventObject.Bot = this);
     }
 }

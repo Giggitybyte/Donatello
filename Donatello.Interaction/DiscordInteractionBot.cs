@@ -39,7 +39,7 @@ public sealed class DiscordInteractionBot : DiscordBot
     }
 
     /// <summary>Whether this instance is listening for interactions.</summary>
-    public bool IsRunning => _interactionListenerTask.Status == TaskStatus.Running;
+    public override bool IsConnected => _interactionListenerTask.Status == TaskStatus.Running;
 
     /// <summary>Searches the provided assembly for classes which inherit from <see cref="DiscordCommandModule"/> and registers each of their commands.</summary>
     public void LoadCommandModules(Assembly assembly)
@@ -52,7 +52,7 @@ public sealed class DiscordInteractionBot : DiscordBot
     /// <summary>Submits all registered commands to Discord and begins listening for interactions.</summary>
     public override ValueTask StartAsync()
     {
-        if (this.IsRunning)
+        if (this.IsConnected)
             throw new InvalidOperationException("Instance is already active.");
 
         _interactionListenerTask = this.InteractionListenerLoop(_cts.Token);
@@ -68,7 +68,7 @@ public sealed class DiscordInteractionBot : DiscordBot
     /// <summary>Stops listening for interactions.</summary>
     public override async ValueTask StopAsync()
     {
-        if (!this.IsRunning)
+        if (!this.IsConnected)
             throw new InvalidOperationException("Instance is not active.");
 
         _cts.Cancel();

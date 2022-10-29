@@ -5,7 +5,6 @@
 		<TargetFramework>net6.0</TargetFramework>
 		<Authors>Luke Triano (thegiggitybyte)</Authors>
 
-		<!-- I don't like this kind of hidden convenience magic :( -->
 		<ImplicitUsings>false</ImplicitUsings>
 	</PropertyGroup>
 

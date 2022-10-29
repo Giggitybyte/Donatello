@@ -2,7 +2,6 @@
 
 using Donatello.Entity;
 using System;
-using System.Collections.Generic;
 using System.Text.Json;
 
 internal static class InternalExtensionMethods
@@ -14,7 +13,7 @@ internal static class InternalExtensionMethods
             throw new JsonException($"Expected an array; got {jsonArray.ValueKind} instead.");
 
         var array = new string[jsonArray.GetArrayLength()];
-        int index = 0;
+        var index = 0;
 
         foreach (var jsonElement in jsonArray.EnumerateArray())
             array[index++] = jsonElement.GetString();
@@ -31,53 +30,19 @@ internal static class InternalExtensionMethods
         return ulong.Parse(jsonProperty.GetString());
     }
 
-    /// <summary>Converts a JSON object to an appropriate Discord channel entity.</summary>
-    internal static DiscordChannel ToChannelEntity(this JsonElement jsonObject, DiscordBot botInstance)
-    {
-        var type = jsonObject.GetProperty("type").GetInt32();
+    /// <summary>Adds the provided <typeparamref name="TEntity"/> instance to this cache.</summary>
+    internal static void Add(this EntityCache<JsonElement> jsonCache, JsonElement json)
+        => jsonCache.Add(json.GetProperty("id").ToSnowflake(), json);
 
-        DiscordChannel channel = type switch
-        {
-            0 => new DiscordGuildTextChannel(botInstance, jsonObject),
-            1 => new DiscordDirectTextChannel(botInstance, jsonObject),
-            2 => new DiscordVoiceChannel(botInstance, jsonObject),
-            3 => new DiscordGroupTextChannel(botInstance, jsonObject),
-            4 => new DiscordCategoryChannel(botInstance, jsonObject),
-            5 => new DiscordAnnouncementChannel(botInstance, jsonObject),
-            10 or 11 or 12 => new DiscordThreadTextChannel(botInstance, jsonObject),
-            13 => new DiscordStageChannel(botInstance, jsonObject),
-            14 => new DiscordDirectoryChannel(botInstance, jsonObject),
-            15 => DiscordForumChannel(botInstance, jsonObject),
-            _ => throw new JsonException("Unknown channel type.")
-        };
+    /// <summary>Removes and returns an existing entry with the same ID as <paramref name="updatedJson"/> after replacing it with <paramref name="updatedJson"/>.</summary>
+    internal static JsonElement Replace(this EntityCache<JsonElement> jsonCache, JsonElement updatedJson)
+        => jsonCache.Replace(updatedJson.GetProperty("id").ToSnowflake(), updatedJson);
 
-        return channel;
-    }
+    /// <summary>Adds the provided <typeparamref name="TEntity"/> instance to this cache.</summary>
+    internal static void Add<TEntity>(this EntityCache<TEntity> entityCache, TEntity entity) where TEntity : IEntity
+        => entityCache.Add(entity.Id, entity);
 
-    internal static DiscordChannel CreateChannelEntity<TExpected>(this DiscordBot )
-
-    /// <summary>
-    /// Converts each element in a JSON array to a <typeparamref name="TEntity"/> and returns 
-    /// the collection as a dictionary, where the key is the snowflake ID of each entity value.
-    /// </summary>
-    internal static EntityCollection<TEntity> ToEntityCollection<TEntity>(this JsonElement jsonArray, DiscordBot botInstance) where TEntity : DiscordEntity
-    {
-        if (jsonArray.ValueKind is not JsonValueKind.Array)
-            throw new JsonException($"Expected an array; got {jsonArray.ValueKind} instead.");
-
-        var entities = new Dictionary<DiscordSnowflake, TEntity>(jsonArray.GetArrayLength());
-        foreach (var entityJson in jsonArray.EnumerateArray())
-        {
-            TEntity entity;
-
-            if (typeof(TEntity) == typeof(DiscordChannel))
-                entity = entityJson.ToChannelEntity(botInstance) as TEntity;
-            else
-                entity = Activator.CreateInstance(typeof(TEntity), botInstance, entityJson) as TEntity;
-
-            entities.Add(entity.Id, entity);
-        }
-
-        return new EntityCollection<TEntity>(entities);
-    }
+    /// <summary>Removes and returns an existing entry with the same ID as <paramref name="updatedEntity"/> after replacing it with <paramref name="updatedEntity"/>.</summary>
+    internal static TEntity Replace<TEntity>(this EntityCache<TEntity> entityCache, TEntity updatedEntity) where TEntity : IEntity
+        => entityCache.Replace(updatedEntity.Id, updatedEntity);
 }

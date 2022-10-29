@@ -6,6 +6,8 @@ using Donatello.Rest;
 using Donatello.Rest.Extension.Endpoint;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 public abstract class DiscordBot
@@ -15,9 +17,9 @@ public abstract class DiscordBot
         this.Token = token;
         this.Logger = logger ?? NullLogger.Instance;
         this.RestClient = new DiscordHttpClient(TokenType.Bot, token, this.Logger);
-        this.UserCache = new ObjectCache<DiscordUser>();
-        this.GuildCache = new ObjectCache<DiscordGuild>();
-        this.ChannelCache = new ObjectCache<DiscordChannel>();
+        this.GuildCache = new EntityCache<DiscordGuild>();
+        this.UserCache = new EntityCache<DiscordUser>();
+
     }
 
     /// <summary>Discord API token string.</summary>
@@ -30,13 +32,13 @@ public abstract class DiscordBot
     protected internal DiscordHttpClient RestClient { get; private init; }
 
     /// <summary>Cached user instances.</summary>
-    public ObjectCache<DiscordUser> UserCache { get; private init; }
+    public EntityCache<DiscordUser> UserCache { get; private init; }
 
     /// <summary>Cached guild instances.</summary>
-    public ObjectCache<DiscordGuild> GuildCache { get; private init; }
+    public EntityCache<DiscordGuild> GuildCache { get; private init; }
 
-    /// <summary>Cached channel instances.</summary>
-    public ObjectCache<DiscordChannel> ChannelCache { get; private init; }
+    /// <summary>Whether this instance is connected to the Discord API.</summary>
+    public abstract bool IsConnected { get; }
 
     /// <summary>Connects to the Discord API.</summary>
     public abstract ValueTask StartAsync();
@@ -44,49 +46,92 @@ public abstract class DiscordBot
     /// <summary>Disconnects from the Discord API and releases any resources in use.</summary>
     public abstract ValueTask StopAsync();
 
-    /// <summary>Fetches a user object using a snowflake ID.</summary>
-    public virtual async ValueTask<DiscordUser> GetUserAsync(DiscordSnowflake userId)
+    /// <summary>
+    /// Connects to the Discord API and waits until <paramref name="cancellationToken"/> is cancelled.<br/>
+    /// When <paramref name="cancellationToken"/> is cancelled, the instance will be disconnected from the API and the <see cref="Task"/> returned by this method will successfully complete.
+    /// </summary>
+    public virtual async Task RunAsync(CancellationToken cancellationToken)
     {
-        if (this.UserCache.Contains(userId, out DiscordUser user) is false)
-        {
-            var userJson = await this.RestClient.GetUserAsync(userId);
-            user = new DiscordUser(this, userJson);
+        await this.StartAsync();
+        await Task.Delay(-1, cancellationToken);
+        await this.StopAsync();
+    }
 
-            this.UserCache.Add(userId, user);
-        }
+    /// <summary>Requests an up-to-date user object from Discord.</summary>
+    public virtual async Task<DiscordUser> FetchUserAsync(DiscordSnowflake userId)
+    {
+        var userJson = await this.RestClient.GetUserAsync(userId);
+        var user = new DiscordUser(this, userJson);
+        this.UserCache.Add(userId, user);
 
         return user;
     }
 
-    /// <summary>Fetches a guild object using an ID.</summary>
-    public virtual async ValueTask<DiscordGuild> GetGuildAsync(DiscordSnowflake guildId)
+    /// <summary>Attempts to get a user from the cache; if <paramref name="userId"/> is not present in cache, an up-to-date user will be fetched from Discord.</summary>
+    public virtual async ValueTask<DiscordUser> GetUserAsync(DiscordSnowflake userId)
     {
-        if (this.GuildCache.Contains(guildId, out DiscordGuild guild) is false)
-        {
-            var guildJson = await this.RestClient.GetGuildAsync(guildId);
-            guild = new DiscordGuild(this, guildJson);
+        if (this.UserCache.Contains(userId, out DiscordUser user) is false)
+            user = await this.FetchUserAsync(userId);
 
-            this.GuildCache.Add(guildId, guild);
-        }
+        return user;
+    }
+
+    /// <summary>Requests an up-to-date guild object from Discord.</summary>
+    public virtual async Task<DiscordGuild> FetchGuildAsync(DiscordSnowflake guildId)
+    {
+        var guildJson = await this.RestClient.GetGuildAsync(guildId);
+        var guild = new DiscordGuild(this, guildJson);
+        this.GuildCache.Add(guildId, guild);
 
         return guild;
     }
 
-    /// <summary>Fetches a channel object using an ID.</summary>
-    public virtual ValueTask<DiscordChannel> GetChannelAsync(DiscordSnowflake channelId)
-        => this.GetChannelAsync<DiscordChannel>(channelId);
-
-    /// <summary>Fetches a channel using an ID and returns it as a <typeparamref name="TChannel"/> object.</summary>
-    public virtual async ValueTask<TChannel> GetChannelAsync<TChannel>(DiscordSnowflake channelId) where TChannel : DiscordChannel
+    /// <summary>Attempts to get a guild from the cache; if <paramref name="guildId"/> is not present in cache, an up-to-date guild will be fetched from Discord.</summary>
+    public virtual async ValueTask<DiscordGuild> GetGuildAsync(DiscordSnowflake guildId)
     {
-        if (this.ChannelCache.Contains(channelId, out DiscordChannel channel) is false)
-        {
-            var channelJson = await this.RestClient.GetChannelAsync(channelId);
-            channel = channelJson.ToChannelEntity(this);
+        if (this.GuildCache.Contains(guildId, out DiscordGuild guild) is false)
+            guild = await this.FetchGuildAsync(guildId);
 
-            this.ChannelCache.Add(channelId, channel);
+        return guild;
+    }
+
+    /// <summary></summary>
+    public virtual async Task<TChannel> FetchChannelAsync<TChannel>(DiscordSnowflake channelId) where TChannel : DiscordChannel
+    {
+        var channelJson = await this.RestClient.GetChannelAsync(channelId);
+        var channel = DiscordChannel.Create<TChannel>(channelJson, this);
+
+        if (channelJson.TryGetProperty("guild_id", out var prop))
+        {
+            if (channel is DiscordGuildChannel guildChannel)
+            {
+                var guild = await this.GetGuildAsync(prop.ToSnowflake());
+                guild.ChannelCache.Add(channelId, guildChannel);
+            }
+            else
+                throw new InvalidCastException($"{typeof(TChannel).Name} is not a valid type parameter for guild channel objects.");
         }
 
-        return (TChannel)channel;
+        return channel;
     }
+
+    /// <summary></summary>
+    public virtual Task<DiscordChannel> FetchChannelAsync(DiscordSnowflake channelId)
+        => this.FetchChannelAsync<DiscordChannel>(channelId);
+
+    /// <inheritdoc cref="GetChannelAsync(DiscordSnowflake)"/>
+    public virtual async ValueTask<TChannel> GetChannelAsync<TChannel>(DiscordSnowflake channelId) where TChannel : DiscordChannel
+    {
+        foreach (var guild in this.GuildCache.Enumerate())
+        {
+            if (guild.ChannelCache.Contains(channelId, out DiscordGuildChannel cachedChannel))
+                return cachedChannel as TChannel;
+        }
+
+        return await this.FetchChannelAsync<TChannel>(channelId);
+    }
+
+    /// <summary>Attempts to get a channel from the cache; if <paramref name="channelId"/> is not present in cache, an up-to-date channel will be fetched from Discord.</summary>
+    public virtual ValueTask<DiscordChannel> GetChannelAsync(DiscordSnowflake channelId)
+        => this.GetChannelAsync<DiscordChannel>(channelId);
 }

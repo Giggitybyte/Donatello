@@ -119,10 +119,10 @@ public sealed class DiscordWebsocketShard
         if (!this.IsConnected)
             throw new InvalidOperationException("Websocket is not connected.");
 
-        _websocketCts.Cancel();
-        await _wsReceieveTask;
         _heartbeatDelayCts.Cancel();
         await _wsHeartbeatTask;
+        _websocketCts.Cancel();
+        await _wsReceieveTask;
 
         WebSocketCloseStatus closeStatus;
 
@@ -131,20 +131,14 @@ public sealed class DiscordWebsocketShard
             closeStatus = WebSocketCloseStatus.EndpointUnavailable;
 
             _sessionResumeUrl = null;
-            this.SessionId = null;            
+            this.SessionId = null;
             this.EventIndex = 0;
-        } 
+        }
         else
             closeStatus = WebSocketCloseStatus.Empty;
 
         await _websocketClient.CloseAsync(closeStatus, "", CancellationToken.None);
         _logger.LogInformation("Disconnected shard {Id} ({Session})", this.Id, this.SessionId);
-    }
-
-    private async Task ReconnectAsync()
-    {
-        await this.DisconnectAsync(invalidateSession: false);
-        await this.ConnectAsync();
     }
 
     /// <summary>
@@ -156,23 +150,31 @@ public sealed class DiscordWebsocketShard
 
         while (!cancelToken.IsCancellationRequested)
         {
-            var payloadLength = 0;
+            var payloadSize = 0;
             var buffer = ArrayPool<byte>.Shared.Rent(8192);
             WebSocketReceiveResult response;
 
             do
             {
                 response = await _websocketClient.ReceiveAsync(buffer, CancellationToken.None);
-                payloadLength += response.Count;
+                payloadSize += response.Count;
 
-                if (payloadLength == buffer.Length)
+                if (payloadSize == buffer.Length)
                     ArrayPool<byte>.Shared.Resize(ref buffer, buffer.Length + 4096);
 
             } while (!response.EndOfMessage);
 
-            using var eventPayload = JsonDocument.Parse(buffer.AsMemory(0, payloadLength));
+            var eventPayload = JsonDocument.Parse(buffer.AsMemory(0, payloadSize));
             var eventJson = eventPayload.RootElement;
             var opcode = eventJson.GetProperty("op").GetInt32();
+
+            if (_logger.IsEnabled(LogLevel.Trace))
+            {
+                var formattedJson = JsonSerializer.Serialize(eventJson, new JsonSerializerOptions { WriteIndented = true });
+                _logger.LogTrace("Received {Size} byte payload:\n{Json}", payloadSize, formattedJson);
+            }
+            else
+                _logger.LogDebug("Received {Size} byte payload with opcode {Opcode}", payloadSize, opcode);
 
             if (opcode is 0)
             {
@@ -189,7 +191,7 @@ public sealed class DiscordWebsocketShard
             else if (opcode is 1)
                 _heartbeatDelayCts.Cancel();
             else if (opcode is 7)
-                await this.ReconnectAsync();
+                await ReconnectAsync();
             else if (opcode is 9)
             {
                 if (eventJson.GetProperty("d").GetBoolean() is false)
@@ -198,7 +200,7 @@ public sealed class DiscordWebsocketShard
                     this.EventIndex = 0;
                 }
 
-                await this.ReconnectAsync();
+                await ReconnectAsync();
             }
             else if (opcode is 10)
             {
@@ -209,13 +211,15 @@ public sealed class DiscordWebsocketShard
                 await heartbeatAckChannel.Writer.WriteAsync(DateTime.Now);
 
             _eventSequence.OnNext(eventJson.Clone());
+
+            eventPayload.Dispose();
             ArrayPool<byte>.Shared.Return(buffer, true);
         }
 
-        async Task WebsocketHeartbeatLoop(int intervalMs, ChannelReader<DateTime> ackChannelReader, CancellationToken wsToken)
+        async Task WebsocketHeartbeatLoop(int intervalMs, ChannelReader<DateTime> channelReader, CancellationToken wsToken)
         {
             DateTime lastHeartbeartDate;
-            var missedHeartbeats = 0;
+            int missedHeartbeats = 0;
 
             while (!wsToken.IsCancellationRequested)
             {
@@ -232,23 +236,31 @@ public sealed class DiscordWebsocketShard
                 lastHeartbeartDate = DateTime.Now;
 
                 var acknowledgementCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                await ackChannelReader.WaitToReadAsync(acknowledgementCts.Token);
+                await channelReader.WaitToReadAsync(acknowledgementCts.Token);
 
-                if (ackChannelReader.Count is not 0)
+                if (channelReader.Count is not 0)
                 {
-                    var receiveDate = await ackChannelReader.ReadAsync();
+                    var receiveDate = await channelReader.ReadAsync();
                     this.Latency = receiveDate - lastHeartbeartDate;
 
                     missedHeartbeats = 0;
                 }
                 else if (++missedHeartbeats > 3)
                 {
-                    _logger.LogCritical("Discord failed to acknowledge more than 3 heartbeat payloads; reconnecting.");
-                    await this.ReconnectAsync();
+                    _logger.LogWarning("Discord failed to acknowledge more than 3 heartbeat payloads; reconnecting.");
+                    await ReconnectAsync();
+
+                    break;
                 }
                 else
                     _logger.LogWarning("Discord failed to acknowledge {Number} heartbeat payloads.", missedHeartbeats);
             }
+        }
+
+        async Task ReconnectAsync()
+        {
+            await this.DisconnectAsync(invalidateSession: false);
+            await this.ConnectAsync();
         }
     }
 }

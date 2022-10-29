@@ -1,6 +1,4 @@
 ﻿namespace Donatello.Rest.Extension.Endpoint;
-
-using Donatello.Rest.Extension.Internal;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -48,9 +46,9 @@ public static class GuildEndpoints
         => httpClient.SendRequestAsync(HttpMethod.Delete, $"guilds/{guildId}").GetJsonAsync();
 
     /// <summary>Fetches all channels in a guild.</summary>
-    /// <returns>Array of <see href="https://discord.com/developers/docs/resources/channel#channel-object">channel objects</see>.</returns>
-    public static Task<JsonElement> GetGuildChannelsAsync(this DiscordHttpClient httpClient, ulong guildId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/channels").GetJsonAsync();
+    /// <returns><see href="https://discord.com/developers/docs/resources/channel#channel-object">channel objects</see></returns>
+    public static IAsyncEnumerable<JsonElement> GetGuildChannelsAsync(this DiscordHttpClient httpClient, ulong guildId)
+        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/channels").GetJsonArrayAsync();
 
     /// <summary>Creates a new channel.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#create-guild-channel-json-params">Click to see valid JSON payload parameters</see>.</remarks>
@@ -60,11 +58,11 @@ public static class GuildEndpoints
 
     /// <summary>Changes the position of the provided channel.</summary>
     /// <remarks>Accepts an array; <see href="https://discord.com/developers/docs/resources/guild#modify-guild-channel-positions">click to see valid JSON payload parameters</see>.</remarks>
-    public static Task<JsonElement> ModifyChannelPositionAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonDelegate)
+    public static Task<JsonElement> ModifyChannelPositionsAsync(this DiscordHttpClient httpClient, ulong guildId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Patch, $"guilds/{guildId}/channels", jsonDelegate).GetJsonAsync();
 
     /// <summary>Fetches all active threads in the guild, including private and public threads.</summary>
-    /// <returns><see href="https://discord.com/developers/docs/resources/guild#list-active-threads-response-body">active threads object</see></returns>
+    /// <returns><see href="https://discord.com/developers/docs/resources/guild#list-active-guild-threads-response-body">active threads object</see></returns>
     public static Task<JsonElement> GetActiveThreadsAsync(this DiscordHttpClient httpClient, ulong guildId)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/threads/active").GetJsonAsync();
 
@@ -74,14 +72,14 @@ public static class GuildEndpoints
         => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/members/{userId}").GetJsonAsync();
 
     /// <summary>Fetches all members in a guild.</summary>
-    /// <returns>Array of <see href="https://discord.com/developers/docs/resources/guild#guild-member-object">guild member objects</see>.</returns>
-    public static Task<JsonElement> GetGuildMembersAsync(this DiscordHttpClient httpClient, ulong guildId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/members").GetJsonAsync();
+    /// <returns><see href="https://discord.com/developers/docs/resources/guild#guild-member-object">guild member objects</see></returns>
+    public static IAsyncEnumerable<JsonElement> GetGuildMembersAsync(this DiscordHttpClient httpClient, ulong guildId)
+        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/members").GetJsonArrayAsync();
 
     /// <summary>Fetches members with a username or nickname which begins with the provided <paramref name="searchTerm"/>.</summary>
-    /// <returns>Array of <see href="https://discord.com/developers/docs/resources/guild#guild-member-object">guild member objects</see>.</returns>
-    public static Task<JsonElement> GuildMemberSearchAsync(this DiscordHttpClient httpClient, ulong guildId, string searchTerm, int limit = 500)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/members/search?query={searchTerm}&limit={limit}").GetJsonAsync();
+    /// <returns><see href="https://discord.com/developers/docs/resources/guild#guild-member-object">guild member objects</see></returns>
+    public static IAsyncEnumerable<JsonElement> GuildMemberSearchAsync(this DiscordHttpClient httpClient, ulong guildId, string searchTerm, int limit = 500)
+        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/members/search?query={searchTerm}&limit={limit}").GetJsonArrayAsync();
 
     /// <summary>Grants the specified user access to the guild.</summary>
     /// <remarks>
@@ -117,9 +115,9 @@ public static class GuildEndpoints
         => httpClient.SendRequestAsync(HttpMethod.Delete, $"guilds/{guildId}/members/{userId}").GetJsonAsync();
 
     /// <summary>Fetches all user bans in a guild.</summary>
-    /// <returns>Array of <see href="https://discord.com/developers/docs/resources/guild#ban-object">ban objects</see>.</returns>
-    public static Task<JsonElement> GetGuildBansAsync(this DiscordHttpClient httpClient, ulong guildId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/bans").GetJsonAsync();
+    /// <returns><see href="https://discord.com/developers/docs/resources/guild#ban-object">ban objects</see></returns>
+    public static IAsyncEnumerable<JsonElement> GetGuildBansAsync(this DiscordHttpClient httpClient, ulong guildId)
+        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/bans").GetJsonArrayAsync();
 
     /// <summary>Fetches a ban for the specified user.</summary>
     /// <returns><see href="https://discord.com/developers/docs/resources/guild#ban-object">ban object</see></returns>
@@ -135,9 +133,9 @@ public static class GuildEndpoints
     public static Task<JsonElement> DeleteGuildBanAsync(this DiscordHttpClient httpClient, ulong guildId, ulong userId)
         => httpClient.SendRequestAsync(HttpMethod.Delete, $"/guilds/{guildId}/bans/{userId}").GetJsonAsync();
 
-    /// <summary>Fetches an array of <see href="https://discord.com/developers/docs/topics/permissions#role-object">role objects</see>.</summary>
-    public static Task<JsonElement> GetGuildRolesAsync(this DiscordHttpClient httpClient, ulong guildId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/roles").GetJsonAsync();
+    /// <returns><see href="https://discord.com/developers/docs/topics/permissions#role-object">role objects</see></returns>
+    public static IAsyncEnumerable<JsonElement> GetGuildRolesAsync(this DiscordHttpClient httpClient, ulong guildId)
+        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/roles").GetJsonArrayAsync();
 
     /// <summary>Creates a new role for the guild</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/guild#create-guild-role">Click to see valid JSON parameters</see>.</remarks>
@@ -180,22 +178,22 @@ public static class GuildEndpoints
         => httpClient.SendRequestAsync(HttpMethod.Post, $"guilds/{guildId}/prune", jsonDelegate).GetJsonAsync();
 
     /// <summary>Fetches available voice regions for a guild.</summary>
-    /// <returns>Array of <see href="https://discord.com/developers/docs/resources/voice#voice-region-object">voice region objects</see>.</returns>
-    public static Task<JsonElement> GetGuildVoiceRegionsAsync(this DiscordHttpClient httpClient, ulong guildId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/regions").GetJsonAsync();
+    /// <returns><see href="https://discord.com/developers/docs/resources/voice#voice-region-object">voice region objects</see></returns>
+    public static IAsyncEnumerable<JsonElement> GetGuildVoiceRegionsAsync(this DiscordHttpClient httpClient, ulong guildId)
+        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/regions").GetJsonArrayAsync();
 
     /// <summary>Fetches all invites for a guild.</summary>
     /// <returns>
-    /// Array of <see href="https://discord.com/developers/docs/resources/invite#invite-object-invite-structure">invite objects</see>.
-    /// Objects will include <see href="https://discord.com/developers/docs/resources/invite#invite-metadata-object-invite-metadata-structure">extra invite metadata</see>.
+    /// <see href="https://discord.com/developers/docs/resources/invite#invite-object-invite-structure">invite objects</see> with
+    /// <see href="https://discord.com/developers/docs/resources/invite#invite-metadata-object-invite-metadata-structure">extra invite metadata</see>.
     /// </returns>
-    public static Task<JsonElement> GetGuildInvitesAsync(this DiscordHttpClient httpClient, ulong guildId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/invites").GetJsonAsync();
+    public static IAsyncEnumerable<JsonElement> GetGuildInvitesAsync(this DiscordHttpClient httpClient, ulong guildId)
+        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/invites").GetJsonArrayAsync();
 
     /// <summary>Fetches all integrations for a guild.</summary>
-    /// <returns>Array of <see href="https://discord.com/developers/docs/resources/guild#integration-object">integration objects</see>.</returns>
-    public static Task<JsonElement> GetGuildIntegrationsAsync(this DiscordHttpClient httpClient, ulong guildId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/integrations").GetJsonAsync();
+    /// <returns><see href="https://discord.com/developers/docs/resources/guild#integration-object">integration objects</see></returns>
+    public static IAsyncEnumerable<JsonElement> GetGuildIntegrationsAsync(this DiscordHttpClient httpClient, ulong guildId)
+        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/integrations").GetJsonArrayAsync();
 
     /// <summary>Removes an integration from a guild.</summary>
     public static Task<JsonElement> DeleteGuildIntegrationAsync(this DiscordHttpClient httpClient, ulong guildId, JsonElement integrationObject)
@@ -212,9 +210,9 @@ public static class GuildEndpoints
         => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/audit-logs").GetJsonAsync();
 
     /// <summary>Fetches all emojis from a guild.</summary>
-    /// <returns>Array of <see href="https://discord.com/developers/docs/resources/emoji#emoji-object">emoji objects</see>.</returns>
-    public static Task<JsonElement> GetGuildEmojisAsync(this DiscordHttpClient httpClient, ulong guildId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/emojis").GetJsonAsync();
+    /// <returns><see href="https://discord.com/developers/docs/resources/emoji#emoji-object">emoji objects</see></returns>
+    public static IAsyncEnumerable<JsonElement> GetGuildEmojisAsync(this DiscordHttpClient httpClient, ulong guildId)
+        => httpClient.SendRequestAsync(HttpMethod.Get, $"guilds/{guildId}/emojis").GetJsonArrayAsync();
 
     /// <summary>Fetches a specific guild emoji.</summary>
     /// <returns><see href="https://discord.com/developers/docs/resources/emoji#emoji-object">emoji object</see></returns>

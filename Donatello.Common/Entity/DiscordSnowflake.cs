@@ -3,8 +3,6 @@
 using System;
 using System.Globalization;
 
-// Largely based off of: https://github.com/DSharpPlus/DSharpPlus/blob/1dc09e6c058868f6df8d11607336a91f60cb87da/DSharpPlus.Core/RestEntities/DiscordSnowflake.cs
-// Licensed LGPL 3.0 | https://www.gnu.org/licenses/lgpl-3.0.txt
 public class DiscordSnowflake : IComparable<DiscordSnowflake>
 {
     private readonly static DateTimeOffset _discordEpoch = new(2015, 1, 1, 0, 0, 0, TimeSpan.Zero);

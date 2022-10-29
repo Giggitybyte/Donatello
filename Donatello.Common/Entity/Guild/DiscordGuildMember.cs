@@ -6,10 +6,10 @@ using System.Text.Json;
 using System.Threading.Tasks;
 
 /// <summary></summary>
-public class DiscordGuildMember : DiscordUser
+public class DiscordGuildMember : DiscordUser, IGuildEntity
 {
     private ulong _guildId;
-    protected JsonElement _guildMember;
+    private JsonElement _guildMember;
 
     public DiscordGuildMember(DiscordBot bot, DiscordSnowflake guildId, JsonElement userJson, JsonElement memberJson) 
         : base(bot, userJson)
@@ -20,6 +20,9 @@ public class DiscordGuildMember : DiscordUser
 
     public DiscordGuildMember(DiscordBot bot, DiscordSnowflake guildId, DiscordUser user, JsonElement memberJson) 
         : this(bot, guildId, user.Json.Clone(), memberJson) { }
+
+    protected DiscordGuildMember(DiscordBot bot, DiscordGuildMember member)
+        : this(bot, member._guildId, member.UserJson, member._guildMember) { }
 
     /// <summary>Backing guild member object.</summary>
     protected internal new JsonElement Json => _guildMember;
@@ -76,13 +79,11 @@ public class DiscordGuildMember : DiscordUser
         => this.Bot.GetGuildAsync(_guildId);
 
     /// <summary></summary>
-    public async IAsyncEnumerable<DiscordRole> GetRolesAsync()
+    public async IAsyncEnumerable<DiscordGuildRole> GetRolesAsync()
     {
         var guild = await this.GetGuildAsync();
-        var roleIds = _guildMember.GetProperty("roles");
-        var roles = new Dictionary<DiscordSnowflake, DiscordRole>(roleIds.GetArrayLength());
 
-        foreach (var roleId in roleIds.EnumerateArray())
+        foreach (var roleId in _guildMember.GetProperty("roles").EnumerateArray())
             yield return await guild.GetRoleAsync(roleId.GetUInt64());
     }
 

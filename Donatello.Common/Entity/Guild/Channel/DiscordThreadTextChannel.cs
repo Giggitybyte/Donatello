@@ -2,23 +2,27 @@
 
 using Donatello.Enumeration;
 using Donatello.Extension.Internal;
+using Donatello.Rest.Extension.Endpoint;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-/// <summary></summary>
-public sealed class DiscordThreadTextChannel : DiscordGuildTextChannel
+/// <summary>A sub-channel contained within a guild text channel.</summary>
+public class DiscordThreadTextChannel : DiscordGuildTextChannel
 {
-    private ObjectCache<JsonElement> _memberCache;
-
-    public DiscordThreadTextChannel(DiscordBot bot, JsonElement json) : base(bot, json) 
+    public DiscordThreadTextChannel(DiscordBot bot, JsonElement json)
+        : base(bot, json)
     {
-        _memberCache = new ObjectCache<JsonElement>();
+        this.MemberCache = new EntityCache<JsonElement>();
     }
 
-    /// <summary></summary>
+    /// <summary>An additional sub-set of fields sent only with threads.</summary>
     internal JsonElement Metadata => this.Json.GetProperty("thread_metadata");
+
+    /// <summary></summary>
+    internal EntityCache<JsonElement> MemberCache { get; init; }
 
     /// <summary></summary>
     public bool IsLocked => this.Metadata.GetProperty("locked").GetBoolean();
@@ -51,12 +55,8 @@ public sealed class DiscordThreadTextChannel : DiscordGuildTextChannel
     public bool HasCreationDate(out DateTimeOffset creationDate)
         => this.Metadata.TryGetProperty("create_timestamp", out JsonElement prop) & prop.TryGetDateTimeOffset(out creationDate);
 
-    /// <summary>Fetches the guild which contains the parent channel of this thread.</summary>
-    public ValueTask<DiscordGuild> GetGuildAsync()
-        => this.Bot.GetGuildAsync(this.Json.GetProperty("guild_id").ToSnowflake());
-
     /// <summary>Fetches the user which created this thread.</summary>
-    public async Task<DiscordGuildMember> GetCreatorAsync()
+    public async Task<DiscordGuildMember> GetOwnerAsync()
     {
         var guild = await this.GetGuildAsync();
         var userId = this.Json.GetProperty("owner_id").ToSnowflake();
@@ -65,15 +65,36 @@ public sealed class DiscordThreadTextChannel : DiscordGuildTextChannel
         return member;
     }
 
-    /// <summary></summary>
-    public async IAsyncEnumerable<DiscordGuildMember>
-        _memberCache.
-    }
-
-    /// <summary>Fetches the channel which contains this thread.</summary>
+    /// <summary>Fetches the text channel which contains this thread.</summary>
     public ValueTask<DiscordGuildTextChannel> GetParentChannelAsync()
         => this.Bot.GetChannelAsync<DiscordGuildTextChannel>(this.Json.GetProperty("parent_id").ToSnowflake());
 
-    
+    /// <summary></summary>
+    public async IAsyncEnumerable<DiscordThreadMember> FetchMembersAsync()
+    {
+        await foreach (var memberJson in this.Bot.RestClient.GetThreadChannelMembersAsync(this.Id))
+        {
+            this.MemberCache.Add(memberJson.GetProperty("user_id").ToSnowflake(), memberJson);
+
+            var guild = await this.GetGuildAsync();
+            var guildMember = await guild.GetMemberAsync(memberJson.GetProperty("user_id").ToSnowflake());
+            var threadMember = new DiscordThreadMember(this.Bot, this.Json.GetProperty("guild_id").ToSnowflake(), guildMember, memberJson);
+
+            yield return threadMember;
+        }
+    }
+
+    /// <summary></summary>
+    public async Task<ReadOnlyCollection<DiscordThreadMember>> GetMembersAsync()
+    {
+        this.MemberCache.Clear();
+
+        var members = new List<DiscordThreadMember>();
+        await foreach (var threadMember in this.FetchMembersAsync())
+            members.Add(threadMember);
+
+        return members.AsReadOnly();
+    }
+
 }
 

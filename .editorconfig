@@ -13,6 +13,7 @@ dotnet_style_qualification_for_method = true:suggestion
 
 dotnet_diagnostic.CS0078.severity = none
 
+dotnet_diagnostic.IDE0002.severity = none
 dotnet_diagnostic.IDE0009.severity = suggestion
 dotnet_diagnostic.IDE0011.severity = silent
 dotnet_diagnostic.IDE0044.severity = silent

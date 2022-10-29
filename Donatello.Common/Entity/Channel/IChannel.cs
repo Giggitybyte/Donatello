@@ -6,7 +6,7 @@ using Donatello.Enumeration;
 public interface IChannel : IEntity
 {
     /// <summary>Type of this channel.</summary>
-    internal ChannelType Type { get; }
+    protected internal ChannelType Type { get; }
 
     /// <summary>Name of the channel.</summary>
     public string Name { get; }

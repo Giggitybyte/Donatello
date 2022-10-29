@@ -1,6 +1,7 @@
 ﻿namespace Donatello.Rest.Extension.Endpoint;
 
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -9,9 +10,9 @@ using System.Threading.Tasks;
 public static class ApplicationEndpoints
 {
     /// <summary>Fetches all global commands for your application.</summary>
-    /// <returns>Array of <see href="https://discord.com/developers/docs/interactions/application-commands#application-command-object">application command objects</see>.</returns>
-    public static Task<JsonElement> GetGlobalAppCommandsAsync(this DiscordHttpClient httpClient, ulong applicationId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"applications/{applicationId}/commands").GetJsonAsync();
+    /// <returns><see href="https://discord.com/developers/docs/interactions/application-commands#application-command-object">application command objects</see></returns>
+    public static IAsyncEnumerable<JsonElement> GetGlobalAppCommandsAsync(this DiscordHttpClient httpClient, ulong applicationId)
+        => httpClient.SendRequestAsync(HttpMethod.Get, $"applications/{applicationId}/commands").GetJsonArrayAsync();
 
     /// <summary>Create a new global command. New global commands will be available in all guilds after 1 hour.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/interactions/application-commands#create-global-application-command">Click here to see valid JSON parameters</see>.</remarks>

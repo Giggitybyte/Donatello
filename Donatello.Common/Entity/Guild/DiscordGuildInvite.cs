@@ -2,7 +2,7 @@
 
 using System;
 
-public class DiscordInvite
+public class DiscordGuildInvite : DiscordEntity, IGuildEntity
 {
     public record InviteMetadata(uint Uses, uint MaxUses, TimeSpan MaxAge, DateTimeOffset CreationDate);
 

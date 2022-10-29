@@ -1,6 +1,4 @@
 ﻿namespace Donatello.Entity;
-
-using Donatello.Enumeration;
 using Donatello.Extension.Internal;
 using System;
 using System.Collections.Generic;
@@ -33,7 +31,6 @@ public class DiscordMessage : DiscordEntity
         if (mentionArray.GetArrayLength() is 0)
             yield break;
 
-        var userDictionary = new Dictionary<DiscordSnowflake, DiscordUser>();
         foreach (var userId in mentionArray.EnumerateArray().Select(partialUser => partialUser.GetProperty("id").ToSnowflake()))
         {
             var user = await this.Bot.GetUserAsync(userId);
@@ -46,7 +43,7 @@ public class DiscordMessage : DiscordEntity
     }
 
     /// <summary></summary>
-    public async IAsyncEnumerable<DiscordRole> GetMentionedRolesAsync()
+    public async IAsyncEnumerable<DiscordGuildRole> GetMentionedRolesAsync()
     {
         var mentionArray = this.Json.GetProperty("mention_roles");
         var channel = await this.GetChannelAsync();
@@ -57,7 +54,9 @@ public class DiscordMessage : DiscordEntity
         foreach (var roleId in mentionArray.EnumerateArray().Select(json => json.ToSnowflake()))
         {
             var guild = await guildChannel.GetGuildAsync();
-            yield return await guild.GetRoleAsync(roleId);
+            var role = await guild.GetRoleAsync(roleId);
+
+            yield return role;
         }
     }
 
@@ -81,34 +80,30 @@ public class DiscordMessage : DiscordEntity
     /// </param>
     public bool WasEdited(out DateTimeOffset lastEditDate)
     {
-        var editedProp = this.Json.GetProperty("edited_timestamp");
+        var dateJson = this.Json.GetProperty("edited_timestamp");
 
-        if (editedProp.ValueKind is JsonValueKind.Null)
-        {
+        if (dateJson.ValueKind is JsonValueKind.Null)
             lastEditDate = DateTimeOffset.MinValue;
-            return false;
-        }
         else
-        {
-            lastEditDate = editedProp.GetDateTimeOffset();
-            return true;
-        }
+            lastEditDate = dateJson.GetDateTimeOffset();
+
+        return lastEditDate != DateTimeOffset.MinValue;
     }
 
     /// <summary></summary>
     public bool TryGetAuthor(out DiscordUser author)
     {
-        author = null;
-
         if (this.Json.TryGetProperty("webhook_id", out _))
-            return false;
-
-        var partialUserJson = this.Json.GetProperty("author");        
-
-        if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
-            author = new DiscordGuildMember(this.Bot, guildProp.ToSnowflake(), partialUserJson, memberJson);
+            author = null;
         else
-            author = new DiscordUser(this.Bot, partialUserJson);
+        {
+            var partialUserJson = this.Json.GetProperty("author");
+
+            if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
+                author = new DiscordGuildMember(this.Bot, guildProp.ToSnowflake(), partialUserJson, memberJson);
+            else
+                author = new DiscordUser(this.Bot, partialUserJson);
+        }
 
         return author != null;
     }

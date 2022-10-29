@@ -1,5 +1,6 @@
 ﻿namespace Donatello.Rest.Extension;
 
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -8,7 +9,7 @@ using System.Threading.Tasks;
 
 public static class UserExtensionMethods
 {
-    /// <summary></summary>
+    /// <summary>Returns the resulting <see cref="HttpResponse.Payload"/>, or throws <see cref="HttpRequestException"/> if a non-success response code was returned.</summary>
     public static async Task<JsonElement> GetJsonAsync(this Task<HttpResponse> requestTask)
     {
         var response = await requestTask;
@@ -36,6 +37,19 @@ public static class UserExtensionMethods
 
             throw new HttpRequestException($"Discord returned an error:\n\n{exceptionMessage}");
         }
+    }
+
+    /// <summary>Yields each JSON object contained within the resulting <see cref="HttpResponse.Payload"/></summary>
+    /// <remarks>Throws <see cref="HttpRequestException"/> if a non-success response code was returned.</remarks>
+    public static async IAsyncEnumerable<JsonElement> GetJsonArrayAsync(this Task<HttpResponse> requestTask)
+    {
+        var array = await requestTask.GetJsonAsync();
+
+        if (array.ValueKind is not JsonValueKind.Array)
+            throw new JsonException($"Expected an array, got {array.ValueKind} instead.");
+
+        foreach (var json in array.EnumerateArray())
+            yield return json;
     }
 }
 

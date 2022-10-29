@@ -39,6 +39,6 @@ public enum ChannelType : ushort
     /// </summary>
     Directory = 14,
 
-    /// <summary>A channel which can only contain thread channels.</summary>
+    /// <summary>A channel which can only contain threads.</summary>
     Fourm = 15
 }

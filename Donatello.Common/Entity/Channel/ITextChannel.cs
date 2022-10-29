@@ -4,6 +4,7 @@ using Donatello.Entity.Builder;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+/// <summary>A channel which contains messages sent by users.</summary>
 public interface ITextChannel : IChannel
 {
     public IAsyncEnumerable<DiscordMessage> GetMessagesAsync();
@@ -17,4 +18,3 @@ public interface ITextChannel : IChannel
     public Task<DiscordMessage> SendMessageAsync(MessageBuilder builder);
 
 }
-

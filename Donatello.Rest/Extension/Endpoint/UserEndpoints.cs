@@ -1,8 +1,5 @@
 ﻿namespace Donatello.Rest.Extension.Endpoint;
-
-using Donatello.Rest.Extension.Internal;
 using System;
-using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;

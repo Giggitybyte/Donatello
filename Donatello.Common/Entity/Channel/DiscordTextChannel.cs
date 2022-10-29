@@ -14,11 +14,11 @@ public abstract class DiscordTextChannel : DiscordChannel, ITextChannel
     internal protected DiscordTextChannel(DiscordBot bot, JsonElement json) 
         : base(bot, json)
     {
-        this.MessageCache = new ObjectCache<DiscordMessage>();
+        this.MessageCache = new EntityCache<DiscordMessage>();
     }
 
     /// <summary>Cached message instances.</summary>
-    public ObjectCache<DiscordMessage> MessageCache { get; private init; }
+    public EntityCache<DiscordMessage> MessageCache { get; private init; }
 
     /// <summary></summary>
     public async ValueTask<DiscordMessage> GetMessageAsync(DiscordSnowflake messageId)
@@ -40,24 +40,22 @@ public abstract class DiscordTextChannel : DiscordChannel, ITextChannel
 
     /// <summary></summary>
     public IAsyncEnumerable<DiscordMessage> GetMessagesAroundAsync(DiscordSnowflake snowflake)
-        => this.GetMessagesCoreAsync(("around", snowflake.ToString()));
+        => this.GetMessagesCoreAsync("around", snowflake);
 
     /// <summary></summary>
     public IAsyncEnumerable<DiscordMessage> GetMessagesBeforeAsync(DiscordSnowflake snowflake)
-        => this.GetMessagesCoreAsync(("before", snowflake.ToString()));
+        => this.GetMessagesCoreAsync("before", snowflake);
 
     /// <summary></summary>
     public IAsyncEnumerable<DiscordMessage> GetMessagesAfterAsync(DiscordSnowflake snowflake)
-        => this.GetMessagesCoreAsync(("after", snowflake.ToString()));
+        => this.GetMessagesCoreAsync("after", snowflake);
 
-    private async IAsyncEnumerable<DiscordMessage> GetMessagesCoreAsync((string key, string value) query = default)
+    private async IAsyncEnumerable<DiscordMessage> GetMessagesCoreAsync(string timeframe, DiscordSnowflake snowflake)
     {
-        this.MessageCache.Clear();
+        var messages = this.Bot.RestClient.GetChannelMessagesAsync(this.Id, (timeframe, snowflake.ToString()), ("limit", "100"))
+            .Select(messageJson => new DiscordMessage(this.Bot, messageJson));
 
-        var messageArray = await this.Bot.RestClient.GetChannelMessagesAsync(this.Id, query, ("limit", "100"));
-        var messages = messageArray.EnumerateArray().Select(messageJson => new DiscordMessage(this.Bot, messageJson));
-
-        foreach (var message in messages)
+        await foreach (var message in messages)
         {
             this.MessageCache.Add(message.Id, message);
             yield return message;

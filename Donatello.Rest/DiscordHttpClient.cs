@@ -115,7 +115,7 @@ public class DiscordHttpClient
         }
         else
             delayTask = DelayRequestAsync(_globalBucket.ResetDate - DateTimeOffset.UtcNow);
-        
+
         return delayTask ?? DispatchRequestAsync();
 
         // Send request, update ratelimit bucket, handle 429, return response.
@@ -165,10 +165,10 @@ public class DiscordHttpClient
 
             return new HttpResponse()
             {
+                Errors = ParseErrorMessages(responseJson.RootElement),
+                Payload = responseJson.RootElement.Clone(),
                 Status = response.StatusCode,
-                Message = response.ReasonPhrase,
-                Errors = ,
-                Payload = responseJson.RootElement.Clone()
+                Message = response.ReasonPhrase
             };
         }
 
@@ -180,13 +180,13 @@ public class DiscordHttpClient
         }
 
         // Returns all error messages present.
-        IList<HttpResponse.Error> ParseErrorMessages(JsonElement responseJson)
+        ICollection<HttpResponse.Error> ParseErrorMessages(JsonElement json)
         {
             var errorMessages = new List<HttpResponse.Error>();
 
             // TODO: array error
 
-            if (responseJson.TryGetProperty("errors", out var errorObject))
+            if (json.TryGetProperty("errors", out var errorObject))
             {
                 if (errorObject.TryGetProperty("_errors", out var errorProp))
                     AddError(errorProp, "request");
@@ -210,12 +210,12 @@ public class DiscordHttpClient
                     }
                 }
             }
-            else if (responseJson.TryGetProperty("message", out var messageProp))
+            else if (json.TryGetProperty("message", out var messageProp))
             {
                 var error = new HttpResponse.Error()
                 {
                     ParameterName = string.Empty,
-                    Code = responseJson.GetProperty("code").GetString(),
+                    Code = json.GetProperty("code").GetString(),
                     Message = messageProp.GetString()
                 };
 
