@@ -3,6 +3,7 @@
 using System;
 using System.Globalization;
 
+/// <summary></summary>
 public class DiscordSnowflake : IComparable<DiscordSnowflake>
 {
     private readonly static DateTimeOffset _discordEpoch = new(2015, 1, 1, 0, 0, 0, TimeSpan.Zero);

@@ -2,7 +2,7 @@
 
 using System.Text.Json;
 
-/// <summary></summary>
+/// <summary>A channel which is not associated with a guild that allows for direct messages between two users.</summary>
 public class DiscordDirectTextChannel : DiscordTextChannel
 {
     public DiscordDirectTextChannel(DiscordBot bot, JsonElement json) 

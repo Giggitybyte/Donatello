@@ -1,4 +1,4 @@
-﻿namespace Donatello.Enumeration;
+﻿namespace Donatello.Enum;
 
 public enum ChannelType : ushort
 {

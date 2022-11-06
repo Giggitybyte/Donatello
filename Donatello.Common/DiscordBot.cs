@@ -46,10 +46,8 @@ public abstract class DiscordBot
     /// <summary>Disconnects from the Discord API and releases any resources in use.</summary>
     public abstract ValueTask StopAsync();
 
-    /// <summary>
-    /// Connects to the Discord API and waits until <paramref name="cancellationToken"/> is cancelled.<br/>
-    /// When <paramref name="cancellationToken"/> is cancelled, the instance will be disconnected from the API and the <see cref="Task"/> returned by this method will successfully complete.
-    /// </summary>
+    /// <summary>Connects to the Discord API and waits until <paramref name="cancellationToken"/> is cancelled.</summary>
+    /// <remarks>When <paramref name="cancellationToken"/> is cancelled, this instance will be disconnected from the API and the <see cref="Task"/> returned by this method will successfully complete.</remarks>
     public virtual async Task RunAsync(CancellationToken cancellationToken)
     {
         await this.StartAsync();
@@ -96,7 +94,7 @@ public abstract class DiscordBot
     }
 
     /// <summary></summary>
-    public virtual async Task<TChannel> FetchChannelAsync<TChannel>(DiscordSnowflake channelId) where TChannel : DiscordChannel
+    public virtual async Task<TChannel> FetchChannelAsync<TChannel>(DiscordSnowflake channelId) where TChannel : class, IChannel
     {
         var channelJson = await this.RestClient.GetChannelAsync(channelId);
         var channel = DiscordChannel.Create<TChannel>(channelJson, this);
@@ -120,11 +118,11 @@ public abstract class DiscordBot
         => this.FetchChannelAsync<DiscordChannel>(channelId);
 
     /// <inheritdoc cref="GetChannelAsync(DiscordSnowflake)"/>
-    public virtual async ValueTask<TChannel> GetChannelAsync<TChannel>(DiscordSnowflake channelId) where TChannel : DiscordChannel
+    public virtual async ValueTask<TChannel> GetChannelAsync<TChannel>(DiscordSnowflake channelId) where TChannel : class, IChannel
     {
         foreach (var guild in this.GuildCache.Enumerate())
         {
-            if (guild.ChannelCache.Contains(channelId, out DiscordGuildChannel cachedChannel))
+            if (guild.ChannelCache.Contains(channelId, out DiscordGuildTextChannel cachedChannel))
                 return cachedChannel as TChannel;
         }
 

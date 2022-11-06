@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Enumeration;
+using Donatello.Enum;
 
 /// <summary></summary>
 public interface IChannel : IEntity

@@ -16,7 +16,7 @@ public sealed class DiscordWebsocketShard
 {
     private ClientWebSocket _websocketClient;
     private Subject<JsonElement> _eventSequence;
-    private CancellationTokenSource _websocketCts, _heartbeatDelayCts;
+    private CancellationTokenSource _websocketCts, _heartbeatCts;
     private Task _wsReceieveTask, _wsHeartbeatTask;
     private ILogger _logger;
     private string _sessionResumeUrl;
@@ -46,7 +46,7 @@ public sealed class DiscordWebsocketShard
     /// <summary>Whether or not this shard is sending a regular heartbeat payload to the gateway.</summary>
     public bool IsHeartbeatActive => _wsHeartbeatTask?.Status == TaskStatus.Running;
 
-    /// <summary>An observable sequence of raw gateway payloads.</summary>
+    /// <summary>An observable sequence of raw gateway payloads received by this shard.</summary>
     public IObservable<JsonElement> Events => _eventSequence;
 
     /// <summary>Sends a payload to the gateway containing an inner data object.</summary>
@@ -104,7 +104,7 @@ public sealed class DiscordWebsocketShard
 
         _websocketClient = new ClientWebSocket();
         _websocketCts = new CancellationTokenSource();
-        _wsReceieveTask = this.WebsocketReceiveLoop(_websocketCts.Token);
+        _wsReceieveTask = this.ListenAsync(_websocketCts.Token);
 
         string gatewayUrl = (_sessionResumeUrl is not null && this.SessionId is not null) ? _sessionResumeUrl : "wss://gateway.discord.gg";
         return _websocketClient.ConnectAsync(new Uri($"{gatewayUrl}?v=10&encoding=json"), CancellationToken.None);
@@ -119,9 +119,9 @@ public sealed class DiscordWebsocketShard
         if (!this.IsConnected)
             throw new InvalidOperationException("Websocket is not connected.");
 
-        _heartbeatDelayCts.Cancel();
-        await _wsHeartbeatTask;
         _websocketCts.Cancel();
+        _heartbeatCts.Cancel();
+        await _wsHeartbeatTask;
         await _wsReceieveTask;
 
         WebSocketCloseStatus closeStatus;
@@ -141,14 +141,14 @@ public sealed class DiscordWebsocketShard
         _logger.LogInformation("Disconnected shard {Id} ({Session})", this.Id, this.SessionId);
     }
 
-    /// <summary>
-    /// Receives incoming payloads from the gateway connection.
-    /// </summary>
-    private async Task WebsocketReceiveLoop(CancellationToken cancelToken)
+    /// <summary>Receives incoming payloads from the gateway connection.</summary>
+    private async Task ListenAsync(CancellationToken wsCancelToken)
     {
         var heartbeatAckChannel = Channel.CreateBounded<DateTime>(1);
+        var ackReader = heartbeatAckChannel.Reader;
+        var ackWriter = heartbeatAckChannel.Writer;
 
-        while (!cancelToken.IsCancellationRequested)
+        while (!wsCancelToken.IsCancellationRequested)
         {
             var payloadSize = 0;
             var buffer = ArrayPool<byte>.Shared.Rent(8192);
@@ -173,23 +173,24 @@ public sealed class DiscordWebsocketShard
                 var formattedJson = JsonSerializer.Serialize(eventJson, new JsonSerializerOptions { WriteIndented = true });
                 _logger.LogTrace("Received {Size} byte payload:\n{Json}", payloadSize, formattedJson);
             }
-            else
-                _logger.LogDebug("Received {Size} byte payload with opcode {Opcode}", payloadSize, opcode);
 
             if (opcode is 0)
             {
-                if (eventJson.GetProperty("t").GetString() is "READY")
+                var eventName = eventJson.GetProperty("t").GetString();
+                _logger.LogDebug("Received {Name} event from Discord.", eventName);
+
+                if (eventName is "READY")
                 {
                     var eventData = eventJson.GetProperty("d");
 
-                    _sessionResumeUrl = eventData.GetProperty("resume_gateway_url").GetString();
                     this.SessionId = eventData.GetProperty("session_id").GetString();
+                    _sessionResumeUrl = eventData.GetProperty("resume_gateway_url").GetString();
                 }
 
                 this.EventIndex = eventJson.GetProperty("s").GetInt32();
             }
             else if (opcode is 1)
-                _heartbeatDelayCts.Cancel();
+                _heartbeatCts.Cancel();
             else if (opcode is 7)
                 await ReconnectAsync();
             else if (opcode is 9)
@@ -205,10 +206,10 @@ public sealed class DiscordWebsocketShard
             else if (opcode is 10)
             {
                 var intervalMs = eventJson.GetProperty("d").GetProperty("heartbeat_interval").GetInt32();
-                _wsHeartbeatTask = WebsocketHeartbeatLoop(intervalMs, heartbeatAckChannel.Reader, cancelToken);
+                _wsHeartbeatTask = HeartbeatAsync(intervalMs);
             }
             else if (opcode is 11)
-                await heartbeatAckChannel.Writer.WriteAsync(DateTime.Now);
+                await ackWriter.WriteAsync(DateTime.Now);
 
             _eventSequence.OnNext(eventJson.Clone());
 
@@ -216,17 +217,18 @@ public sealed class DiscordWebsocketShard
             ArrayPool<byte>.Shared.Return(buffer, true);
         }
 
-        async Task WebsocketHeartbeatLoop(int intervalMs, ChannelReader<DateTime> channelReader, CancellationToken wsToken)
+        async Task HeartbeatAsync(int intervalMs)
         {
-            DateTime lastHeartbeartDate;
-            int missedHeartbeats = 0;
+            DateTime lastHeartbeartDate = default;
+            ushort missedHeartbeats = 0;
 
-            while (!wsToken.IsCancellationRequested)
+            while (!wsCancelToken.IsCancellationRequested)
             {
-                if (_heartbeatDelayCts is null || _heartbeatDelayCts.IsCancellationRequested)
-                    _heartbeatDelayCts = new CancellationTokenSource();
+                if (_heartbeatCts is null || _heartbeatCts.IsCancellationRequested)
+                    _heartbeatCts = new CancellationTokenSource();
 
-                await Task.Delay(intervalMs, _heartbeatDelayCts.Token);
+                var delayTime = Convert.ToInt32(intervalMs - (DateTime.Now - lastHeartbeartDate).TotalMilliseconds);
+                await Task.Delay(delayTime, _heartbeatCts.Token);
 
                 var heartbeatTask = this.EventIndex is not 0
                     ? this.SendPayloadAsync(1, JsonValueKind.Number, this.EventIndex)
@@ -236,23 +238,25 @@ public sealed class DiscordWebsocketShard
                 lastHeartbeartDate = DateTime.Now;
 
                 var acknowledgementCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                await channelReader.WaitToReadAsync(acknowledgementCts.Token);
+                await ackReader.WaitToReadAsync(acknowledgementCts.Token);
 
-                if (channelReader.Count is not 0)
+                if (ackReader.Count is not 0)
                 {
-                    var receiveDate = await channelReader.ReadAsync();
+                    var receiveDate = await ackReader.ReadAsync();
                     this.Latency = receiveDate - lastHeartbeartDate;
-
                     missedHeartbeats = 0;
                 }
-                else if (++missedHeartbeats > 3)
+                else
+                    ++missedHeartbeats;
+
+                if (missedHeartbeats > 3)
                 {
                     _logger.LogWarning("Discord failed to acknowledge more than 3 heartbeat payloads; reconnecting.");
                     await ReconnectAsync();
 
                     break;
                 }
-                else
+                else if (missedHeartbeats is not 0)
                     _logger.LogWarning("Discord failed to acknowledge {Number} heartbeat payloads.", missedHeartbeats);
             }
         }

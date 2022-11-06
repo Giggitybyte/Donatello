@@ -29,20 +29,4 @@ internal static class InternalExtensionMethods
 
         return ulong.Parse(jsonProperty.GetString());
     }
-
-    /// <summary>Adds the provided <typeparamref name="TEntity"/> instance to this cache.</summary>
-    internal static void Add(this EntityCache<JsonElement> jsonCache, JsonElement json)
-        => jsonCache.Add(json.GetProperty("id").ToSnowflake(), json);
-
-    /// <summary>Removes and returns an existing entry with the same ID as <paramref name="updatedJson"/> after replacing it with <paramref name="updatedJson"/>.</summary>
-    internal static JsonElement Replace(this EntityCache<JsonElement> jsonCache, JsonElement updatedJson)
-        => jsonCache.Replace(updatedJson.GetProperty("id").ToSnowflake(), updatedJson);
-
-    /// <summary>Adds the provided <typeparamref name="TEntity"/> instance to this cache.</summary>
-    internal static void Add<TEntity>(this EntityCache<TEntity> entityCache, TEntity entity) where TEntity : IEntity
-        => entityCache.Add(entity.Id, entity);
-
-    /// <summary>Removes and returns an existing entry with the same ID as <paramref name="updatedEntity"/> after replacing it with <paramref name="updatedEntity"/>.</summary>
-    internal static TEntity Replace<TEntity>(this EntityCache<TEntity> entityCache, TEntity updatedEntity) where TEntity : IEntity
-        => entityCache.Replace(updatedEntity.Id, updatedEntity);
 }

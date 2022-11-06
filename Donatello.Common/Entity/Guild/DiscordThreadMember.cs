@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 public class DiscordThreadMember : DiscordGuildMember
 {
-    protected JsonElement _memberJson;
+    private JsonElement _memberJson;
 
     public DiscordThreadMember(DiscordBot bot, DiscordSnowflake guildId, JsonElement userJson, JsonElement guildMemberJson, JsonElement threadMemberJson)
         : base(bot, guildId, userJson, guildMemberJson)

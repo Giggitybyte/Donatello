@@ -1,30 +1,31 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello;
 
+using Donatello.Entity;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reactive.Linq;
 
-/// <summary>Memory-based cache for short-term storage of <typeparamref name="TEntity"/> instances.</summary> 
-/// <typeparam name="TEntity">Stored object type.</typeparam>
-public sealed class EntityCache<TEntity>
+/// <summary>Memory-based cache for short-term storage of <typeparamref name="T"/> instances.</summary> 
+/// <typeparam name="T">Stored object type.</typeparam>
+public class ObjectCache<T>
 {
-    private class Entity
+    protected class Entity
     {
-        public TEntity Object { get; set; }
+        public T Object { get; set; }
         public DateTime ExpiryDate { get; set; }
         public DateTime LastAccessed { get; set; }
         public IDisposable TimerSubscription { get; set; }
     }
 
-    private ConcurrentDictionary<DiscordSnowflake, Entity> _cache;
     private TimeSpan _inactiveLifetime;
     private TimeSpan _maximumLifetime;
     private IObservable<long> _purgeTimer;
+    private ConcurrentDictionary<DiscordSnowflake, Entity> _cache;
 
     /// <param name="inactiveLifetime">How long a cache entry can be inactive (e.g. not accessed) before it will be removed.</param>
     /// <param name="maximumLifetime">The maximum amount of time an entry can be in the cache before it will be removed.</param>
-    internal EntityCache(TimeSpan inactiveLifetime = default, TimeSpan maximumLifetime = default)
+    internal ObjectCache(TimeSpan inactiveLifetime = default, TimeSpan maximumLifetime = default)
     {
         if (inactiveLifetime == default)
             _inactiveLifetime = TimeSpan.FromMinutes(15);
@@ -36,11 +37,11 @@ public sealed class EntityCache<TEntity>
         _purgeTimer = Observable.Interval(TimeSpan.FromSeconds(30));
     }
 
-    /// <summary>Number of entities currently cached.</summary>
+    /// <summary>Number of entries currently cached.</summary>
     public int Count => _cache.Count;
 
-    /// <summary>Iterates over all <typeparamref name="TEntity"/> instances contained within this cache.</summary>
-    public IEnumerable<TEntity> Enumerate()
+    /// <summary>Iterates over all <typeparamref name="T"/> instances contained within this cache.</summary>
+    public IEnumerable<T> Enumerate()
     {
         foreach (var entry in _cache.Values)
         {
@@ -56,7 +57,7 @@ public sealed class EntityCache<TEntity>
     /// <see langword="true"/> this parameter will contain the cached instance,<br/>
     /// <see langword="false"/> this parameter will be <see langword="null"/>.
     /// </param>
-    public bool Contains(DiscordSnowflake snowflake, out TEntity cachedEntity)
+    public bool Contains(DiscordSnowflake snowflake, out T cachedEntity)
     {
         _cache.TryGetValue(snowflake, out Entity entry);
         entry.LastAccessed = DateTime.Now;
@@ -65,8 +66,8 @@ public sealed class EntityCache<TEntity>
         return cachedEntity != null;
     }
 
-    /// <summary>Adds the provided <typeparamref name="TEntity"/> instance to this cache.</summary>
-    internal void Add(DiscordSnowflake snowflake, TEntity newEntity)
+    /// <summary>Adds the provided <typeparamref name="T"/> instance to this cache.</summary>
+    internal void Add(DiscordSnowflake snowflake, T newEntity)
     {
         var addDate = DateTime.Now;
         var newEntry = new Entity()
@@ -84,26 +85,25 @@ public sealed class EntityCache<TEntity>
             if (_cache.TryGetValue(snowflake, out Entity cachedEntry))
             {
                 var currentDate = DateTime.Now;
-                var inactiveTime = currentDate - cachedEntry.LastAccessed;
 
-                if (currentDate >= cachedEntry.ExpiryDate || inactiveTime >= _inactiveLifetime)
+                if (currentDate >= cachedEntry.ExpiryDate || currentDate - cachedEntry.LastAccessed >= _inactiveLifetime)
                     this.Remove(snowflake);
             }
         }
     }
 
     /// <summary></summary>
-    internal void AddMany(IList<TEntity> newEntities, Func<TEntity, DiscordSnowflake> idDelegate)
+    internal void AddMany(IList<T> newEntities, Func<T, DiscordSnowflake> idDelegate)
     {
         foreach (var entity in newEntities)
         {
             var entityId = idDelegate(entity);
             this.Add(entityId, entity);
-        }       
+        }
     }
 
     /// <summary>Adds the provided <paramref name="updatedObject"/> to the cache and returns the previously cached object.</summary>
-    internal TEntity Replace(DiscordSnowflake snowflake, TEntity updatedObject)
+    internal T Replace(DiscordSnowflake snowflake, T updatedObject)
     {
         var outdatedObject = this.Remove(snowflake);
         this.Add(snowflake, updatedObject);
@@ -111,8 +111,8 @@ public sealed class EntityCache<TEntity>
         return outdatedObject;
     }
 
-    /// <summary>Removes the entry assoicated with the provided <paramref name="snowflake"/> and returns its <typeparamref name="TEntity"/> value.</summary>
-    internal TEntity Remove(DiscordSnowflake snowflake)
+    /// <summary>Removes the entry assoicated with the provided <paramref name="snowflake"/> and returns its <typeparamref name="T"/> value.</summary>
+    internal T Remove(DiscordSnowflake snowflake)
     {
         if (_cache.TryRemove(snowflake, out Entity entry))
         {
@@ -123,8 +123,8 @@ public sealed class EntityCache<TEntity>
             return default;
     }
 
-    /// <summary>Removes the entry assoicated with the provided <paramref name="snowflakes"/> and returns each <typeparamref name="TEntity"/> value.</summary>
-    internal IEnumerable<TEntity> RemoveMany(IList<DiscordSnowflake> snowflakes)
+    /// <summary>Removes the entry assoicated with the provided <paramref name="snowflakes"/> and returns each <typeparamref name="T"/> value.</summary>
+    internal IEnumerable<T> RemoveMany(IEnumerable<DiscordSnowflake> snowflakes)
     {
         foreach (var id in snowflakes)
             yield return this.Remove(id);

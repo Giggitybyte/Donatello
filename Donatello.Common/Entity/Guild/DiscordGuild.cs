@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Enumeration;
+using Donatello.Enum;
 using Donatello.Extension.Internal;
 using Donatello.Rest.Extension.Endpoint;
 using System;
@@ -13,19 +13,20 @@ using System.Threading.Tasks;
 /// <summary>A collection of channels and members.</summary>
 public class DiscordGuild : DiscordEntity
 {
-    private EntityCache<JsonElement> _memberCache;
-
     internal DiscordGuild(DiscordBot bot, JsonElement json)
         : base(bot, json)
     {
-        _memberCache = new EntityCache<JsonElement>();
-        this.ChannelCache = new EntityCache<DiscordGuildChannel>();
+        this.MemberCache = new ObjectCache<JsonElement>();
+        this.ChannelCache = new EntityCache<IGuildChannel>();
         this.RoleCache = new EntityCache<DiscordGuildRole>();
         this.ThreadCache = new EntityCache<DiscordThreadTextChannel>();
     }
 
+    /// <summary>Cached guild member JSON objects.</summary>
+    internal ObjectCache<JsonElement> MemberCache { get; private init; };
+
     /// <summary>Cached channel instances associated with this guild.</summary>
-    public EntityCache<DiscordGuildChannel> ChannelCache { get; private set; }
+    public EntityCache<IGuildChannel> ChannelCache { get; private set; }
 
     /// <summary>Cached thread channel instances.</summary>
     public EntityCache<DiscordThreadTextChannel> ThreadCache { get; private set; }
@@ -66,8 +67,8 @@ public class DiscordGuild : DiscordEntity
     /// <summary>Returns <see langword="true"/> if the guild has an invite splash image uploaded, <see langword="false"/> otherwise.</summary>
     /// <param name="splashUrl">
     /// When the method returns:<br/>
-    /// <see langword="true"/> this parameter will conatain the invite splash URL.<br/>
-    /// <see langword="false"/> this parameter will contain an empty string.
+    /// - <see langword="true"/> this parameter will conatain the invite splash URL.<br/>
+    /// - <see langword="false"/> this parameter will contain an empty string.
     /// </param>
     public bool HasInviteSplash(out string splashUrl)
     {
@@ -81,8 +82,8 @@ public class DiscordGuild : DiscordEntity
     /// <summary>Returns <see langword="true"/> if the guild has an discovery splash image uploaded, <see langword="false"/> otherwise.</summary>
     /// <param name="splashUrl">
     /// When the method returns:<br/>
-    /// <see langword="true"/> this parameter will conatain the discovery splash URL.<br/>
-    /// <see langword="false"/> this parameter will contain an empty string.
+    /// - <see langword="true"/> this parameter will conatain the discovery splash URL.<br/>
+    /// - <see langword="false"/> this parameter will contain an empty string.
     /// </param>
     public bool HasDiscoverySplash(out string splashUrl)
     {
@@ -96,10 +97,10 @@ public class DiscordGuild : DiscordEntity
     /// <summary>Returns <see langword="true"/> if the guild has an AFK voice channel set, <see langword="false"/> otherwise.</summary>
     /// <param name="channelTask">
     /// When the method returns:<br/>
-    /// <see langword="true"/> this parameter will conatain a voice channel.<br/>
-    /// <see langword="false"/> this parameter will be <see langword="null"/>.
+    /// - <see langword="true"/> this parameter will conatain a voice channel.<br/>
+    /// - <see langword="false"/> this parameter will be <see langword="null"/>.
     /// </param>
-    public bool HasAfkChannel(out DiscordGuildVoiceChannel channelTask)
+    public bool HasAfkChannel(out DiscordGuildVoiceChannel voiceChannel)
     {
         // figure out a better construct...
     }
@@ -145,7 +146,7 @@ public class DiscordGuild : DiscordEntity
         await foreach (var memberJson in this.Bot.RestClient.GetGuildMembersAsync(this.Id))
         {
             var userId = memberJson.GetProperty("id").ToSnowflake();
-            _memberCache.Add(userId, memberJson);
+            this.MemberCache.Add(userId, memberJson);
 
             var user = await this.Bot.GetUserAsync(userId);
             yield return new DiscordGuildMember(this.Bot, this.Id, user, memberJson);
@@ -155,7 +156,7 @@ public class DiscordGuild : DiscordEntity
     /// <summary></summary>
     public async Task<ReadOnlyCollection<DiscordGuildMember>> GetMembersAsync()
     {
-        _memberCache.Clear();
+        this.MemberCache.Clear();
 
         var members = new List<DiscordGuildMember>();
         await foreach (var member in this.FetchMembersAsync())
@@ -167,10 +168,10 @@ public class DiscordGuild : DiscordEntity
     /// <summary></summary>
     public async ValueTask<DiscordGuildMember> GetMemberAsync(DiscordSnowflake userId)
     {
-        if (_memberCache.Contains(userId, out JsonElement memberJson) is false)
+        if (this.MemberCache.Contains(userId, out JsonElement memberJson) is false)
         {
             memberJson = await this.Bot.RestClient.GetGuildMemberAsync(this.Id, userId);
-            _memberCache.Add(userId, memberJson);
+            this.MemberCache.Add(userId, memberJson);
         }
 
         var user = await this.Bot.RestClient.GetUserAsync(userId);
@@ -178,21 +179,21 @@ public class DiscordGuild : DiscordEntity
     }
 
     /// <summary></summary>
-    public async IAsyncEnumerable<DiscordGuildChannel> FetchChannelsAsync()
+    public async IAsyncEnumerable<DiscordGuildTextChannel> FetchChannelsAsync()
     {
         var channels = this.Bot.RestClient.GetGuildChannelsAsync(this.Id)
-            .Select(channelJson => DiscordChannel.Create<DiscordGuildChannel>(channelJson, this.Bot));
+            .Select(channelJson => DiscordChannel.Create<DiscordGuildTextChannel>(channelJson, this.Bot));
 
         await foreach (var channel in channels)
             yield return channel;
     }
 
     /// <summary></summary>
-    public async Task<ReadOnlyCollection<DiscordGuildChannel>> GetChannelsAsync()
+    public async Task<ReadOnlyCollection<DiscordGuildTextChannel>> GetChannelsAsync()
     {
         this.ChannelCache.Clear();
 
-        var channels = new List<DiscordGuildChannel>();
+        var channels = new List<DiscordGuildTextChannel>();
         await foreach (var channel in this.FetchChannelsAsync())
         {
             channels.Add(channel);
@@ -203,7 +204,7 @@ public class DiscordGuild : DiscordEntity
     }
 
     /// <inheritdoc cref="DiscordBot.GetChannelAsync(DiscordSnowflake)"/>
-    public ValueTask<TChannel> GetChannelAsync<TChannel>(DiscordSnowflake channelId) where TChannel : DiscordGuildChannel
+    public ValueTask<TChannel> GetChannelAsync<TChannel>(DiscordSnowflake channelId) where TChannel : class, IGuildChannel
         => this.Bot.GetChannelAsync<TChannel>(channelId);
 
     /// <summary></summary>
@@ -216,7 +217,7 @@ public class DiscordGuild : DiscordEntity
         foreach (var thread in threads.Select(json => DiscordChannel.Create<DiscordThreadTextChannel>(json, this.Bot)))
         {
             foreach (var member in members.Where(json => json.GetProperty("id").GetUInt64() == thread.Id))
-                thread.MemberCache.Add(member);
+                thread.MemberCache.Add(member.GetProperty("user_id").ToSnowflake(), member);
 
             yield return thread;
         }

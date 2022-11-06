@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 public static class UserExtensionMethods
 {
-    public static Task<DiscordGuildMember> GetMemberAsync(this DiscordUser user, DiscordGuild guild)
-        => guild.GetMemberAsync(user);
+    public static ValueTask<DiscordGuildMember> GetMemberAsync(this DiscordUser user, DiscordGuild guild)
+        => guild.GetMemberAsync(user.Id);
 }
 

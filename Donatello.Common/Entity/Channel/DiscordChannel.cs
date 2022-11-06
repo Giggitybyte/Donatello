@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Enumeration;
+using Donatello.Enum;
 using System;
 using System.Collections.ObjectModel;
 using System.Text.Json;
@@ -31,7 +31,7 @@ public abstract class DiscordChannel : DiscordEntity, IChannel
     public ReadOnlyCollection<DiscordGuildInvite> Invites { get; }
 
     /// <summary>Converts a JSON object to the appropriate Discord channel entity as attempts to return it as <typeparamref name="TChannel"/>.</summary>
-    internal protected static TChannel Create<TChannel>(JsonElement channelJson, DiscordBot botInstance) where TChannel : DiscordChannel
+    internal protected static TChannel Create<TChannel>(JsonElement channelJson, DiscordBot botInstance) where TChannel : class, IChannel
     {
         var type = channelJson.GetProperty("type").GetInt32();
 

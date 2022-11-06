@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Enumeration;
+using Donatello.Enum;
 using Donatello.Extension.Internal;
 using Donatello.Rest.Extension.Endpoint;
 using System;
@@ -15,14 +15,14 @@ public class DiscordThreadTextChannel : DiscordGuildTextChannel
     public DiscordThreadTextChannel(DiscordBot bot, JsonElement json)
         : base(bot, json)
     {
-        this.MemberCache = new EntityCache<JsonElement>();
+        this.MemberCache = new ObjectCache<JsonElement>();
     }
 
     /// <summary>An additional sub-set of fields sent only with threads.</summary>
     internal JsonElement Metadata => this.Json.GetProperty("thread_metadata");
 
     /// <summary></summary>
-    internal EntityCache<JsonElement> MemberCache { get; init; }
+    internal ObjectCache<JsonElement> MemberCache { get; init; }
 
     /// <summary></summary>
     public bool IsLocked => this.Metadata.GetProperty("locked").GetBoolean();
@@ -72,13 +72,13 @@ public class DiscordThreadTextChannel : DiscordGuildTextChannel
     /// <summary></summary>
     public async IAsyncEnumerable<DiscordThreadMember> FetchMembersAsync()
     {
-        await foreach (var memberJson in this.Bot.RestClient.GetThreadChannelMembersAsync(this.Id))
+        await foreach (var threadMemberJson in this.Bot.RestClient.GetThreadChannelMembersAsync(this.Id))
         {
-            this.MemberCache.Add(memberJson.GetProperty("user_id").ToSnowflake(), memberJson);
+            this.MemberCache.Add(threadMemberJson.GetProperty("user_id").ToSnowflake(), threadMemberJson);
 
             var guild = await this.GetGuildAsync();
-            var guildMember = await guild.GetMemberAsync(memberJson.GetProperty("user_id").ToSnowflake());
-            var threadMember = new DiscordThreadMember(this.Bot, this.Json.GetProperty("guild_id").ToSnowflake(), guildMember, memberJson);
+            var guildMember = await guild.GetMemberAsync(threadMemberJson.GetProperty("user_id").ToSnowflake());
+            var threadMember = new DiscordThreadMember(this.Bot, guildMember, threadMemberJson);
 
             yield return threadMember;
         }

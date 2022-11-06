@@ -63,6 +63,19 @@ public abstract class DiscordTextChannel : DiscordChannel, ITextChannel
     }
 
     /// <summary></summary>
+    public async IAsyncEnumerable<DiscordMessage> GetPinnedMessagesAsync()
+    {
+        var messages = this.Bot.RestClient.GetPinnedMessagesAsync(this.Id)
+            .Select(messageJson => new DiscordMessage(this.Bot, messageJson));
+
+        await foreach (var message in messages)
+        {
+            this.MessageCache.Add(message);
+            yield return message;
+        }
+    }
+
+    /// <summary></summary>
     public async Task<DiscordMessage> SendMessageAsync(MessageBuilder builder)
     {
         var messageJson = await this.Bot.RestClient.CreateMessageAsync(this.Id, jsonWriter => builder.ConstructJson(jsonWriter));

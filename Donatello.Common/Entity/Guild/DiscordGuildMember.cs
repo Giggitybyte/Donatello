@@ -61,8 +61,8 @@ public class DiscordGuildMember : DiscordUser, IGuildEntity
     /// <summary>Returns <see langword="true"/> if the member has a nickname set, <see langword="false"/> otherwise.</summary>
     /// <param name="nickname">
     /// When the method returns:<br/>
-    /// <see langword="true"/> this parameter will contain the nickname set by the member,<br/>
-    /// <see langword="false"/> this parameter will contain an empty string.
+    /// - <see langword="true"/> this parameter will contain the nickname set by the member,<br/>
+    /// - <see langword="false"/> this parameter will contain an empty string.
     /// </param>
     public bool HasNickname(out string nickname)
     {
@@ -94,8 +94,8 @@ public class DiscordGuildMember : DiscordUser, IGuildEntity
     /// </summary>
     /// <param name="startDate">
     /// When the method returns:<br/>
-    /// <see langword="true"/> this parameter will contain the date when the member began boosting its guild.<br/>
-    /// <see langword="false"/> this parameter will be <see cref="DateTimeOffset.MinValue"/>.
+    /// - <see langword="true"/> this parameter will contain the date when the member began boosting its guild.<br/>
+    /// - <see langword="false"/> this parameter will be <see cref="DateTimeOffset.MinValue"/>.
     /// </param>
     public bool IsBooster(out DateTimeOffset startDate)
     {
