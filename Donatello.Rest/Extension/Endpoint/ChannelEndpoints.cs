@@ -44,7 +44,7 @@ public static class ChannelEndpoints
     /// <summary>Posts a message to a channel.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/channel#create-message-jsonform-params">Click here to see valid JSON parameters</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message object</see></returns>
-    public static Task<JsonElement> CreateMessageAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> jsonDelegate, IList<Attachment> attachments)
+    public static Task<JsonElement> CreateMessageAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> jsonDelegate, IList<File> attachments)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/messages", jsonDelegate, attachments).GetJsonAsync();
 
     /// <summary>Crosspost a message in a news channel to following channels. </summary>

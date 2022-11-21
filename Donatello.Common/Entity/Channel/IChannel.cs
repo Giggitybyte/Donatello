@@ -3,7 +3,7 @@
 using Donatello.Enum;
 
 /// <summary></summary>
-public interface IChannel : IEntity
+public interface IChannel : ISnowflakeEntity
 {
     /// <summary>Type of this channel.</summary>
     protected internal ChannelType Type { get; }

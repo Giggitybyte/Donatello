@@ -1,47 +1,23 @@
-﻿namespace Donatello.Entity.Builder;
+﻿namespace Donatello.Builder;
 
+using Donatello.Entity;
 using Donatello.Rest;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 /// <summary></summary>
-public sealed class EmbedBuilder : EntityBuilder
+public sealed class EmbedBuilder : JsonObjectBuilder<DiscordMessage.Embed>
 {
-    private struct Field
-    {
-        public string Title { get; init; }
-        public string Content { get; init; }
-        public bool IsInline { get; init; }
-    }
-
-    private string _title, _description, _footer;
-    private List<Field> _fields;
-
-    /// <summary></summary>
-    public EmbedBuilder()
-    {
-        _fields = new List<Field>(25);
-    }
-
-    /// <summary></summary>
-    public EmbedBuilder AppendField(string title, string content, bool inline = false)
-    {
-        if (_fields.Count + 1 > _fields.Capacity)
-            throw new InvalidOperationException($"Embed can only contain {_fields.Capacity} fields.");
-        
-        _fields.Add(new Field(title, content, inline));
-
-        return this;
-    }
-
     /// <summary></summary>
     public EmbedBuilder SetTitle(string title)
     {
         if (title.Length > 256)
             throw new ArgumentOutOfRangeException(nameof(title), "Title cannot be greater than 256 characters.");
 
-        _title = title;
+        this.Json["title"] = title;
+
         return this;
     }
 
@@ -51,7 +27,34 @@ public sealed class EmbedBuilder : EntityBuilder
         if (description.Length > 4096)
             throw new ArgumentOutOfRangeException(nameof(description), "Description cannot be greater than 4096 characters.");
 
-        _description = description;
+        this.Json["description"] = description;
+
+        return this;
+    }
+
+    /// <summary></summary>
+    public EmbedBuilder SetUrl(Uri url)
+    {
+        this.Json["url"] = url.ToString();
+        return this;
+    }
+
+    /// <summary></summary>
+    public EmbedBuilder AppendField(string title, string content, bool inline = false)
+    {
+        this.Json["fields"] ??= new JsonArray();
+        var fields = this.Json["fields"].AsArray();
+
+        if (fields.Count + 1 > 25)
+            throw new InvalidOperationException("Embed can only contain 25 fields.");
+
+        fields.Add(new JsonObject()
+        {
+            { "name", title },
+            { "value", content },
+            { "inline", inline }
+        });
+
         return this;
     }
 

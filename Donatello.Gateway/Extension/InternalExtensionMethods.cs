@@ -1,4 +1,4 @@
-﻿namespace Donatello.Gateway.Extension;
+﻿namespace Donatello.Gateway.Extension.Internal;
 
 using Donatello.Rest;
 using System;

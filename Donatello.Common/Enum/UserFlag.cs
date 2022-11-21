@@ -4,7 +4,7 @@ using System;
 
 /// <summary>Additional user metadata.</summary>
 [Flags]
-public enum UserFlag : int 
+public enum UserFlag : int
 {
     /// <summary>User does not have any flags.</summary>
     None = 0,
@@ -33,7 +33,7 @@ public enum UserFlag : int
     /// <summary>User was a Legacy Nitro subscriber.</summary>
     EarlySupporter = 1 << 9,
 
-    /// <summary>User is not actually a user, but a <see href="https://discord.com/developers/docs/topics/teams">team</see>.</summary>
+    /// <summary>User is not actually a user, but a representation for a <see href="https://discord.com/developers/docs/topics/teams">team</see>.</summary>
     Team = 1 << 10,
 
     /// <summary>The user is the official Discord system user.</summary>
@@ -51,6 +51,6 @@ public enum UserFlag : int
     /// <summary>User is a certified Discord moderator.</summary>
     Moderator = 1 << 18,
 
-    /// <summary>User is a bot which uses the interaction model. </summary>
+    /// <summary>User is a bot which uses the interaction model instead of the gateway.</summary>
     InteractionsBot = 1 << 19
 }

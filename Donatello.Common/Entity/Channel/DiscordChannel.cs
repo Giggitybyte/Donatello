@@ -1,9 +1,11 @@
 ﻿namespace Donatello.Entity;
 
 using Donatello.Enum;
+using Donatello.Extension.Internal;
 using System;
 using System.Collections.ObjectModel;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 /// <summary>Abstract implementation of <see cref="IChannel"/>.</summary>
 public abstract class DiscordChannel : DiscordEntity, IChannel
@@ -30,7 +32,7 @@ public abstract class DiscordChannel : DiscordEntity, IChannel
     /// <summary></summary>
     public ReadOnlyCollection<DiscordGuildInvite> Invites { get; }
 
-    /// <summary>Converts a JSON object to the appropriate Discord channel entity as attempts to return it as <typeparamref name="TChannel"/>.</summary>
+    /// <summary>Converts a JSON object to the appropriate Discord channel entity and attempts to return it as <typeparamref name="TChannel"/>.</summary>
     internal protected static TChannel Create<TChannel>(JsonElement channelJson, DiscordBot botInstance) where TChannel : class, IChannel
     {
         var type = channelJson.GetProperty("type").GetInt32();
@@ -58,5 +60,13 @@ public abstract class DiscordChannel : DiscordEntity, IChannel
 
     /// <summary>Converts a JSON object to an appropriate Discord channel entity.</summary>
     internal protected static DiscordChannel Create(JsonElement channelJson, DiscordBot botInstance)
+        => Create<DiscordChannel>(channelJson, botInstance);
+
+    /// <summary>Converts a JSON object to the appropriate Discord channel entity and attempts to return it as <typeparamref name="TChannel"/>.</summary>
+    internal protected static TChannel Create<TChannel>(JsonObject channelObject, DiscordBot botInstance) where TChannel : class, IChannel 
+        => Create<TChannel>(channelObject.AsElement(), botInstance);
+
+    /// <summary>Converts a JSON object to an appropriate Discord channel entity.</summary>
+    internal protected static DiscordChannel Create(JsonObject channelJson, DiscordBot botInstance)
         => Create<DiscordChannel>(channelJson, botInstance);
 }

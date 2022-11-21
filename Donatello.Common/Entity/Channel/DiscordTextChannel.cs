@@ -1,5 +1,6 @@
 ﻿namespace Donatello.Entity;
 
+using Donatello;
 using Donatello.Entity.Builder;
 using Donatello.Rest.Extension.Endpoint;
 using System;

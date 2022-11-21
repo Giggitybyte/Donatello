@@ -4,7 +4,7 @@ using System;
 
 /// <summary>Represents one or more gateway intents.</summary>
 [Flags]
-public enum GatewayIntent : int
+public enum GuildIntent : int
 {
     /// <summary>All privileged and non-privileged events.</summary>
     All = Unprivileged | Privileged,

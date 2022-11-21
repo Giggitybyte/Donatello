@@ -1,6 +1,6 @@
-﻿namespace Donatello;
+﻿namespace Donatello.Cache;
 
-using Donatello.Entity;
+using Donatello;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -10,7 +10,7 @@ using System.Reactive.Linq;
 /// <typeparam name="T">Stored object type.</typeparam>
 public class ObjectCache<T>
 {
-    protected class Entity
+    protected sealed class Entity
     {
         public T Object { get; set; }
         public DateTime ExpiryDate { get; set; }
@@ -93,7 +93,7 @@ public class ObjectCache<T>
     }
 
     /// <summary></summary>
-    internal void AddMany(IList<T> newEntities, Func<T, DiscordSnowflake> idDelegate)
+    internal void AddMany(IEnumerable<T> newEntities, Func<T, DiscordSnowflake> idDelegate)
     {
         foreach (var entity in newEntities)
         {

@@ -2,7 +2,7 @@
 
 using System.Text.Json;
 
-public class GuildChannelBuilder : EntityBuilder
+public class GuildChannelBuilder : JsonBuilder
 {
     internal override void ConstructJson(in Utf8JsonWriter json)
     {

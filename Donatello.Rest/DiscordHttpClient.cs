@@ -74,15 +74,15 @@ public class DiscordHttpClient
         => this.SendRequestCoreAsync(method, endpoint, this.CreateStringContent(jsonObject));
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonDelegate, IList<Attachment> attachments)
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonDelegate, IList<File> attachments)
         => this.SendMultipartRequestAsync(method, endpoint, this.CreateStringContent(jsonDelegate), attachments);
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, IList<Attachment> attachments)
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, IList<File> attachments)
         => this.SendMultipartRequestAsync(method, endpoint, this.CreateStringContent(jsonObject), attachments);
 
     /// <summary>Sends a multi-part HTTP request to an endpoint.</summary>
-    private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, StringContent content, IList<Attachment> attachments)
+    private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, StringContent content, IList<File> attachments)
     {
         var multipartContent = new MultipartFormDataContent();
         multipartContent.Add(content, "payload_json");
@@ -188,7 +188,7 @@ public class DiscordHttpClient
 
             if (json.TryGetProperty("errors", out var errorObject))
             {
-                if (errorObject.TryGetProperty("_errors", out var errorProp))
+                if (errorObject.TryGetProperty("_errors", out JsonElement errorProp))
                     AddError(errorProp, "request");
                 else
                     foreach (var objectProp in errorObject.EnumerateObject())
@@ -210,7 +210,7 @@ public class DiscordHttpClient
                     }
                 }
             }
-            else if (json.TryGetProperty("message", out var messageProp))
+            else if (json.TryGetProperty("message", out JsonElement messageProp))
             {
                 var error = new HttpResponse.Error()
                 {

@@ -1,15 +1,15 @@
 ﻿namespace Donatello.Entity;
 
+using Donatello;
 using Donatello.Extension.Internal;
 using System;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
-public abstract class DiscordEntity : IEntity
+public abstract class DiscordEntity : ISnowflakeEntity, IBotEntity
 {
     private readonly JsonElement _entity;
 
-    /// <param name="bot">Bot instance to provide convinence methods.</param>
-    /// <param name="entityJson">Backing JSON entity.</param>
     protected DiscordEntity(DiscordBot bot, JsonElement entityJson)
     {
         if (entityJson.ValueKind is not JsonValueKind.Object)
@@ -19,18 +19,22 @@ public abstract class DiscordEntity : IEntity
         _entity = entityJson;
     }
 
-    JsonElement IEntity.Json => this.Json;
-    DiscordBot IEntity.Bot => this.Bot;
-    bool IEquatable<IEntity>.Equals(IEntity other) => this.Equals(other);
+    protected DiscordEntity(DiscordBot bot, JsonObject entityObject) 
+        : this(bot, entityObject.AsElement())
+    {
+    }
 
-    /// <summary>Backing JSON object for this entity.</summary>
-    protected internal JsonElement Json => _entity;
+    /// <inheritdoc cref="IJsonEntity.Json"/>
+    protected internal JsonElement Json => _entity;    
 
-    /// <summary>Bot instance which contains and manages this object.</summary>
+    /// <inheritdoc cref="IBotEntity.Bot"/>
     protected DiscordBot Bot { get; private init; }
 
-    /// <inheritdoc/>
+    /// <inheritdoc cref="ISnowflakeEntity.Id"/>
     public virtual DiscordSnowflake Id => this.Json.GetProperty("id").ToSnowflake();
+
+    public override int GetHashCode()
+        => this.Id.GetHashCode();
 
     public virtual bool Equals(DiscordEntity other)
         => this.Id == other?.Id;
@@ -38,6 +42,9 @@ public abstract class DiscordEntity : IEntity
     public override bool Equals(object obj)
         => this.Equals(obj as DiscordEntity);
 
-    public override int GetHashCode()
-        => this.Id.GetHashCode();
+    JsonElement IJsonEntity.Json => this.Json;
+    DiscordBot IBotEntity.Bot => this.Bot;
+
+    bool IEquatable<ISnowflakeEntity>.Equals(ISnowflakeEntity other) 
+        => this.Equals(other);
 }

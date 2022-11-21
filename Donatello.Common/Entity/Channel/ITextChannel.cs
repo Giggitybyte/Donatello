@@ -1,5 +1,6 @@
 ﻿namespace Donatello.Entity;
 
+using Donatello;
 using Donatello.Entity.Builder;
 using System.Collections.Generic;
 using System.Threading.Tasks;

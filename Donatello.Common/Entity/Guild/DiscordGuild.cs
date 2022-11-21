@@ -1,5 +1,7 @@
 ﻿namespace Donatello.Entity;
 
+using Donatello;
+using Donatello.Cache;
 using Donatello.Enum;
 using Donatello.Extension.Internal;
 using Donatello.Rest.Extension.Endpoint;
@@ -23,10 +25,13 @@ public class DiscordGuild : DiscordEntity
     }
 
     /// <summary>Cached guild member JSON objects.</summary>
-    internal ObjectCache<JsonElement> MemberCache { get; private init; };
+    internal ObjectCache<JsonElement> MemberCache { get; private init; }
 
     /// <summary>Cached channel instances associated with this guild.</summary>
     public EntityCache<IGuildChannel> ChannelCache { get; private set; }
+
+    /// <summary>Cached voice state instances.</summary>
+    public EntityCache<DiscordVoiceState> VoiceStateCache { get; private set; }
 
     /// <summary>Cached thread channel instances.</summary>
     public EntityCache<DiscordThreadTextChannel> ThreadCache { get; private set; }
@@ -112,13 +117,17 @@ public class DiscordGuild : DiscordEntity
     /// <summary></summary>
     public async IAsyncEnumerable<DiscordGuildRole> FetchRolesAsync()
     {
-        await foreach (var role in this.Bot.RestClient.GetGuildRolesAsync(this.Id).Select(json => new DiscordGuildRole(this.Bot, json)))
+        var roles = this.Bot.RestClient.GetGuildRolesAsync(this.Id)
+            .Select(json => new DiscordGuildRole(this.Bot, json));
+
+        await foreach (var role in roles)
         {
             this.RoleCache.Add(role.Id, role);
             yield return role;
         }
     }
 
+    /// <summary></summary>
     public async Task<ReadOnlyCollection<DiscordGuildRole>> GetRolesAsync()
     {
         this.RoleCache.Clear();
@@ -174,7 +183,7 @@ public class DiscordGuild : DiscordEntity
             this.MemberCache.Add(userId, memberJson);
         }
 
-        var user = await this.Bot.RestClient.GetUserAsync(userId);
+        var user = await this.Bot.GetUserAsync(userId);
         return new DiscordGuildMember(this.Bot, this.Id, user, memberJson);
     }
 

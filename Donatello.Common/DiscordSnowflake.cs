@@ -1,4 +1,4 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello;
 
 using System;
 using System.Globalization;

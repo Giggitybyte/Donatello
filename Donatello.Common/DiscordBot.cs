@@ -1,5 +1,6 @@
 ﻿namespace Donatello;
 
+using Donatello.Cache;
 using Donatello.Entity;
 using Donatello.Extension.Internal;
 using Donatello.Rest;
@@ -101,7 +102,7 @@ public abstract class DiscordBot
 
         if (channelJson.TryGetProperty("guild_id", out var prop))
         {
-            if (channel is DiscordGuildChannel guildChannel)
+            if (channel is IGuildChannel guildChannel)
             {
                 var guild = await this.GetGuildAsync(prop.ToSnowflake());
                 guild.ChannelCache.Add(channelId, guildChannel);

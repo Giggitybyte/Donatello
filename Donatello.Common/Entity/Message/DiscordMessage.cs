@@ -1,4 +1,5 @@
 ﻿namespace Donatello.Entity;
+
 using Donatello.Extension.Internal;
 using System;
 using System.Collections.Generic;
@@ -12,43 +13,43 @@ public class DiscordMessage : DiscordEntity
     public DiscordMessage(DiscordBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
 
     /// <summary>Date when this message was sent.</summary>
-    public DateTimeOffset SendDate => this.Json.GetProperty("time").GetDateTimeOffset();
+    public DateTimeOffset SendDate => this.Json.GetProperty("timestamp").GetDateTimeOffset();
 
     /// <summary>Returns whether this was a text-to-speech (TTS) message.</summary>
     public bool TextToSpeech => this.Json.GetProperty("tts").GetBoolean();
 
     /// <summary>Whether this message contains an <c>@everyone</c> string mention.</summary>
-    public bool EveryoneMention => this.Json.GetProperty("mention_everyone").GetBoolean();
+    public bool MentionEveryone => this.Json.GetProperty("mention_everyone").GetBoolean();
 
     /// <summary></summary>
     public ValueTask<DiscordTextChannel> GetChannelAsync()
         => this.Bot.GetChannelAsync<DiscordTextChannel>(this.Json.GetProperty("channel_id").ToSnowflake());
 
     /// <summary></summary>
-    public async IAsyncEnumerable<DiscordUser> GetMentionedUsersAsync()
+    public IEnumerable<DiscordUser> GetMentionedUsers()
     {
         var mentionArray = this.Json.GetProperty("mentions");
         if (mentionArray.GetArrayLength() is 0)
             yield break;
 
-        foreach (var userId in mentionArray.EnumerateArray().Select(partialUser => partialUser.GetProperty("id").ToSnowflake()))
+        foreach (var partialUser in mentionArray.EnumerateArray())
         {
-            var user = await this.Bot.GetUserAsync(userId);
-
             if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
-                yield return new DiscordGuildMember(this.Bot, guildProp.ToSnowflake(), user, memberJson);
+                yield return new DiscordGuildMember(this.Bot, guildProp.ToSnowflake(), partialUser, memberJson);
             else
-                yield return user;
+                yield return new DiscordUser(this.Bot, partialUser);
         }
     }
 
     /// <summary></summary>
     public async IAsyncEnumerable<DiscordGuildRole> GetMentionedRolesAsync()
     {
-        var mentionArray = this.Json.GetProperty("mention_roles");
         var channel = await this.GetChannelAsync();
 
-        if (channel is not DiscordGuildTextChannel guildChannel || mentionArray.GetArrayLength() is 0)
+        if (channel is not DiscordGuildTextChannel guildChannel)
+            throw new InvalidOperationException("Channel must be a guild text channel.");
+
+        if (this.Json.TryGetProperty("mention_roles", out JsonElement mentionArray) is false || mentionArray.GetArrayLength() is 0)
             yield break;
 
         foreach (var roleId in mentionArray.EnumerateArray().Select(json => json.ToSnowflake()))
@@ -63,8 +64,8 @@ public class DiscordMessage : DiscordEntity
     /// <summary>Returns <see langword="true"/> if this message contained any <see cref="string"/> content, <see langword="false"/> otherwise.</summary>
     /// <param name="content">
     /// When the method returns:<br/>
-    /// <see langword="true"/> this parameter will contain the string value of the message.<br/>
-    /// <see langword="false"/> this parameter will contain an empty string.
+    /// - <see langword="true"/> this parameter will contain the string value of the message.<br/>
+    /// - <see langword="false"/> this parameter will contain an empty string.
     /// </param>
     public bool HasContent(out string content)
     {
@@ -72,11 +73,11 @@ public class DiscordMessage : DiscordEntity
         return !string.IsNullOrEmpty(content);
     }
 
-    /// <summary>Returns <see langword="true"/> if this message was edited at any point, <see langword="false"/> otherwise.</summary>
+    /// <summary>Returns <see langword="true"/> if this message was edited at any point in time, <see langword="false"/> otherwise.</summary>
     /// <param name="lastEditDate">
     /// When the method returns:<br/>
-    /// <see langword="true"/> this parameter will contain the date when the message was last edited.<br/>
-    /// <see langword="false"/> this parameter will be set to <see cref="DateTimeOffset.MinValue"/>.
+    /// - <see langword="true"/> this parameter will contain the date when the message was last edited.<br/>
+    /// - <see langword="false"/> this parameter will be set to <see cref="DateTimeOffset.MinValue"/>.
     /// </param>
     public bool WasEdited(out DateTimeOffset lastEditDate)
     {

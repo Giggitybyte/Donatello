@@ -55,7 +55,7 @@ public sealed class DiscordInteractionBot : DiscordBot
         if (this.IsConnected)
             throw new InvalidOperationException("Instance is already active.");
 
-        _interactionListenerTask = this.InteractionListenerLoop(_cts.Token);
+        _interactionListenerTask = this.ListenAsync(_cts.Token);
 
         foreach (var command in _commandService.GetAllCommands())
         {
@@ -78,7 +78,7 @@ public sealed class DiscordInteractionBot : DiscordBot
     }
 
     /// <summary>Webhook listener.</summary>
-    private async Task InteractionListenerLoop(CancellationToken token)
+    private async Task ListenAsync(CancellationToken token)
     {
         using var listener = new HttpListener();
         listener.Prefixes.Add($"https://*:{_port}/");
@@ -96,10 +96,10 @@ public sealed class DiscordInteractionBot : DiscordBot
             var data = await streamReader.ReadToEndAsync();
             var signature = request.Headers.Get("X-Signature-Ed25519");
             var timestamp = request.Headers.Get("X-Signature-Timestamp");
-            bool isValidSignature = SignatureAlgorithm.Ed25519.Verify(_publicKey, Encoding.UTF8.GetBytes($"{timestamp}{data}"), Convert.FromHexString(signature));
+            var isValidSignature = SignatureAlgorithm.Ed25519.Verify(_publicKey, Encoding.UTF8.GetBytes($"{timestamp}{data}"), Convert.FromHexString(signature));
 
             if (isValidSignature)
-                await this.ProcessInteractionAsync(data, response);
+                await this.ProcessAsync(data, response);
             else
             {
                 response.StatusCode = 401;
@@ -112,7 +112,7 @@ public sealed class DiscordInteractionBot : DiscordBot
         listener.Stop();
     }
 
-    private async ValueTask ProcessInteractionAsync(string data, HttpListenerResponse response)
+    private async ValueTask ProcessAsync(string data, HttpListenerResponse response)
     {
         using var payload = JsonDocument.Parse(data);
         var interactionJson = payload.RootElement;
@@ -121,15 +121,15 @@ public sealed class DiscordInteractionBot : DiscordBot
         var responseBuffer = new ArrayBufferWriter<byte>();
         using var responseWriter = new Utf8JsonWriter(responseBuffer);
 
-        if (interactionType == 1) // Ping
+        if (interactionType is 1) // Ping
             responseWriter.WriteNumber("type", 1); // Pong
-        else if (interactionType == 2)
+        else if (interactionType is 2)
             ProcessCommand();
-        else if (interactionType == 3)
+        else if (interactionType is 3)
             ProcessComponent();
-        else if (interactionType == 4)
+        else if (interactionType is 4)
             ProcessCommandAutoComplete();
-        else if (interactionType == 5)
+        else if (interactionType is 5)
             ProcessModalSubmission();
         else
         {
@@ -185,9 +185,5 @@ public sealed class DiscordInteractionBot : DiscordBot
             throw new NotImplementedException("Modal");
         }
     }
-
-    private void EventExceptionLogger(Exception exception)
-        => this.Logger.LogError(exception, "An event handler threw an exception.");
-
 }
 

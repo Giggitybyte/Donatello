@@ -3,7 +3,7 @@
 using System.Text.Json;
 using System.Threading.Tasks;
 
-public class DiscordGuildRole : DiscordEntity, IGuildEntity
+public class DiscordGuildRole : DiscordGuildEntity
 {
     public DiscordGuildRole(DiscordBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
 

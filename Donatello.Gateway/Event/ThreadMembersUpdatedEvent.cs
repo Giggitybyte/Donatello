@@ -10,9 +10,9 @@ public class ThreadMembersUpdatedEvent : DiscordEvent
     public DiscordThreadTextChannel Thread { get; internal set; }
 
     /// <summary></summary>
-    public ReadOnlyCollection<DiscordThreadMember> NewMembers { get; internal set; }
+    public ReadOnlyCollection<DiscordThreadMember> New { get; internal set; }
 
     /// <summary></summary>
-    public ReadOnlyCollection<DiscordGuildMember> OldMembers { get; internal set; }
+    public ReadOnlyCollection<DiscordGuildMember> Old { get; internal set; }
 }
 

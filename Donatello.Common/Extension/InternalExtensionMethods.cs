@@ -1,8 +1,9 @@
 ﻿namespace Donatello.Extension.Internal;
 
-using Donatello.Entity;
-using System;
+using Donatello;
+using System.Buffers;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 internal static class InternalExtensionMethods
 {
@@ -28,5 +29,27 @@ internal static class InternalExtensionMethods
             throw new JsonException($"Expected a string, got {jsonProperty.ValueKind} instead.");
 
         return ulong.Parse(jsonProperty.GetString());
+    }
+
+    /// <summary></summary>
+    internal static DiscordSnowflake ToSnowflake(this JsonValue jsonNode)
+    {
+        if (jsonNode.TryGetValue<string>(out var value) is false)
+            throw new JsonException($"Expected a string.");
+
+        return ulong.Parse(value);
+    }
+
+    /// <summary></summary>
+    internal static JsonElement AsElement(this JsonNode jsonNode)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using var jsonWriter = new Utf8JsonWriter(buffer);
+
+        jsonNode.WriteTo(jsonWriter);
+        jsonWriter.Flush();
+
+        using var jsonDoc = JsonDocument.Parse(buffer.WrittenMemory);
+        return jsonDoc.RootElement.Clone();
     }
 }

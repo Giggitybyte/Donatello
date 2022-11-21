@@ -1,11 +1,10 @@
 ﻿namespace Donatello.Gateway.Event;
 
+using Donatello;
 using Donatello.Entity;
-using System;
-using System.Reactive.Linq;
 
 /// <summary>Fired when an entity has been deleted or is otherwise inaccessable.</summary>
-public sealed class EntityUnavailableEvent<TEntity> : DiscordEvent where TEntity : DiscordEntity
+public sealed class EntityDeletedEvent<TEntity> : DiscordEvent where TEntity : DiscordEntity
 {
     /// <summary></summary>
     public DiscordSnowflake EntityId { get; internal init; }

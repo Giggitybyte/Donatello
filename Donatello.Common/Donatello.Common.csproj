@@ -16,8 +16,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <None Remove="Entity\Guild\DiscordGuildMember.cs~RF3ff2d88.TMP" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="NSec.Cryptography" Version="22.4.0" />
-		<PackageReference Include="Qmmands" Version="6.0.0-alpha4" />
 		<PackageReference Include="System.Linq.Async" Version="6.0.1" />
 		<PackageReference Include="System.Reactive" Version="5.0.0" />
 	</ItemGroup>
@@ -29,6 +32,10 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="..\Donatello.Rest\Donatello.Rest.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Command\Attribute\" />
 	</ItemGroup>
 
 </Project>

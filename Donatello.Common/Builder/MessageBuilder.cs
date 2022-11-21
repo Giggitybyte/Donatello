@@ -1,4 +1,4 @@
-﻿namespace Donatello.Entity.Builder;
+﻿namespace Donatello.Builder;
 
 using Donatello.Entity;
 using Donatello.Rest;
@@ -6,7 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 
-public sealed class MessageBuilder : EntityBuilder
+public sealed class MessageBuilder : JsonObjectBuilder<DiscordMessage>
 {
     public sealed record MentionConfiguration(); // TODO
 

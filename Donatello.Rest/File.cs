@@ -3,10 +3,9 @@
 using System.IO;
 using System.Net.Http;
 
-/// <summary>Wrapper class for a</summary>
-public sealed class Attachment
+public sealed class File
 {
-    internal Attachment(string name, long size, HttpContent content)
+    internal File(string name, long size, HttpContent content)
     {
         this.Content = content;
         this.Name = name;
@@ -22,15 +21,15 @@ public sealed class Attachment
     /// <summary>File size.</summary>
     public long Size { get; private init; }
 
-    /// <summary>Creates a new local attachment from a byte array.</summary>
+    /// <summary>Creates a new local file from a byte array.</summary>
     /// <param name="fileName">File name with extension.</param>
     /// <param name="bytes">File bytes.</param>
-    public static Attachment FromBytes(string fileName, byte[] bytes)
+    public static File FromBytes(string fileName, byte[] bytes)
         => new(fileName, bytes.LongLength, new ByteArrayContent(bytes));
 
-    /// <summary>Creates a new local attachment from a stream.</summary>
+    /// <summary>Creates a new local file from a stream.</summary>
     /// <param name="fileName">File name with extension.</param>
     /// <param name="stream">File stream.</param>
-    public static Attachment FromStream(string fileName, Stream stream)
+    public static File FromStream(string fileName, Stream stream)
         => new(fileName, stream.Length, new StreamContent(stream));
 }

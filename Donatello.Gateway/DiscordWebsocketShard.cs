@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Gateway;
 
-using Donatello.Gateway.Extension;
+using Donatello.Gateway.Extension.Internal;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
@@ -119,8 +119,8 @@ public sealed class DiscordWebsocketShard
         if (!this.IsConnected)
             throw new InvalidOperationException("Websocket is not connected.");
 
-        _websocketCts.Cancel();
         _heartbeatCts.Cancel();
+        _websocketCts.Cancel();
         await _wsHeartbeatTask;
         await _wsReceieveTask;
 
@@ -137,16 +137,14 @@ public sealed class DiscordWebsocketShard
         else
             closeStatus = WebSocketCloseStatus.Empty;
 
-        await _websocketClient.CloseAsync(closeStatus, "", CancellationToken.None);
-        _logger.LogInformation("Disconnected shard {Id} ({Session})", this.Id, this.SessionId);
+        await _websocketClient.CloseAsync(closeStatus, "User requested disconnect.", CancellationToken.None);
+        _logger.LogInformation("Disconnected shard {Id}", this.Id);
     }
 
     /// <summary>Receives incoming payloads from the gateway connection.</summary>
     private async Task ListenAsync(CancellationToken wsCancelToken)
     {
         var heartbeatAckChannel = Channel.CreateBounded<DateTime>(1);
-        var ackReader = heartbeatAckChannel.Reader;
-        var ackWriter = heartbeatAckChannel.Writer;
 
         while (!wsCancelToken.IsCancellationRequested)
         {
@@ -168,12 +166,6 @@ public sealed class DiscordWebsocketShard
             var eventJson = eventPayload.RootElement;
             var opcode = eventJson.GetProperty("op").GetInt32();
 
-            if (_logger.IsEnabled(LogLevel.Trace))
-            {
-                var formattedJson = JsonSerializer.Serialize(eventJson, new JsonSerializerOptions { WriteIndented = true });
-                _logger.LogTrace("Received {Size} byte payload:\n{Json}", payloadSize, formattedJson);
-            }
-
             if (opcode is 0)
             {
                 var eventName = eventJson.GetProperty("t").GetString();
@@ -181,10 +173,8 @@ public sealed class DiscordWebsocketShard
 
                 if (eventName is "READY")
                 {
-                    var eventData = eventJson.GetProperty("d");
-
-                    this.SessionId = eventData.GetProperty("session_id").GetString();
-                    _sessionResumeUrl = eventData.GetProperty("resume_gateway_url").GetString();
+                    this.SessionId = eventJson.GetProperty("d").GetProperty("session_id").GetString();
+                    _sessionResumeUrl = eventJson.GetProperty("d").GetProperty("resume_gateway_url").GetString();
                 }
 
                 this.EventIndex = eventJson.GetProperty("s").GetInt32();
@@ -209,7 +199,13 @@ public sealed class DiscordWebsocketShard
                 _wsHeartbeatTask = HeartbeatAsync(intervalMs);
             }
             else if (opcode is 11)
-                await ackWriter.WriteAsync(DateTime.Now);
+                await heartbeatAckChannel.Writer.WriteAsync(DateTime.Now);
+
+            if (_logger.IsEnabled(LogLevel.Trace))
+            {
+                var formattedJson = JsonSerializer.Serialize(eventJson, new JsonSerializerOptions { WriteIndented = true });
+                _logger.LogTrace("Received {Size} byte payload:\n{Json}", payloadSize, formattedJson);
+            }
 
             _eventSequence.OnNext(eventJson.Clone());
 
@@ -238,11 +234,11 @@ public sealed class DiscordWebsocketShard
                 lastHeartbeartDate = DateTime.Now;
 
                 var acknowledgementCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                await ackReader.WaitToReadAsync(acknowledgementCts.Token);
+                await heartbeatAckChannel.Reader.WaitToReadAsync(acknowledgementCts.Token);
 
-                if (ackReader.Count is not 0)
+                if (heartbeatAckChannel.Reader.Count is not 0)
                 {
-                    var receiveDate = await ackReader.ReadAsync();
+                    var receiveDate = await heartbeatAckChannel.Reader.ReadAsync();
                     this.Latency = receiveDate - lastHeartbeartDate;
                     missedHeartbeats = 0;
                 }
