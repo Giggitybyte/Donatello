@@ -4,8 +4,8 @@ using System.Text.Json;
 
 public class DiscordEmoji : IJsonEntity
 {
-    private JsonElement _json;
-    private string _unicode;
+    private readonly JsonElement _json;
+    private readonly string _unicode;
 
     internal protected DiscordEmoji(JsonElement json)
     {
@@ -34,7 +34,8 @@ public class DiscordEmoji : IJsonEntity
     /// <summary>Human readable name for this emoji.</summary>
     public string Name { get; internal init; }
 
-    /// <summary></summary>
+    /// <summary>Returns <see langword="true"/> if this object represents a unicode emoji.</summary>
+    /// <param name="value">If the method returns <see langword="true"/>, this parameter will contain an emoji string; otherwise it'll be <see cref="string.Empty"/>.</param>
     public bool IsUnicode(out string value)
     {
         value = _unicode is not null

@@ -1,5 +1,6 @@
 ﻿namespace Donatello.Entity;
 
+using Donatello.Builder;
 using Donatello.Extension.Internal;
 using System;
 using System.Collections.Generic;
@@ -8,9 +9,17 @@ using System.Text.Json;
 using System.Threading.Tasks;
 
 /// <summary>A message sent in a channel.</summary>
-public class DiscordMessage : DiscordEntity
+public sealed partial class DiscordMessage : DiscordEntity
 {
-    public DiscordMessage(DiscordBot bot, JsonElement jsonObject) : base(bot, jsonObject) { }
+    public DiscordMessage(DiscordBot bot, JsonElement jsonObject)
+        : base(bot, jsonObject)
+    {
+        var thing = new EmbedBuilder();
+        thing.
+    }
+
+    /// <summary></summary>
+    internal DiscordSnowflake ChannelId => this.Json.GetProperty("channel_id").ToSnowflake();
 
     /// <summary>Date when this message was sent.</summary>
     public DateTimeOffset SendDate => this.Json.GetProperty("timestamp").GetDateTimeOffset();
@@ -23,7 +32,7 @@ public class DiscordMessage : DiscordEntity
 
     /// <summary></summary>
     public ValueTask<DiscordTextChannel> GetChannelAsync()
-        => this.Bot.GetChannelAsync<DiscordTextChannel>(this.Json.GetProperty("channel_id").ToSnowflake());
+        => this.Bot.GetChannelAsync<DiscordTextChannel>(this.ChannelId);
 
     /// <summary></summary>
     public IEnumerable<DiscordUser> GetMentionedUsers()
@@ -32,13 +41,12 @@ public class DiscordMessage : DiscordEntity
         if (mentionArray.GetArrayLength() is 0)
             yield break;
 
-        foreach (var partialUser in mentionArray.EnumerateArray())
-        {
-            if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
+        if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
+            foreach (var partialUser in mentionArray.EnumerateArray())
                 yield return new DiscordGuildMember(this.Bot, guildProp.ToSnowflake(), partialUser, memberJson);
-            else
+        else
+            foreach (var partialUser in mentionArray.EnumerateArray())
                 yield return new DiscordUser(this.Bot, partialUser);
-        }
     }
 
     /// <summary></summary>

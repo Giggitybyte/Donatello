@@ -74,15 +74,15 @@ public class DiscordHttpClient
         => this.SendRequestCoreAsync(method, endpoint, this.CreateStringContent(jsonObject));
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonDelegate, IList<File> attachments)
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonDelegate, IList<FileAttachment> attachments)
         => this.SendMultipartRequestAsync(method, endpoint, this.CreateStringContent(jsonDelegate), attachments);
 
     /// <summary>Sends an HTTP request to an endpoint with a JSON payload and file attachments.</summary>
-    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, IList<File> attachments)
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, JsonElement jsonObject, IList<FileAttachment> attachments)
         => this.SendMultipartRequestAsync(method, endpoint, this.CreateStringContent(jsonObject), attachments);
 
     /// <summary>Sends a multi-part HTTP request to an endpoint.</summary>
-    private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, StringContent content, IList<File> attachments)
+    private Task<HttpResponse> SendMultipartRequestAsync(HttpMethod method, string endpoint, StringContent content, IList<FileAttachment> attachments)
     {
         var multipartContent = new MultipartFormDataContent();
         multipartContent.Add(content, "payload_json");

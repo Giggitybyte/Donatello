@@ -22,6 +22,7 @@ public abstract class DiscordEntity : ISnowflakeEntity, IBotEntity
     protected DiscordEntity(DiscordBot bot, JsonObject entityObject) 
         : this(bot, entityObject.AsElement())
     {
+
     }
 
     /// <inheritdoc cref="IJsonEntity.Json"/>
@@ -44,7 +45,5 @@ public abstract class DiscordEntity : ISnowflakeEntity, IBotEntity
 
     JsonElement IJsonEntity.Json => this.Json;
     DiscordBot IBotEntity.Bot => this.Bot;
-
-    bool IEquatable<ISnowflakeEntity>.Equals(ISnowflakeEntity other) 
-        => this.Equals(other);
+    bool IEquatable<ISnowflakeEntity>.Equals(ISnowflakeEntity other) => this.Equals(other);
 }

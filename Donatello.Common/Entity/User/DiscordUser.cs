@@ -53,6 +53,16 @@ public partial class DiscordUser : DiscordEntity
     public Color BannerColor => this.Json.TryGetProperty("accent_color", out JsonElement prop) ? Color.FromArgb(prop.GetInt32()) : Color.Empty;
 
     /// <summary></summary>
+    public IEnumerable<Activity> GetActivities()
+    {
+        if (this.Presense.HasValue && this.Presense.Value.TryGetProperty("activities", out JsonElement activityArray))
+            foreach (var activityJson in activityArray.EnumerateArray())
+                yield return new Activity(activityJson);
+        else
+            yield break;
+    }
+
+    /// <summary></summary>
     public bool HasStatus(out UserStatus desktop, out UserStatus mobile, out UserStatus web)
     {
         desktop = UserStatus.Offline;
@@ -87,24 +97,6 @@ public partial class DiscordUser : DiscordEntity
         }
 
         return false;
-    }
-
-    /// <summary></summary>
-    public bool HasActivities(out ReadOnlyCollection<Activity> activities)
-    {
-        var userActivities = new List<Activity>();
-
-        if (this.Presense.HasValue && this.Presense.Value.TryGetProperty("activities", out JsonElement activityArray))
-        {
-            foreach (var activity in activityArray.EnumerateArray())
-                userActivities.Add(new Activity() { })
-        }
-        else
-        {
-            
-        }
-        activities = userActivities.AsReadOnly();
-        return activities.Count > 0;
     }
 
     /// <summary>Returns <see langword="true"/> if the user has a banner image uploaded, <see langword="false"/> otherwise.</summary>

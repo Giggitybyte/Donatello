@@ -15,8 +15,7 @@ public partial class DiscordUser
         }
 
         /// <summary></summary>
-        internal JsonElement Json => _json;
-        
+        internal JsonElement Json => _json;        
 
         /// <summary>The name of the activity.</summary>
         public string Name => this.Json.GetProperty("name").GetString();

@@ -3,9 +3,9 @@
 using System.IO;
 using System.Net.Http;
 
-public sealed class File
+public sealed class FileAttachment
 {
-    internal File(string name, long size, HttpContent content)
+    internal FileAttachment(string name, long size, HttpContent content)
     {
         this.Content = content;
         this.Name = name;
@@ -21,15 +21,15 @@ public sealed class File
     /// <summary>File size.</summary>
     public long Size { get; private init; }
 
-    /// <summary>Creates a new local file from a byte array.</summary>
+    /// <summary>Creates a new local file attachment from a byte array.</summary>
     /// <param name="fileName">File name with extension.</param>
     /// <param name="bytes">File bytes.</param>
-    public static File FromBytes(string fileName, byte[] bytes)
+    public static FileAttachment FromBytes(string fileName, byte[] bytes)
         => new(fileName, bytes.LongLength, new ByteArrayContent(bytes));
 
-    /// <summary>Creates a new local file from a stream.</summary>
+    /// <summary>Creates a new local file attachment from a stream.</summary>
     /// <param name="fileName">File name with extension.</param>
     /// <param name="stream">File stream.</param>
-    public static File FromStream(string fileName, Stream stream)
+    public static FileAttachment FromStream(string fileName, Stream stream)
         => new(fileName, stream.Length, new StreamContent(stream));
 }

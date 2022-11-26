@@ -6,9 +6,10 @@ using System;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-public class DiscordThreadMember : DiscordGuildMember
+/// <summary></summary>
+public sealed class DiscordThreadMember : DiscordGuildMember
 {
-    private JsonElement _threadMember;
+    private readonly JsonElement _threadMember;
 
     public DiscordThreadMember(DiscordBot bot, DiscordSnowflake guildId, JsonElement userJson, JsonElement guildMemberJson, JsonElement threadMemberJson)
         : base(bot, guildId, userJson, guildMemberJson)
@@ -23,10 +24,10 @@ public class DiscordThreadMember : DiscordGuildMember
     }
 
     /// <summary>Backing thread member object.</summary>
-    protected internal new JsonElement Json => _threadMember;
+    internal new JsonElement Json => _threadMember;
 
     /// <inheritdoc cref="DiscordGuildMember.Json"/>
-    protected internal JsonElement GuildMemberJson => base.Json;
+    internal JsonElement GuildMemberJson => base.Json;
 
     /// <summary>When the member was added to the thread.</summary>
     public new DateTimeOffset JoinDate => _threadMember.GetProperty("joined_at").GetDateTimeOffset();
@@ -34,7 +35,7 @@ public class DiscordThreadMember : DiscordGuildMember
     /// <inheritdoc cref="DiscordGuildMember.JoinDate"/>
     public DateTimeOffset GuildJoinDate => base.JoinDate;
 
-    /// <summary></summary>
+    /// <summary>Fetches the thread this member belongs to.</summary>
     public async ValueTask<DiscordThreadTextChannel> GetThreadChannelAsync()
     {
         var guild = await this.GetGuildAsync();

@@ -9,8 +9,8 @@ using Donatello;
 /// <summary></summary>
 public class DiscordGuildMember : DiscordUser, IGuildEntity
 {
-    private ulong _guildId;
-    private JsonElement _guildMember;
+    private readonly ulong _guildId;
+    private readonly JsonElement _guildMember;
 
     protected DiscordGuildMember(DiscordBot bot, DiscordGuildMember member)
         : this(bot, member._guildId, member.UserJson, member._guildMember)

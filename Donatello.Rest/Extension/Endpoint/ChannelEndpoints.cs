@@ -31,7 +31,7 @@ public static class ChannelEndpoints
 
     /// <summary>Fetches up to 100 messages from a channel.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/channel#get-channel-messages-query-string-params">Click here to see valid query parameters</see>.</remarks>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message objects</see>.</returns>
+    /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message objects</see></returns>
     public static IAsyncEnumerable<JsonElement> GetChannelMessagesAsync(this DiscordHttpClient httpClient, ulong channelId, params (string key, string value)[] queryParams)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/messages{queryParams.ToParamString()}").GetJsonArrayAsync();
 
@@ -44,7 +44,7 @@ public static class ChannelEndpoints
     /// <summary>Posts a message to a channel.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/resources/channel#create-message-jsonform-params">Click here to see valid JSON parameters</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message object</see></returns>
-    public static Task<JsonElement> CreateMessageAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> jsonDelegate, IList<File> attachments)
+    public static Task<JsonElement> CreateMessageAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> jsonDelegate, IList<FileAttachment> attachments)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/messages", jsonDelegate, attachments).GetJsonAsync();
 
     /// <summary>Crosspost a message in a news channel to following channels. </summary>

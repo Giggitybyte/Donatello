@@ -10889,15 +10889,15 @@ public static class EmojiDatabase
         };
     }
 
-    /// <summary>Returns <see langword="true"/> if the provided unicode emoji string has a matching name string.</summary>
+    /// <summary>Returns <see langword="true"/> if the provided unicode emoji string has a matching name string in the database.</summary>
     /// <param name="unicode">Unicode code point string.</param>
-    /// <param name="name">When the method returns <see langword="true"/>, this paramter will contain an emoji name string; otherwise it'll be <see cref="string.Empty"/>.</param>
+    /// <param name="name">If the method returns <see langword="true"/>, this paramter will contain an emoji name string; otherwise it'll be <see cref="string.Empty"/>.</param>
     public static bool TryGetName(string unicode, out string name)
         => _name.TryGetValue(unicode, out name);
 
-    /// <summary>Returns <see langword="true"/> if the provided name strubg has a matching unicode emoji.</summary>
+    /// <summary>Returns <see langword="true"/> if the provided name string has a matching unicode emoji in the database.</summary>
     /// <param name="name">Emoji name string.</param>
-    /// <param name="unicode">When the method returns <see langword="true"/>, this parameter will contain a unicode emoji string; otherwise it'll be <see cref="string.Empty"/>.</param>
+    /// <param name="unicode">If the method returns <see langword="true"/>, this parameter will contain a unicode emoji string; otherwise it'll be <see cref="string.Empty"/>.</param>
     public static bool TryGetUnicode(string name, out string unicode)
     {
         if (name.StartsWith(':') is false)

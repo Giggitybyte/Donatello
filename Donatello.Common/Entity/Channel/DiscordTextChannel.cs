@@ -1,7 +1,8 @@
 ﻿namespace Donatello.Entity;
 
 using Donatello;
-using Donatello.Entity.Builder;
+using Donatello.Builder;
+using Donatello.Cache;
 using Donatello.Rest.Extension.Endpoint;
 using System;
 using System.Collections.Generic;
@@ -36,27 +37,28 @@ public abstract class DiscordTextChannel : DiscordChannel, ITextChannel
     }
 
     /// <summary></summary>
-    public IAsyncEnumerable<DiscordMessage> GetMessagesAsync()
-        => this.GetMessagesCoreAsync();
+    public IAsyncEnumerable<DiscordMessage> GetMessagesAsync(ushort limit = 100)
+        => this.GetMessagesCoreAsync(limit);
 
     /// <summary></summary>
-    public IAsyncEnumerable<DiscordMessage> GetMessagesAroundAsync(DiscordSnowflake snowflake)
-        => this.GetMessagesCoreAsync("around", snowflake);
+    public IAsyncEnumerable<DiscordMessage> GetMessagesAroundAsync(DiscordSnowflake snowflake, ushort limit = 100)
+        => this.GetMessagesCoreAsync(limit, snowflake, "around");
 
     /// <summary></summary>
-    public IAsyncEnumerable<DiscordMessage> GetMessagesBeforeAsync(DiscordSnowflake snowflake)
-        => this.GetMessagesCoreAsync("before", snowflake);
+    public IAsyncEnumerable<DiscordMessage> GetMessagesBeforeAsync(DiscordSnowflake snowflake, ushort limit = 100)
+        => this.GetMessagesCoreAsync(limit, snowflake, "before");
 
     /// <summary></summary>
-    public IAsyncEnumerable<DiscordMessage> GetMessagesAfterAsync(DiscordSnowflake snowflake)
-        => this.GetMessagesCoreAsync("after", snowflake);
+    public IAsyncEnumerable<DiscordMessage> GetMessagesAfterAsync(DiscordSnowflake snowflake, ushort limit = 100)
+        => this.GetMessagesCoreAsync(limit, snowflake, "after");
 
-    private async IAsyncEnumerable<DiscordMessage> GetMessagesCoreAsync(string timeframe, DiscordSnowflake snowflake)
+    private async IAsyncEnumerable<DiscordMessage> GetMessagesCoreAsync(ushort limit, DiscordSnowflake snowflake = null, string timeframe = null)
     {
-        var messages = this.Bot.RestClient.GetChannelMessagesAsync(this.Id, (timeframe, snowflake.ToString()), ("limit", "100"))
-            .Select(messageJson => new DiscordMessage(this.Bot, messageJson));
+        var messages = snowflake is null | timeframe is null
+            ? this.Bot.RestClient.GetChannelMessagesAsync(this.Id, ("limit", limit.ToString()))
+            : this.Bot.RestClient.GetChannelMessagesAsync(this.Id, (timeframe, snowflake.ToString()), ("limit", limit.ToString()));
 
-        await foreach (var message in messages)
+        await foreach (var message in messages.Select(json => new DiscordMessage(this.Bot, json)))
         {
             this.MessageCache.Add(message.Id, message);
             yield return message;
@@ -79,7 +81,7 @@ public abstract class DiscordTextChannel : DiscordChannel, ITextChannel
     /// <summary></summary>
     public async Task<DiscordMessage> SendMessageAsync(MessageBuilder builder)
     {
-        var messageJson = await this.Bot.RestClient.CreateMessageAsync(this.Id, jsonWriter => builder.ConstructJson(jsonWriter));
+        var messageJson = await this.Bot.RestClient.CreateMessageAsync(this.Id, jsonWriter => builder.WriteTo(jsonWriter));
         var message = new DiscordMessage(this.Bot, messageJson);
         this.MessageCache.Add(message.Id, message);
 

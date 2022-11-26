@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 /// <summary>Representation of a user's connection to a voice channel.</summary>
 public sealed class DiscordVoiceState : IJsonEntity, IBotEntity
 {
-    private DiscordSnowflake _guildId;
+    private readonly DiscordSnowflake _guildId;
 
     public DiscordVoiceState(DiscordBot bot, JsonElement entityJson, DiscordSnowflake guildId = null)
     {
