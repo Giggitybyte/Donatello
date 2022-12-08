@@ -2,6 +2,7 @@
 
 using System;
 using System.Globalization;
+using System.Text.Json.Nodes;
 
 /// <summary></summary>
 public class DiscordSnowflake : IComparable<DiscordSnowflake>
@@ -71,9 +72,15 @@ public class DiscordSnowflake : IComparable<DiscordSnowflake>
     public static bool operator >=(DiscordSnowflake left, DiscordSnowflake right)
         => left is null ? right is null : left.CompareTo(right) >= 0;
 
+    public static implicit operator DiscordSnowflake(ulong value)
+        => new(value);
+
     public static implicit operator ulong(DiscordSnowflake snowflake)
         => snowflake.Value;
 
-    public static implicit operator DiscordSnowflake(ulong value)
-        => new(value);
+    public static implicit operator string(DiscordSnowflake snowflake)
+        => snowflake.Value.ToString("D");
+
+    public static implicit operator JsonValue(DiscordSnowflake snowflake)
+        => JsonValue.Create<string>(snowflake.Value.ToString("D"));
 }

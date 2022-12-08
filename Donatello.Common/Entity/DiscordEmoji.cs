@@ -2,14 +2,13 @@
 
 using System.Text.Json;
 
-public class DiscordEmoji : IJsonEntity
+public class DiscordEmoji
 {
-    private readonly JsonElement _json;
     private readonly string _unicode;
 
     internal protected DiscordEmoji(JsonElement json)
     {
-        this.Json = json;
+        _json = json;
         var name = this.Json.GetProperty("name").GetString();
 
         if (json.TryGetProperty("id", out JsonElement prop) && prop.ValueKind is JsonValueKind.Null)
@@ -29,7 +28,7 @@ public class DiscordEmoji : IJsonEntity
     }
 
     /// <inheritdoc cref="IJsonEntity.Json"/>
-    internal protected JsonElement Json { get; init; }
+    internal protected JsonElement Json => _json;
 
     /// <summary>Human readable name for this emoji.</summary>
     public string Name { get; internal init; }

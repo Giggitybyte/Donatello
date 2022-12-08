@@ -111,7 +111,7 @@ public partial class DiscordUser : DiscordEntity
     }
 
     /// <summary>Returns <see langword="true"/> if the user has any public flags on their account.</summary>
-    /// <param name="flags">When the method returns <see langword="true"/>, this parameter will contain the flags for the user; otherwise it'll contain <see cref="Flag.None"/>.</param>
+    /// <param name="flags">When the method returns <see langword="true"/>, this parameter will contain the flags for the user; otherwise it'll contain <see cref="UserFlag.None"/>.</param>
     public bool HasFlags(out UserFlag flags)
     {
         flags = this.Json.TryGetProperty("public_flags", out JsonElement prop)

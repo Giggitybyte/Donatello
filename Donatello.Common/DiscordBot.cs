@@ -123,7 +123,7 @@ public abstract class DiscordBot
     {
         foreach (var guild in this.GuildCache.Enumerate())
         {
-            if (guild.ChannelCache.Contains(channelId, out DiscordGuildTextChannel cachedChannel))
+            if (guild.ChannelCache.Contains(channelId, out IGuildChannel cachedChannel))
                 return cachedChannel as TChannel;
         }
 

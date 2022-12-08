@@ -5,15 +5,12 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 public static class UserExtensionMethods
 {
     /// <summary>Returns the resulting <see cref="HttpResponse.Payload"/>, or throws <see cref="HttpRequestException"/> if a non-success response code was returned.</summary>
-    public static async Task<JsonElement> GetJsonAsync(this Task<HttpResponse> requestTask)
+    public static JsonElement GetJson(this HttpResponse response)
     {
-        var response = await requestTask;
-
         if (response.Status is HttpStatusCode.OK or HttpStatusCode.NoContent)
             return response.Payload;
         else
@@ -39,11 +36,11 @@ public static class UserExtensionMethods
         }
     }
 
-    /// <summary>Yields each JSON object contained within the resulting <see cref="HttpResponse.Payload"/></summary>
+    /// <summary>Yields each JSON object contained within the <see cref="HttpResponse.Payload"/></summary>
     /// <remarks>Throws <see cref="HttpRequestException"/> if a non-success response code was returned.</remarks>
-    public static async IAsyncEnumerable<JsonElement> GetJsonArrayAsync(this Task<HttpResponse> requestTask)
+    public static IEnumerable<JsonElement> GetJsonArray(this HttpResponse response)
     {
-        var array = await requestTask.GetJsonAsync();
+        var array = response.GetJson();
 
         if (array.ValueKind is not JsonValueKind.Array)
             throw new JsonException($"Expected an array, got {array.ValueKind} instead.");

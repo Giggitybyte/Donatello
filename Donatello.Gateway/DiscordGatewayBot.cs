@@ -24,25 +24,28 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// <summary>Implementation for Discord's real-time websocket API.</summary>
 /// <remarks>
 /// Receives events from the API through one or more websocket connections.<br/> 
-/// Sends requests to the API through HTTP REST requests and a websocket connection.
+/// Sends requests to the API through HTTP REST or a websocket connection.
 /// </remarks>
 public sealed class DiscordGatewayBot : DiscordBot
 {
+    private ILoggerFactory _loggerFactory;
     private GuildIntent _intents;
-    private DiscordWebsocketShard[] _shards;    
+    private DiscordWebsocketShard[] _shards;
     private List<DiscordSnowflake> _unknownGuilds;
 
     /// <param name="token"></param>
     /// <param name="intents"></param>
-    /// <param name="logFactory"></param>
-    public DiscordGatewayBot(string token, GuildIntent intents = GuildIntent.Unprivileged, ILoggerFactory logFactory = null)
-        : base(token, logFactory is null ? NullLoggerFactory.Instance.CreateLogger<DiscordGatewayBot>() : logFactory.CreateLogger<DiscordGatewayBot>())
+    /// <param name="loggerFactory"></param>
+    public DiscordGatewayBot(string token, GuildIntent intents = GuildIntent.Unprivileged, ILoggerFactory loggerFactory = null)
+        : base(token, loggerFactory is null ? NullLoggerFactory.Instance.CreateLogger<DiscordGatewayBot>() : loggerFactory.CreateLogger<DiscordGatewayBot>())
     {
         if (string.IsNullOrWhiteSpace(token))
             throw new ArgumentException("Token cannot be empty.");
 
         _intents = intents;
         _shards = Array.Empty<DiscordWebsocketShard>();
+        _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
+
         this.Events = Observable.Empty<DiscordEvent>();
         this.DirectChannelCache = new EntityCache<DiscordDirectTextChannel>();
     }
@@ -71,7 +74,7 @@ public sealed class DiscordGatewayBot : DiscordBot
 
         for (int shardId = 0; shardId < shardCount - 1; shardId++)
         {
-            var shard = new DiscordWebsocketShard(shardId, this.Logger);
+            var shard = new DiscordWebsocketShard(shardId, _loggerFactory.CreateLogger($"Shard {shardId}"));
 
             shard.Events.Where(eventPayload => eventPayload.GetProperty("op").GetInt32() is 10)
                 .Subscribe(eventPayload => this.IdentifyShardAsync(shard).ToObservable());
@@ -87,6 +90,8 @@ public sealed class DiscordGatewayBot : DiscordBot
 
             _shards[shardId] = shard;
         }
+
+        this.Events = events;
 
         await Observable.Generate(0, i => i < shardCount - 1, i => i + clusterSize, i => _shards.Skip(i).Take(clusterSize), i => TimeSpan.FromSeconds(5))
             .SelectMany(cluster => cluster.ToObservable())
@@ -108,7 +113,7 @@ public sealed class DiscordGatewayBot : DiscordBot
         _shards = Array.Empty<DiscordWebsocketShard>();
     }
 
-    /// <summary>Fetches a user object for </summary>
+    /// <summary>Fetches a user object for the account associated with the token provided during construction of this instance.</summary>
     public async Task<DiscordUser> GetSelfAsync()
     {
         var json = await this.RestClient.GetSelfAsync();
@@ -122,16 +127,13 @@ public sealed class DiscordGatewayBot : DiscordBot
     private async Task IdentifyShardAsync(DiscordWebsocketShard shard)
     {
         if (shard.SessionId is not null)
-        {
             await shard.SendPayloadAsync(6, json =>
             {
                 json.WriteString("token", this.Token);
                 json.WriteString("session_id", shard.SessionId);
                 json.WriteNumber("seq", shard.EventIndex);
             });
-        }
         else
-        {
             await shard.SendPayloadAsync(2, json =>
             {
                 json.WriteString("token", this.Token);
@@ -151,10 +153,9 @@ public sealed class DiscordGatewayBot : DiscordBot
                 json.WriteNumber("large_threshold", 250);
                 // json.WriteBoolean("compress", true);
             });
-        }
     }
 
-    /// <summary>Projects an observable sequence of raw <see cref="JsonElement"/> payloads to a collection of observable <see cref="DiscordEvent"/> sequences.</summary>
+    /// <summary>Projects an observable sequence of <see cref="JsonElement"/> payloads to a collection of observable <see cref="DiscordEvent"/> sequences.</summary>
     private IEnumerable<IObservable<DiscordEvent>> GetEventSequences(IObservable<JsonElement> eventSequence)
     {
         var discordEvents = eventSequence.Where(eventJson => eventJson.GetProperty("op").GetInt32() is 0);
@@ -215,11 +216,7 @@ public sealed class DiscordGatewayBot : DiscordBot
 
         yield return discordEvents.Where(eventPayload => eventPayload.GetProperty("t").GetString() is "CHANNEL_DELETE")
             .Select(eventPayload => DiscordChannel.Create(eventPayload.GetProperty("d"), this))
-            .Select(channel => new EntityDeletedEvent<DiscordChannel>()
-            {
-                EntityId = channel.Id,
-                Instance = channel
-            });
+            .Select(channel => new EntityDeletedEvent<DiscordChannel>() { EntityId = channel.Id, Instance = channel });
 
         yield return discordEvents.Where(eventPayload => eventPayload.GetProperty("t").GetString() is "THREAD_CREATE")
             .Select(eventPayload => DiscordChannel.Create<DiscordThreadTextChannel>(eventPayload.GetProperty("d"), this))
@@ -364,8 +361,7 @@ public sealed class DiscordGatewayBot : DiscordBot
                 mutableJson.Remove("stage_instances", out JsonNode stageInstances);
                 mutableJson.Remove("guild_scheduled_events", out JsonNode scheduledEvents);
 
-                var prunedJson = mutableJson.AsElement();
-                var guild = new DiscordGuild(this, prunedJson);
+                var guild = new DiscordGuild(this, mutableJson.AsElement());
 
                 foreach (var member in members.AsArray())
                     guild.MemberCache.Add(member["user"]["id"].AsValue().ToSnowflake(), member.AsElement());
@@ -377,7 +373,7 @@ public sealed class DiscordGatewayBot : DiscordBot
                     guild.ThreadCache.Add(DiscordChannel.Create<DiscordThreadTextChannel>(thread, this));
 
                 foreach (var state in voiceStates.AsArray().Select(node => node.AsObject()))
-                    guild.VoiceStateCache.Add(new DiscordVoiceState(this, state.AsElement(), guild.Id));
+                    guild.VoiceStateCache.Add(state["user_id"].AsValue().ToSnowflake(), new DiscordVoiceState(this, state.AsElement()));
 
                 // TODO : user presences
 
@@ -445,5 +441,5 @@ public sealed class DiscordGatewayBot : DiscordBot
             .SelectMany(eventTask => eventTask.ToObservable());
     }
 
-   
+
 }

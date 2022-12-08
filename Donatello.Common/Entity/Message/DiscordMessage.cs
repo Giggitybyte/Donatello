@@ -37,15 +37,15 @@ public sealed partial class DiscordMessage : DiscordEntity
     /// <summary></summary>
     public IEnumerable<DiscordUser> GetMentionedUsers()
     {
-        var mentionArray = this.Json.GetProperty("mentions");
-        if (mentionArray.GetArrayLength() is 0)
+        var mentions = this.Json.GetProperty("mentions");
+        if (mentions.GetArrayLength() is 0)
             yield break;
 
         if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
-            foreach (var partialUser in mentionArray.EnumerateArray())
+            foreach (var partialUser in mentions.EnumerateArray())
                 yield return new DiscordGuildMember(this.Bot, guildProp.ToSnowflake(), partialUser, memberJson);
         else
-            foreach (var partialUser in mentionArray.EnumerateArray())
+            foreach (var partialUser in mentions.EnumerateArray())
                 yield return new DiscordUser(this.Bot, partialUser);
     }
 

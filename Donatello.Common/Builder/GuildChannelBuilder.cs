@@ -1,11 +1,9 @@
 ﻿namespace Donatello.Entity.Builder;
 
+using Donatello.Builder;
 using System.Text.Json;
 
-public class GuildChannelBuilder : JsonBuilder
+public class GuildChannelBuilder : EntityBuilder
 {
-    internal override void ConstructJson(in Utf8JsonWriter json)
-    {
-        throw new System.NotImplementedException();
-    }
+
 }

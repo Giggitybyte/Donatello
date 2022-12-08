@@ -6,6 +6,9 @@ using System.Text.Json;
 public class DiscordDirectTextChannel : DiscordTextChannel
 {
     public DiscordDirectTextChannel(DiscordBot bot, JsonElement json) 
-        : base(bot, json) { }
+        : base(bot, json) 
+    { 
+
+    }
 }
 

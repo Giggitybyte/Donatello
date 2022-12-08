@@ -12,23 +12,23 @@ public class DiscordGuildMember : DiscordUser, IGuildEntity
     private readonly ulong _guildId;
     private readonly JsonElement _guildMember;
 
-    protected DiscordGuildMember(DiscordBot bot, DiscordGuildMember member)
-        : this(bot, member._guildId, member.UserJson, member._guildMember)
-    {
-
-    }
-
-    public DiscordGuildMember(DiscordBot bot, DiscordSnowflake guildId, DiscordUser user, JsonElement memberJson)
-        : this(bot, guildId, user.Json.Clone(), memberJson)
-    {
-
-    }
-
     public DiscordGuildMember(DiscordBot bot, DiscordSnowflake guildId, JsonElement userJson, JsonElement memberJson)
         : base(bot, userJson)
     {
         _guildMember = memberJson;
         _guildId = guildId;
+    }
+
+    public DiscordGuildMember(DiscordBot bot, DiscordSnowflake guildId, DiscordUser user, JsonElement memberJson)
+        : this(bot, guildId, user.Json, memberJson)
+    {
+
+    }
+
+    protected DiscordGuildMember(DiscordBot bot, DiscordGuildMember member)
+        : this(bot, member._guildId, member.UserJson, member._guildMember)
+    {
+
     }
 
     /// <summary>Backing guild member object.</summary>
@@ -50,7 +50,7 @@ public class DiscordGuildMember : DiscordUser, IGuildEntity
     /// <remarks>A pending member will not be able to interact with the guild until they pass the screening requirements.</remarks>
     public bool IsPending => _guildMember.TryGetProperty("pending", out JsonElement property) && property.GetBoolean();
 
-    /// <summary></summary>
+    /// <summary>Member avatar URL.</summary>
     public override string AvatarUrl
     {
         get
@@ -100,9 +100,8 @@ public class DiscordGuildMember : DiscordUser, IGuildEntity
         return startDate != DateTimeOffset.MinValue;
     }
 
-    /// <summary>
-    /// Returns <see langword="true"/> if the 
-    /// </summary>
+    /// <summary>Returns <see langword="true"/> if a guild moderator has restricted this member from interacting with the guild.</summary>
+    /// <param name="expirationDate">When the method returns <see langword="true"/> this parameter will contain date when the member will be allowed to interact with the guild; otherwise it'll be <see cref="DateTimeOffset.MinValue"/></param>
     public bool IsCommunicationDisabled(out DateTimeOffset expirationDate)
     {
         if (_guildMember.TryGetProperty("communication_disabled_until", out JsonElement property) && property.ValueKind is not JsonValueKind.Null)

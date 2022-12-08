@@ -11,8 +11,17 @@ public static class ApplicationEndpoints
 {
     /// <summary>Fetches all global commands for your application.</summary>
     /// <returns><see href="https://discord.com/developers/docs/interactions/application-commands#application-command-object">application command objects</see></returns>
-    public static IAsyncEnumerable<JsonElement> GetGlobalAppCommandsAsync(this DiscordHttpClient httpClient, ulong applicationId)
-        => httpClient.SendRequestAsync(HttpMethod.Get, $"applications/{applicationId}/commands").GetJsonArrayAsync();
+    public static async IAsyncEnumerable<JsonElement> GetGlobalAppCommandsAsync(this DiscordHttpClient httpClient, ulong applicationId)
+    {
+        var response = await httpClient.SendRequestAsync(request =>
+        {
+            request.Endpoint = $"applications/{applicationId}/commands";
+            request.Method = HttpMethod.Get;
+        });
+
+        foreach (var json in response.GetJsonArray())
+            yield return json;
+    }
 
     /// <summary>Create a new global command. New global commands will be available in all guilds after 1 hour.</summary>
     /// <remarks><see href="https://discord.com/developers/docs/interactions/application-commands#create-global-application-command">Click here to see valid JSON parameters</see>.</remarks>

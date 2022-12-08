@@ -81,7 +81,7 @@ public abstract class DiscordTextChannel : DiscordChannel, ITextChannel
     /// <summary></summary>
     public async Task<DiscordMessage> SendMessageAsync(MessageBuilder builder)
     {
-        var messageJson = await this.Bot.RestClient.CreateMessageAsync(this.Id, jsonWriter => builder.WriteTo(jsonWriter));
+        var messageJson = await this.Bot.RestClient.SendRequestAsync()
         var message = new DiscordMessage(this.Bot, messageJson);
         this.MessageCache.Add(message.Id, message);
 

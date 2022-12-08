@@ -3,19 +3,11 @@
 using Donatello.Entity;
 using Donatello.Rest;
 using System;
-using System.Collections.Generic;
 using System.Text.Json.Nodes;
 
 /// <summary></summary>
-public sealed class EmbedBuilder : EntityBuilder<DiscordMessage.Embed>
+public sealed class EmbedBuilder : EntityBuilder
 {
-    private List<FileAttachment> _attachments;
-
-    public EmbedBuilder()
-    {
-        _attachments = new List<FileAttachment>();
-    }
-
     /// <summary></summary>
     public EmbedBuilder SetTitle(string title)
     {
@@ -46,7 +38,7 @@ public sealed class EmbedBuilder : EntityBuilder<DiscordMessage.Embed>
     }
 
     /// <summary></summary>
-    public EmbedBuilder AppendField(string title, string content, bool inline = false)
+    public EmbedBuilder AppendField(string name, string content, bool inline = false)
     {
         var fieldNode = this.Json["fields"] ??= new JsonArray();
         var fieldArray = fieldNode.AsArray();
@@ -54,7 +46,7 @@ public sealed class EmbedBuilder : EntityBuilder<DiscordMessage.Embed>
         if (fieldArray.Count + 1 <= 25)
             fieldArray.Add(new JsonObject()
             {
-                { "name", title },
+                { "name", name },
                 { "value", content },
                 { "inline", inline }
             });
@@ -65,12 +57,23 @@ public sealed class EmbedBuilder : EntityBuilder<DiscordMessage.Embed>
     }
 
     /// <summary></summary>
+    public void ClearFields()
+        => this.Json["fields"]?.AsArray()?.Clear();
+
+    /// <summary></summary>
     public EmbedBuilder SetFooter(string footer)
     {
-        this.Json["footer"] = new JsonObject()
-        {
-            { "text", footer }
-        };
+        this.Json["footer"] ??= new JsonObject();
+        this.Json["footer"]["text"] = footer;
+
+        return this;
+    }
+
+    /// <summary></summary>
+    public EmbedBuilder SetFooter(string footer, string iconUrl)
+    {
+        this.SetFooter(footer);
+        this.Json["footer"]["icon_url"] = iconUrl;
 
         return this;
     }
@@ -78,20 +81,8 @@ public sealed class EmbedBuilder : EntityBuilder<DiscordMessage.Embed>
     /// <summary></summary>
     public EmbedBuilder SetFooter(string footer, FileAttachment icon)
     {
-        _attachments.Add(icon);
+        this.Files.Add(icon);
         return this.SetFooter(footer, $"attachment://{icon.Name}");
-    }
-
-    /// <summary></summary>
-    public EmbedBuilder SetFooter(string footer, string iconUrl)
-    {
-        this.Json["footer"] = new JsonObject()
-        {
-            { "text", footer },
-            { "icon_url", iconUrl.ToString() }
-        };
-
-        return this;
     }
 
     /// <summary></summary>

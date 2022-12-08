@@ -8,7 +8,5 @@ public interface IVoiceChannel : IChannel
 
     /// <summary>The maximum number of users allowed to join the channel.</summary>
     public uint UserLimit { get; }
-
-    public 
 }
 

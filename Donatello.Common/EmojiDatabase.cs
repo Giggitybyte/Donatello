@@ -4,13 +4,13 @@ using System.Collections.Generic;
 
 public static class EmojiDatabase
 {
-    /// <summary>Mapping from a named emoji to a set of unicode points.</summary>
+    /// <summary>Mapping from an emoji shortcode to a set of unicode points.</summary>
     /// <remarks><c>:ok_hand: -> 👌</c></remarks>
     private static Dictionary<string, string> _unicode;
 
-    /// <summary>Mapping from a set of unicode points to a named emoji.</summary>
+    /// <summary>Mapping from a set of unicode points to an emoji shortcode.</summary>
     /// <remarks><c>👌 -> :ok_hand:</c></remarks>
-    private static Dictionary<string, string> _name;
+    private static Dictionary<string, string> _shortcode;
 
     // Source: https://static.emzi0767.com/misc/discordEmojiMap.min.json
     // Version: 2022-09-10T00:04:17.163+00:00
@@ -7341,7 +7341,7 @@ public static class EmojiDatabase
             [":zzz:"] = "\U0001f4a4",
         };
 
-        _name = new Dictionary<string, string>
+        _shortcode = new Dictionary<string, string>
         {
             ["\U0001f4af"] = ":100:",
             ["\U0001f522"] = ":1234:",
@@ -10889,23 +10889,23 @@ public static class EmojiDatabase
         };
     }
 
-    /// <summary>Returns <see langword="true"/> if the provided unicode emoji string has a matching name string in the database.</summary>
+    /// <summary>Returns <see langword="true"/> if the provided unicode emoji string has a matching shortcode in the database.</summary>
     /// <param name="unicode">Unicode code point string.</param>
-    /// <param name="name">If the method returns <see langword="true"/>, this paramter will contain an emoji name string; otherwise it'll be <see cref="string.Empty"/>.</param>
-    public static bool TryGetName(string unicode, out string name)
-        => _name.TryGetValue(unicode, out name);
+    /// <param name="shortcode">If the method returns <see langword="true"/>, this paramter will contain an emoji shortcode; otherwise it'll be <see cref="string.Empty"/>.</param>
+    public static bool TryGetName(string unicode, out string shortcode)
+        => _shortcode.TryGetValue(unicode, out shortcode);
 
-    /// <summary>Returns <see langword="true"/> if the provided name string has a matching unicode emoji in the database.</summary>
-    /// <param name="name">Emoji name string.</param>
+    /// <summary>Returns <see langword="true"/> if the provided shortcode has a matching unicode emoji in the database.</summary>
+    /// <param name="shortcode">An emoji shortcode</param>
     /// <param name="unicode">If the method returns <see langword="true"/>, this parameter will contain a unicode emoji string; otherwise it'll be <see cref="string.Empty"/>.</param>
-    public static bool TryGetUnicode(string name, out string unicode)
+    public static bool TryGetUnicode(string shortcode, out string unicode)
     {
-        if (name.StartsWith(':') is false)
-            name = ":" + name;
+        if (shortcode.StartsWith(':') is false)
+            shortcode = ":" + shortcode;
 
-        if (name.EndsWith(':') is false)
-            name = name + ":";
+        if (shortcode.EndsWith(':') is false)
+            shortcode = shortcode + ":";
 
-        return _unicode.TryGetValue(name, out unicode);
+        return _unicode.TryGetValue(shortcode, out unicode);
     }
 }

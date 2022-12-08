@@ -1,7 +1,6 @@
 ﻿namespace Donatello.Interaction;
 
 using Donatello;
-using Donatello.Command;
 using Microsoft.Extensions.Logging;
 using NSec.Cryptography;
 using System;

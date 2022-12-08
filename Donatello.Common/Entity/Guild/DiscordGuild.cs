@@ -27,17 +27,17 @@ public class DiscordGuild : DiscordEntity
     /// <summary>Cached guild member JSON objects.</summary>
     internal ObjectCache<JsonElement> MemberCache { get; private init; }
 
+    /// <summary>Cached role instances.</summary>
+    public EntityCache<DiscordGuildRole> RoleCache { get; private set; }
+
     /// <summary>Cached channel instances associated with this guild.</summary>
     public EntityCache<IGuildChannel> ChannelCache { get; private set; }
-
-    /// <summary>Cached voice state instances.</summary>
-    public EntityCache<DiscordVoiceState> VoiceStateCache { get; private set; }
 
     /// <summary>Cached thread channel instances.</summary>
     public EntityCache<DiscordThreadTextChannel> ThreadCache { get; private set; }
 
-    /// <summary>Cached role instances.</summary>
-    public EntityCache<DiscordGuildRole> RoleCache { get; private set; }
+    /// <summary>Cached voice state instances.</summary>
+    public ObjectCache<DiscordVoiceState> VoiceStateCache { get; private set; }
 
     /// <summary>Name of this guild.</summary>
     public string Name => this.Json.GetProperty("name").GetString();
