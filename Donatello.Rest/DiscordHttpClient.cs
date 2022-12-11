@@ -1,18 +1,14 @@
 ﻿namespace Donatello.Rest;
 
-using Donatello.Rest.Extension;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 /// <summary></summary>
@@ -29,8 +25,8 @@ public enum TokenType : ushort
 public class DiscordHttpClient
 {
     private HttpClient _client;
-    private ConcurrentDictionary<string, string> _routeBucketIds;
-    private ConcurrentDictionary<string, RatelimitBucket> _routeBuckets;
+    private ConcurrentDictionary<string, string> _endpointBucketIds;
+    private ConcurrentDictionary<string, RatelimitBucket> _endpointBuckets;
     private RatelimitBucket _globalBucket;
 
     /// <param name="token">Discord token.</param>
@@ -49,13 +45,9 @@ public class DiscordHttpClient
         _client.DefaultRequestHeaders.Add("User-Agent", "Donatello/0.0.0 (author: 176477523717259264)");
         _client.DefaultRequestHeaders.Add("Authorization", $"{(tokenType is TokenType.Bot ? "Bot" : "Bearer")} {token}");
 
-        _routeBucketIds = new ConcurrentDictionary<string, string>();
-        _routeBuckets = new ConcurrentDictionary<string, RatelimitBucket>();
-        _globalBucket = new RatelimitBucket("global")
-        {
-            Limit = 50,
-            Remaining = 50
-        };
+        _endpointBucketIds = new ConcurrentDictionary<string, string>();
+        _endpointBuckets = new ConcurrentDictionary<string, RatelimitBucket>();
+        _globalBucket = new RatelimitBucket("global") { Limit = 50, Remaining = 50 };
 
         this.Logger = logger ?? NullLogger.Instance;
     }
@@ -63,11 +55,11 @@ public class DiscordHttpClient
     /// <summary></summary>
     internal ILogger Logger { get; private init; }
 
-    /// <summary>Sends an HTTP request to an endpoint.</summary>
+    /// <inheritdoc cref="SendRequestCoreAsync(HttpRequest)"/>
     public Task<HttpResponse> SendRequestAsync(HttpRequest request)
         => this.SendRequestCoreAsync(request);
 
-    /// <summary>Sends an HTTP request to an endpoint with a JSON payload.</summary>
+    /// <inheritdoc cref="SendRequestCoreAsync(HttpRequest)"/>
     public Task<HttpResponse> SendRequestAsync(Action<HttpRequest> requestDelegate)
     {
         var request = new HttpRequest();
@@ -76,7 +68,24 @@ public class DiscordHttpClient
         return this.SendRequestCoreAsync(request);
     }
 
-    /// <summary>Sends an HTTP request.</summary>
+    /// <inheritdoc cref="SendRequestCoreAsync(HttpRequest)"/>
+    public Task<HttpResponse> SendRequestAsync(HttpMethod method, string endpoint, Action<Utf8JsonWriter> jsonDelegate = null, IList<FileAttachment> attachments = null)
+    {
+        return this.SendRequestAsync(request =>
+        {
+            request.SetMethod(method);
+            request.SetEndpoint(endpoint);
+
+            if (jsonDelegate is not null)
+                request.WriteJson(jsonDelegate);
+
+            if (attachments is not null)
+                foreach (var attachment in attachments)
+                    request.AppendFile(attachment);
+        });
+    }
+
+    /// <summary>Sends an HTTP request to an endpoint.</summary>
     private Task<HttpResponse> SendRequestCoreAsync(HttpRequest request)
     {
         ulong attemptCount = 0;
@@ -84,9 +93,9 @@ public class DiscordHttpClient
 
         if (_globalBucket.TryUse())
         {
-            if (_routeBucketIds.TryGetValue(request.Endpoint, out string bucketId))
-                if (_routeBuckets.TryGetValue(bucketId, out RatelimitBucket routeBucket) && (routeBucket.TryUse() is false))
-                    delayTask = DelayRequestAsync(routeBucket.ResetDate - DateTimeOffset.UtcNow);
+            if (_endpointBucketIds.TryGetValue(request.Endpoint, out string bucketId))
+                if (_endpointBuckets.TryGetValue(bucketId, out RatelimitBucket endpointBucket) && (endpointBucket.TryUse() is false))
+                    delayTask = DelayRequestAsync(endpointBucket.ResetDate - DateTimeOffset.UtcNow);
         }
         else
             delayTask = DelayRequestAsync(_globalBucket.ResetDate - DateTimeOffset.UtcNow);
@@ -98,14 +107,14 @@ public class DiscordHttpClient
         {
             this.Logger.LogDebug("Sending request to {Method} {Uri} (attempt #{Attempt})", request.Method.Method, request.Endpoint, ++attemptCount);
             using var response = await _client.SendAsync(request);
-            this.Logger.LogDebug("Request to {Url} got {Status} response from Discord.", request.Endpoint, response.StatusCode);
+            this.Logger.LogDebug("Request to {Endpoint} got {Status} response from Discord.", request.Endpoint, response.StatusCode);
 
             if (response.Headers.TryGetValues("X-RateLimit-Bucket", out var values))
             {
                 var bucketId = values.Single();
-                _routeBucketIds[request.Endpoint] = bucketId;
+                _endpointBucketIds[request.Endpoint] = bucketId;
 
-                if (_routeBuckets.TryGetValue(bucketId, out var bucket))
+                if (_endpointBuckets.TryGetValue(bucketId, out var bucket))
                 {
                     bucket.Update(response.Headers);
                     this.Logger.LogTrace("Updated existing ratelimit bucket {Id}", bucketId);
@@ -114,7 +123,7 @@ public class DiscordHttpClient
                 {
                     bucket = new RatelimitBucket(bucketId, response.Headers);
 
-                    _routeBuckets[bucketId] = bucket;
+                    _endpointBuckets[bucketId] = bucket;
                     this.Logger.LogTrace("Created new ratelimit bucket {Id}", bucketId);
                 }
             }
@@ -126,7 +135,7 @@ public class DiscordHttpClient
                 var retryTime = TimeSpan.FromSeconds(retrySeconds);
 
                 if (scope is "global")
-                    this.Logger.LogCritical("Hit global rate limit");
+                    this.Logger.LogCritical("Hit global rate limit!");
                 else
                     this.Logger.LogWarning("Hit {Scope} ratelimit for {Url}", scope, request.Endpoint);
 
@@ -161,18 +170,18 @@ public class DiscordHttpClient
 
             // TODO: array error
 
-            if (json.TryGetProperty("errors", out JsonElement errorObject))
+            if (json.TryGetProperty("errors", out JsonElement errorObject)) // TODO: I think this logic is broke a little.
             {
                 if (errorObject.TryGetProperty("_errors", out JsonElement errorProp))
-                    AddError(errorProp, "request");
+                    AddErrors(errorProp, "request");
                 else
                 {
                     foreach (var objectProp in errorObject.EnumerateObject())
                         foreach (var errorJson in objectProp.Value.GetProperty("_errors").EnumerateArray())
-                            AddError(errorJson, objectProp.Name);
+                            AddErrors(errorJson, objectProp.Name);
                 }
 
-                void AddError(JsonElement errorArray, string name)
+                void AddErrors(JsonElement errorArray, string name)
                 {
                     foreach (var errorJson in errorArray.EnumerateArray())
                     {

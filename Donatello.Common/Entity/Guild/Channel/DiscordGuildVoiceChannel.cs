@@ -7,5 +7,7 @@ public class DiscordGuildVoiceChannel : DiscordGuildTextChannel, IVoiceChannel
 {
     public DiscordGuildVoiceChannel(DiscordBot bot, JsonElement json) 
         : base(bot, json) { }
+
+
 }
 

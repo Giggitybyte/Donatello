@@ -8,6 +8,7 @@ using Donatello.Rest.Extension.Endpoint;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -100,7 +101,7 @@ public abstract class DiscordBot
         var channelJson = await this.RestClient.GetChannelAsync(channelId);
         var channel = DiscordChannel.Create<TChannel>(channelJson, this);
 
-        if (channelJson.TryGetProperty("guild_id", out var prop))
+        if (channelJson.TryGetProperty("guild_id", out JsonElement prop))
         {
             if (channel is IGuildChannel guildChannel)
             {

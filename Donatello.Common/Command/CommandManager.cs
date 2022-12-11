@@ -9,7 +9,7 @@ internal class CommandManager
     {
         public string Name { get; set; }
         public string Description { get; set; }
-        public Func<CommandContext,>
+        public Func<CommandContext,CommandResult> Delegate { get; set; }
         public Command[] Subcommands { get; set; }
     }
 

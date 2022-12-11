@@ -4,7 +4,6 @@ using Donatello;
 using Donatello.Extension.Internal;
 using System;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 public abstract class DiscordEntity : ISnowflakeEntity, IBotEntity
 {
@@ -17,12 +16,6 @@ public abstract class DiscordEntity : ISnowflakeEntity, IBotEntity
 
         this.Bot = bot;
         _entity = entityJson;
-    }
-
-    protected DiscordEntity(DiscordBot bot, JsonObject entityObject) 
-        : this(bot, entityObject.AsElement())
-    {
-
     }
 
     /// <inheritdoc cref="IJsonEntity.Json"/>

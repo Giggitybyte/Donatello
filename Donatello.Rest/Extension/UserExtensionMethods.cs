@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 public static class UserExtensionMethods
 {
@@ -36,6 +37,10 @@ public static class UserExtensionMethods
         }
     }
 
+    /// <summary>Returns the resulting <see cref="HttpResponse.Payload"/>, or throws <see cref="HttpRequestException"/> if a non-success response code was returned.</summary>
+    public static async Task<JsonElement> GetJsonAsync(this Task<HttpResponse> requestTask)
+        => (await requestTask).GetJson();
+
     /// <summary>Yields each JSON object contained within the <see cref="HttpResponse.Payload"/></summary>
     /// <remarks>Throws <see cref="HttpRequestException"/> if a non-success response code was returned.</remarks>
     public static IEnumerable<JsonElement> GetJsonArray(this HttpResponse response)
@@ -46,6 +51,14 @@ public static class UserExtensionMethods
             throw new JsonException($"Expected an array, got {array.ValueKind} instead.");
 
         foreach (var json in array.EnumerateArray())
+            yield return json;
+    }
+
+    /// <summary>Yields each JSON object contained within the resulting <see cref="HttpResponse.Payload"/></summary>
+    /// <remarks>Throws <see cref="HttpRequestException"/> if a non-success response code was returned.</remarks>
+    public static async IAsyncEnumerable<JsonElement> GetJsonArrayAsync(this Task<HttpResponse> requestTask)
+    {
+        foreach (var json in (await requestTask).GetJsonArray())
             yield return json;
     }
 }

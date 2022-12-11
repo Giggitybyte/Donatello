@@ -13,9 +13,17 @@ public sealed class MessageBuilder : EntityBuilder
     public enum MentionType
     {
         Default = 0,
+
+        /// <summary>Do not parse any mentions from message content.</summary>
         None = 1,
+
+        /// <summary>Parse role mentions from message content.</summary>
         Roles = 2,
+
+        /// <summary>Parse user mentions from message content.</summary>
         Users = 4,
+
+        /// <summary>Parse <c>@everyone</c> mentions from message content.</summary>
         Everyone = 8
     }
 
