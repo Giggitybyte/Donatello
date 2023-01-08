@@ -37,18 +37,21 @@ public class DiscordGuildMember : DiscordUser, IGuildEntity
     /// <summary></summary>
     protected internal JsonElement UserJson => base.Json;
 
+    /// <summary></summary>
+    public DiscordSnowflake GuildId => _guildId;
+
     /// <summary>When the member joined the guild.</summary>
     public DateTimeOffset JoinDate => _guildMember.GetProperty("joined_at").GetDateTimeOffset();
 
     /// <summary>Whether the member is deafened in guild voice channels.</summary>
-    public bool IsDeafened => _guildMember.GetProperty("deaf").GetBoolean();
+    public bool Deafened => _guildMember.GetProperty("deaf").GetBoolean();
 
     /// <summary>Whether the member is muted in guild voice channels.</summary>
-    public bool IsMuted => _guildMember.GetProperty("mute").GetBoolean();
+    public bool Muted => _guildMember.GetProperty("mute").GetBoolean();
 
-    /// <summary>Whether the member has not yet met the guild's <see href="https://support.discord.com/hc/en-us/articles/1500000466882">membership screening</see> requirements.</summary>
+    /// <summary>Whether the member has to pass the guild's <see href="https://support.discord.com/hc/en-us/articles/1500000466882">membership screening</see> requirements.</summary>
     /// <remarks>A pending member will not be able to interact with the guild until they pass the screening requirements.</remarks>
-    public bool IsPending => _guildMember.TryGetProperty("pending", out JsonElement property) && property.GetBoolean();
+    public bool Pending => _guildMember.TryGetProperty("pending", out JsonElement property) && property.GetBoolean();
 
     /// <summary>Member avatar URL.</summary>
     public override string AvatarUrl
@@ -118,12 +121,6 @@ public class DiscordGuildMember : DiscordUser, IGuildEntity
         return false;
     }
 
-    public class Presence
-    {
-        /// <summary></summary>
-        public Status Status { get; internal init; }
-
-
-    }
+    DiscordSnowflake IGuildEntity.GuildId => this.GuildId;
 }
 

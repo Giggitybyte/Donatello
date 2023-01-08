@@ -2,7 +2,6 @@
 
 using Donatello;
 using Donatello.Cache;
-using Donatello.Enum;
 using Donatello.Extension.Internal;
 using Donatello.Rest.Extension.Endpoint;
 using System;
@@ -13,28 +12,25 @@ using System.Text.Json;
 using System.Threading.Tasks;
 
 /// <summary>A collection of channels and members.</summary>
-public class DiscordGuild : DiscordEntity
+public partial class DiscordGuild : DiscordEntity
 {
     internal DiscordGuild(DiscordBot bot, JsonElement json)
         : base(bot, json)
     {
-        this.MemberCache = new ObjectCache<JsonElement>();
+        this.MemberCache = new JsonCache(json => json.GetProperty("user").GetProperty("id").ToSnowflake());
         this.ChannelCache = new EntityCache<IGuildChannel>();
         this.RoleCache = new EntityCache<DiscordGuildRole>();
-        this.ThreadCache = new EntityCache<DiscordThreadTextChannel>();
+        this.ThreadCache = new EntityCache<DiscordThreadChannel>();
     }
 
     /// <summary>Cached guild member JSON objects.</summary>
-    internal ObjectCache<JsonElement> MemberCache { get; private init; }
+    internal JsonCache MemberCache { get; private init; }
 
     /// <summary>Cached role instances.</summary>
     public EntityCache<DiscordGuildRole> RoleCache { get; private set; }
 
     /// <summary>Cached channel instances associated with this guild.</summary>
     public EntityCache<IGuildChannel> ChannelCache { get; private set; }
-
-    /// <summary>Cached thread channel instances.</summary>
-    public EntityCache<DiscordThreadTextChannel> ThreadCache { get; private set; }
 
     /// <summary>Cached voice state instances.</summary>
     public ObjectCache<DiscordVoiceState> VoiceStateCache { get; private set; }
@@ -43,7 +39,7 @@ public class DiscordGuild : DiscordEntity
     public string Name => this.Json.GetProperty("name").GetString();
 
     /// <summary>Permissions in the guild, excluding channel overwrites.</summary>
-    public GuildPermission Permissions => throw new NotImplementedException();
+    public Permission Permissions => throw new NotImplementedException();
 
     /// <summary>Returns whether this guild has a specific feature enabled.</summary>
     public bool HasFeature(string feature)
@@ -142,7 +138,7 @@ public class DiscordGuild : DiscordEntity
     /// <summary></summary>
     public async ValueTask<DiscordGuildRole> GetRoleAsync(DiscordSnowflake roleId)
     {
-        if (this.RoleCache.Contains(roleId, out DiscordGuildRole role) is false)
+        if (this.RoleCache.TryGet(roleId, out DiscordGuildRole role) is false)
             role = await this.FetchRolesAsync().SingleOrDefaultAsync(role => role.Id == roleId);
 
         return role;
@@ -177,7 +173,7 @@ public class DiscordGuild : DiscordEntity
     /// <summary></summary>
     public async ValueTask<DiscordGuildMember> GetMemberAsync(DiscordSnowflake userId)
     {
-        if (this.MemberCache.Contains(userId, out JsonElement memberJson) is false)
+        if (this.MemberCache.TryGet(userId, out JsonElement memberJson) is false)
         {
             memberJson = await this.Bot.RestClient.GetGuildMemberAsync(this.Id, userId);
             this.MemberCache.Add(userId, memberJson);
@@ -217,27 +213,27 @@ public class DiscordGuild : DiscordEntity
         => this.Bot.GetChannelAsync<TChannel>(channelId);
 
     /// <summary></summary>
-    public async IAsyncEnumerable<DiscordThreadTextChannel> FetchThreadsAsync()
+    public async IAsyncEnumerable<DiscordThreadChannel> FetchThreadsAsync()
     {
         var activeThreads = await this.Bot.RestClient.GetActiveThreadsAsync(this.Id);
         var threads = activeThreads.GetProperty("threads").EnumerateArray();
         var members = activeThreads.GetProperty("members").EnumerateArray();
 
-        foreach (var thread in threads.Select(json => DiscordChannel.Create<DiscordThreadTextChannel>(json, this.Bot)))
+        foreach (var thread in threads.Select(json => DiscordChannel.Create<DiscordThreadChannel>(json, this.Bot)))
         {
-            foreach (var member in members.Where(json => json.GetProperty("id").GetUInt64() == thread.Id))
-                thread.MemberCache.Add(member.GetProperty("user_id").ToSnowflake(), member);
+            foreach (var memberJson in members.Where(json => json.GetProperty("id").GetUInt64() == thread.Id))
+                thread.MemberCache.Add(memberJson);
 
             yield return thread;
         }
     }
 
     /// <summary></summary>
-    public async Task<ReadOnlyCollection<DiscordThreadTextChannel>> GetThreadsAsync()
+    public async Task<ReadOnlyCollection<DiscordThreadChannel>> GetThreadsAsync()
     {
         this.ThreadCache.Clear();
 
-        var threads = new List<DiscordThreadTextChannel>();
+        var threads = new List<DiscordThreadChannel>();
         await foreach (var thread in this.FetchThreadsAsync())
         {
             threads.Add(thread);
@@ -248,9 +244,9 @@ public class DiscordGuild : DiscordEntity
     }
 
     /// <summary></summary>
-    public async ValueTask<DiscordThreadTextChannel> GetThreadAsync(DiscordSnowflake threadId)
+    public async ValueTask<DiscordThreadChannel> GetThreadAsync(DiscordSnowflake threadId)
     {
-        if (this.ThreadCache.Contains(threadId, out DiscordThreadTextChannel thread) is false)
+        if (this.ThreadCache.TryGet(threadId, out DiscordThreadChannel thread) is false)
             thread = await this.FetchThreadsAsync().SingleOrDefaultAsync(thread => thread.Id == threadId);
 
         return thread;

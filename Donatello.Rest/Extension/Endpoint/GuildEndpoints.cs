@@ -190,7 +190,7 @@ public static class GuildEndpoints
 
     /// <summary>Removes an integration from a guild.</summary>
     public static Task<JsonElement> DeleteGuildIntegrationAsync(this DiscordHttpClient httpClient, ulong guildId, JsonElement integrationObject)
-        => httpClient.SendRequestAsync(HttpMethod.Delete, $"guilds/{guildId}/integrations", integrationObject).GetJsonAsync();
+        => httpClient.SendRequestAsync(HttpMethod.Delete, $"guilds/{guildId}/integrations", integrationObject.WriteTo).GetJsonAsync();
 
     /// <summary>Fetches a guild vanity invite.</summary>
     /// <returns>Partial <see href="https://discord.com/developers/docs/resources/invite#invite-object">invite object</see>.</returns>

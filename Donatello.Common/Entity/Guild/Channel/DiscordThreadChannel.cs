@@ -11,39 +11,41 @@ using System.Text.Json;
 using System.Threading.Tasks;
 
 /// <summary>A sub-channel contained within a guild text channel.</summary>
-public class DiscordThreadTextChannel : DiscordGuildTextChannel
+public partial class DiscordThreadChannel : DiscordGuildTextChannel
 {
-    public DiscordThreadTextChannel(DiscordBot bot, JsonElement json)
+    public DiscordThreadChannel(DiscordBot bot, JsonElement json)
         : base(bot, json)
     {
-        this.MemberCache = new ObjectCache<JsonElement>();
+        this.MemberCache = new JsonCache(json => json.GetProperty("user_id").ToSnowflake());
     }
 
     /// <summary>An additional sub-set of fields sent only with threads.</summary>
     internal JsonElement Metadata => this.Json.GetProperty("thread_metadata");
 
     /// <summary></summary>
-    internal ObjectCache<JsonElement> MemberCache { get; init; }
+    internal JsonCache MemberCache { get; init; }
 
     /// <summary></summary>
-    public bool IsLocked => this.Metadata.GetProperty("locked").GetBoolean();
+    public bool Locked => this.Metadata.GetProperty("locked").GetBoolean();
 
     /// <summary></summary>
-    public bool IsArchived => this.Metadata.GetProperty("archived").GetBoolean();
+    public bool Archived => this.Metadata.GetProperty("archived").GetBoolean();
 
     /// <summary></summary>
-    public bool IsPrivate => this.Type is ChannelType.PrivateThread;
+    public bool Private => this.Type is ChannelType.PrivateThread;
 
     /// <summary>Whether non-moderators can add other non-moderators to this thread.</summary>
-    public bool IsInvitable => this.IsPrivate is false || this.Metadata.GetProperty("invitable").GetBoolean();
+    public bool Invitable => this.Private is false || this.Metadata.GetProperty("invitable").GetBoolean();
 
     /// <summary></summary>
     public TimeSpan AutoArchiveDuration => TimeSpan.FromMinutes(this.Metadata.GetProperty("auto_archive_duration").GetInt32());
 
     /// <summary>Current number of messages contained within this thread</summary>
+    /// <remarks>Threads created before July 1, 2022 will stop incrementing this value at 50 messages.</remarks>
     public int MessageCount => this.Json.GetProperty("message_count").GetInt32();
 
     /// <summary>Total number of messages ever sent in this thread.</summary>
+    /// <remarks>Threads created before July 1, 2022 will stop incrementing this value at 50 messages.</remarks>
     public int TotalMessageCount => this.Json.GetProperty("total_message_sent").GetInt32();
 
     /// <summary>Returns <see langword="true"/> if this thread has a creation date field; <see langword="false"/> otherwise.</summary>
@@ -71,11 +73,11 @@ public class DiscordThreadTextChannel : DiscordGuildTextChannel
         => this.Bot.GetChannelAsync<DiscordGuildTextChannel>(this.Json.GetProperty("parent_id").ToSnowflake());
 
     /// <summary></summary>
-    public async IAsyncEnumerable<DiscordThreadMember> FetchMembersAsync()
+    public async IAsyncEnumerable<DiscordGuildMember> FetchMembersAsync()
     {
         await foreach (var threadMemberJson in this.Bot.RestClient.GetThreadChannelMembersAsync(this.Id))
         {
-            this.MemberCache.Add(threadMemberJson.GetProperty("user_id").ToSnowflake(), threadMemberJson);
+            this.MemberCache.Add(threadMemberJson);
 
             var guild = await this.GetGuildAsync();
             var guildMember = await guild.GetMemberAsync(threadMemberJson.GetProperty("user_id").ToSnowflake());
@@ -86,11 +88,11 @@ public class DiscordThreadTextChannel : DiscordGuildTextChannel
     }
 
     /// <summary></summary>
-    public async Task<ReadOnlyCollection<DiscordThreadMember>> GetMembersAsync()
+    public async Task<ReadOnlyCollection<Member>> GetMembersAsync()
     {
         this.MemberCache.Clear();
 
-        var members = new List<DiscordThreadMember>();
+        var members = new List<Member>();
         await foreach (var threadMember in this.FetchMembersAsync())
             members.Add(threadMember);
 

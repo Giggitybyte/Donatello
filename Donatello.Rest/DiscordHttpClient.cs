@@ -95,7 +95,10 @@ public class DiscordHttpClient
         {
             if (_endpointBucketIds.TryGetValue(request.Endpoint, out string bucketId))
                 if (_endpointBuckets.TryGetValue(bucketId, out RatelimitBucket endpointBucket) && (endpointBucket.TryUse() is false))
+                {
+                    this.Logger.LogWarning("Request to {Endpoint} will be sent at a later time to avoid exceeding ratelimits.", request.Endpoint);
                     delayTask = DelayRequestAsync(endpointBucket.ResetDate - DateTimeOffset.UtcNow);
+                }
         }
         else
             delayTask = DelayRequestAsync(_globalBucket.ResetDate - DateTimeOffset.UtcNow);
@@ -188,7 +191,7 @@ public class DiscordHttpClient
                         var error = new HttpResponse.Error()
                         {
                             ParameterName = name,
-                            Code = errorJson.GetProperty("code").GetString(),
+                            Code = errorJson.GetProperty("code").GetInt32(),
                             Message = errorJson.GetProperty("message").GetString()
                         };
 
@@ -201,7 +204,7 @@ public class DiscordHttpClient
                 var error = new HttpResponse.Error()
                 {
                     ParameterName = string.Empty,
-                    Code = json.GetProperty("code").GetString(),
+                    Code = json.GetProperty("code").GetInt32(),
                     Message = messageProp.GetString()
                 };
 

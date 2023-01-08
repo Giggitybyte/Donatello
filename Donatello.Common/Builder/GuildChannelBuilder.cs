@@ -3,7 +3,7 @@
 using Donatello.Builder;
 using System.Text.Json;
 
-public class GuildChannelBuilder : EntityBuilder
+public class GuildChannelBuilder : ChannelBuilder<GuildChannelBuilder>
 {
 
 }

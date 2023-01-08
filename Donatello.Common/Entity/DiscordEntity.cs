@@ -36,6 +36,10 @@ public abstract class DiscordEntity : ISnowflakeEntity, IBotEntity
     public override bool Equals(object obj)
         => this.Equals(obj as DiscordEntity);
 
+    /// <summary>Returns the string representation of this entity.</summary>
+    public override string ToString()
+        => this.Json.ToString();
+
     JsonElement IJsonEntity.Json => this.Json;
     DiscordBot IBotEntity.Bot => this.Bot;
     bool IEquatable<ISnowflakeEntity>.Equals(ISnowflakeEntity other) => this.Equals(other);

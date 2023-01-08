@@ -29,14 +29,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 public sealed class DiscordGatewayBot : DiscordBot
 {
     private ILoggerFactory _loggerFactory;
-    private GuildIntent _intents;
+    private GatewayIntent _intents;
     private DiscordWebsocketShard[] _shards;
     private List<DiscordSnowflake> _unknownGuilds;
 
     /// <param name="token"></param>
     /// <param name="intents"></param>
     /// <param name="loggerFactory"></param>
-    public DiscordGatewayBot(string token, GuildIntent intents = GuildIntent.Unprivileged, ILoggerFactory loggerFactory = null)
+    public DiscordGatewayBot(string token, GatewayIntent intents = GatewayIntent.Unprivileged, ILoggerFactory loggerFactory = null)
         : base(token, loggerFactory is null ? NullLoggerFactory.Instance.CreateLogger<DiscordGatewayBot>() : loggerFactory.CreateLogger<DiscordGatewayBot>())
     {
         if (string.IsNullOrWhiteSpace(token))
@@ -77,7 +77,8 @@ public sealed class DiscordGatewayBot : DiscordBot
             var shard = new DiscordWebsocketShard(shardId, _loggerFactory.CreateLogger($"Shard {shardId}"));
 
             shard.Events.Where(eventPayload => eventPayload.GetProperty("op").GetInt32() is 10)
-                .Subscribe(eventPayload => this.IdentifyShardAsync(shard).ToObservable());
+                .SelectMany(eventPayload =>  this.IdentifyShardAsync(shard).ToObservable())
+                .Subscribe();
 
             events = this.GetEventSequences(shard.Events)
                .Merge()
@@ -219,24 +220,24 @@ public sealed class DiscordGatewayBot : DiscordBot
             .Select(channel => new EntityDeletedEvent<DiscordChannel>() { EntityId = channel.Id, Instance = channel });
 
         yield return discordEvents.Where(eventPayload => eventPayload.GetProperty("t").GetString() is "THREAD_CREATE")
-            .Select(eventPayload => DiscordChannel.Create<DiscordThreadTextChannel>(eventPayload.GetProperty("d"), this))
+            .Select(eventPayload => DiscordChannel.Create<DiscordThreadChannel>(eventPayload.GetProperty("d"), this))
             .Select(async threadChannel =>
             {
                 var guild = await threadChannel.GetGuildAsync();
                 guild.ThreadCache.Add(threadChannel.Id, threadChannel);
 
-                return new EntityCreatedEvent<DiscordThreadTextChannel>() { Entity = threadChannel };
+                return new EntityCreatedEvent<DiscordThreadChannel>() { Entity = threadChannel };
             })
             .SelectMany(eventTask => eventTask.ToObservable());
 
         yield return discordEvents.Where(eventPayload => eventPayload.GetProperty("t").GetString() is "THREAD_UPDATE")
-            .Select(eventPayload => DiscordChannel.Create<DiscordThreadTextChannel>(eventPayload.GetProperty("d"), this))
+            .Select(eventPayload => DiscordChannel.Create<DiscordThreadChannel>(eventPayload.GetProperty("d"), this))
             .Select(async threadChannel =>
             {
                 var guild = await threadChannel.GetGuildAsync();
                 var outdatedThread = guild.ThreadCache.Replace(threadChannel.Id, threadChannel);
 
-                return new EntityUpdatedEvent<DiscordThreadTextChannel>()
+                return new EntityUpdatedEvent<DiscordThreadChannel>()
                 {
                     UpdatedEntity = threadChannel,
                     OutdatedEnity = outdatedThread
@@ -252,7 +253,7 @@ public sealed class DiscordGatewayBot : DiscordBot
                 var guildId = eventJson.GetProperty("guild_id").ToSnowflake();
                 var guild = await this.GetGuildAsync(guildId);
 
-                return new EntityDeletedEvent<DiscordThreadTextChannel>()
+                return new EntityDeletedEvent<DiscordThreadChannel>()
                 {
                     EntityId = threadId,
                     Instance = guild.ThreadCache.Remove(threadId)
@@ -265,14 +266,14 @@ public sealed class DiscordGatewayBot : DiscordBot
            .Select(async eventJson =>
            {
                var guild = await this.GetGuildAsync(eventJson.GetProperty("guild_id").ToSnowflake());
-               var threads = eventJson.GetProperty("threads").EnumerateArray().Select(json => DiscordChannel.Create<DiscordThreadTextChannel>(json, this));
+               var threads = eventJson.GetProperty("threads").EnumerateArray().Select(json => DiscordChannel.Create<DiscordThreadChannel>(json, this));
                var members = eventJson.GetProperty("members").EnumerateArray();
-               var events = new List<EntityCreatedEvent<DiscordThreadTextChannel>>(threads.Count());
+               var events = new List<EntityCreatedEvent<DiscordThreadChannel>>(threads.Count());
 
                if (eventJson.TryGetProperty("channel_ids", out JsonElement prop) is false || prop.GetArrayLength() is 0)
                    guild.ThreadCache.Clear();
 
-               IEnumerable<EntityCreatedEvent<DiscordThreadTextChannel>> CreateEvents()
+               IEnumerable<EntityCreatedEvent<DiscordThreadChannel>> CreateEvents()
                {
                    foreach (var thread in threads)
                    {
@@ -281,7 +282,7 @@ public sealed class DiscordGatewayBot : DiscordBot
 
                        guild.ThreadCache.Add(thread);
 
-                       yield return new EntityCreatedEvent<DiscordThreadTextChannel>() { Entity = thread };
+                       yield return new EntityCreatedEvent<DiscordThreadChannel>() { Entity = thread };
                    }
                }
 
@@ -370,7 +371,7 @@ public sealed class DiscordGatewayBot : DiscordBot
                     guild.ChannelCache.Add(DiscordChannel.Create<IGuildChannel>(channel, this));
 
                 foreach (var thread in threads.AsArray().Select(node => node.AsObject()))
-                    guild.ThreadCache.Add(DiscordChannel.Create<DiscordThreadTextChannel>(thread, this));
+                    guild.ThreadCache.Add(DiscordChannel.Create<DiscordThreadChannel>(thread, this));
 
                 foreach (var state in voiceStates.AsArray().Select(node => node.AsObject()))
                     guild.VoiceStateCache.Add(state["user_id"].AsValue().ToSnowflake(), new DiscordVoiceState(this, state.AsElement()));

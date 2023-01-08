@@ -14,7 +14,7 @@ public sealed class HttpResponse
         public string ParameterName { get; internal init; }
 
         /// <summary></summary>
-        public string Code { get; internal init; }
+        public int Code { get; internal init; }
 
         /// <summary></summary>
         public string Message { get; internal init; }

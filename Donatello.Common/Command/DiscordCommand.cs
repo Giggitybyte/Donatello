@@ -45,7 +45,7 @@ public class GreetCommand : DiscordCommand
             Interdum et malesuada fames ac ante ipsum primis in faucibus. 
             Maecenas mi nulla, finibus et mauris convallis, lacinia auctor mi.
             """;
-    };
+    }
 
     public class BotCommand : DiscordCommand
     {

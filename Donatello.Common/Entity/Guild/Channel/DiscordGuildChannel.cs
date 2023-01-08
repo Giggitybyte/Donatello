@@ -5,18 +5,12 @@ using System;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-/// <summary>Discord entity associated with a guild.</summary>
-public abstract class DiscordGuildEntity : DiscordEntity, IGuildEntity
+/// <summary>A channel associated with a guild.</summary>
+public abstract class DiscordGuildChannel : DiscordChannel, IGuildChannel
 {
     private readonly DiscordSnowflake _guildId;
 
-    public DiscordGuildEntity(DiscordBot bot, JsonElement entityJson, DiscordSnowflake guildId)
-        : base(bot, entityJson)
-    {
-        _guildId = guildId;
-    }
-
-    public DiscordGuildEntity(DiscordBot bot, JsonElement entityJson)
+    public Channel(DiscordBot bot, JsonElement entityJson)
         : base(bot, entityJson)
     {
         if (entityJson.TryGetProperty("guild_id", out JsonElement prop))
@@ -25,12 +19,19 @@ public abstract class DiscordGuildEntity : DiscordEntity, IGuildEntity
             throw new ArgumentException("JSON does not contain a guild ID.", nameof(entityJson));
     }
 
+    /// <inheritdoc cref="IGuildChannel.Position"/>
+    public int Position => this.Json.GetProperty("position").GetInt32();
+
     /// <summary></summary>
-    internal protected DiscordSnowflake GuildId => _guildId;
+    public bool Nsfw => throw new NotImplementedException();
+
+    public DiscordSnowflake GuildId => _guildId;
 
     /// <inheritdoc cref="IGuildEntity.GetGuildAsync()"/>
     public ValueTask<DiscordGuild> GetGuildAsync()
         => this.Bot.GetGuildAsync(_guildId);
 
-    DiscordSnowflake IGuildEntity.GuildId => this.GuildId;
+    /// <summary></summary>
+    public bool HasParent(out IGuildChannel parent)
+        => throw new NotImplementedException();
 }

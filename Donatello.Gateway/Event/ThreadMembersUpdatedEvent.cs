@@ -7,7 +7,7 @@ using System.Collections.ObjectModel;
 public class ThreadMembersUpdatedEvent : DiscordEvent
 {
     /// <summary></summary>
-    public DiscordThreadTextChannel Thread { get; internal set; }
+    public DiscordThreadChannel Thread { get; internal set; }
 
     /// <summary></summary>
     public ReadOnlyCollection<DiscordThreadMember> New { get; internal set; }

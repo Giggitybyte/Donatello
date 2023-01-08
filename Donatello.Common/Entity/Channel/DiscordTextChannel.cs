@@ -25,7 +25,7 @@ public abstract class DiscordTextChannel : DiscordChannel, ITextChannel
     /// <summary></summary>
     public async ValueTask<DiscordMessage> GetMessageAsync(DiscordSnowflake messageId)
     {
-        if (this.MessageCache.Contains(messageId, out DiscordMessage message) is false)
+        if (this.MessageCache.TryGet(messageId, out DiscordMessage message) is false)
         {
             var messageJson = await this.Bot.RestClient.GetChannelMessageAsync(this.Id, messageId);
             message = new DiscordMessage(this.Bot, messageJson);

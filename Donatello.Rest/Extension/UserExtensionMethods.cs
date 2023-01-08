@@ -24,16 +24,15 @@ public static class UserExtensionMethods
             {
                 foreach (var error in errors)
                 {
-                    exceptionMessage.AppendLine(error.ParameterName + ": ");
-                    exceptionMessage.Append("    ").AppendLine(error.Message);
-                    exceptionMessage.Append("    ").AppendLine(error.Code);
+                    exceptionMessage.Append('[').Append(error.ParameterName).Append("] ")
+                        .Append(error.Message).Append(": ").AppendLine(error.Code.ToString());
                 }
             }
             else
                 exceptionMessage.Append(response.Message);
 
 
-            throw new HttpRequestException($"Discord returned an error:\n\n{exceptionMessage}");
+            throw new HttpRequestException($"Discord returned one or more errors:\n{exceptionMessage}");
         }
     }
 

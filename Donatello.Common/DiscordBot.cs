@@ -70,7 +70,7 @@ public abstract class DiscordBot
     /// <summary>Attempts to get a user from the cache; if <paramref name="userId"/> is not present in cache, an up-to-date user will be fetched from Discord.</summary>
     public virtual async ValueTask<DiscordUser> GetUserAsync(DiscordSnowflake userId)
     {
-        if (this.UserCache.Contains(userId, out DiscordUser user) is false)
+        if (this.UserCache.TryGet(userId, out DiscordUser user) is false)
             user = await this.FetchUserAsync(userId);
 
         return user;
@@ -89,7 +89,7 @@ public abstract class DiscordBot
     /// <summary>Attempts to get a guild from the cache; if <paramref name="guildId"/> is not present in cache, an up-to-date guild will be fetched from Discord.</summary>
     public virtual async ValueTask<DiscordGuild> GetGuildAsync(DiscordSnowflake guildId)
     {
-        if (this.GuildCache.Contains(guildId, out DiscordGuild guild) is false)
+        if (this.GuildCache.TryGet(guildId, out DiscordGuild guild) is false)
             guild = await this.FetchGuildAsync(guildId);
 
         return guild;

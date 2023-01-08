@@ -14,8 +14,7 @@ public sealed partial class DiscordMessage : DiscordEntity
     public DiscordMessage(DiscordBot bot, JsonElement jsonObject)
         : base(bot, jsonObject)
     {
-        var thing = new EmbedBuilder();
-        thing.
+
     }
 
     /// <summary></summary>
