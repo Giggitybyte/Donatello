@@ -8,14 +8,17 @@ using System.Threading.Tasks;
 /// <summary>A channel which contains messages sent by users.</summary>
 public interface ITextChannel : IChannel
 {
-    public IAsyncEnumerable<DiscordMessage> GetMessagesAsync(ushort limit = 100);
+    public IAsyncEnumerable<Message> GetMessagesAsync(ushort limit = 100);
 
-    public IAsyncEnumerable<DiscordMessage> GetMessagesAroundAsync(DiscordSnowflake snowflake, ushort limit = 100);
+    public IAsyncEnumerable<Message> GetMessagesAroundAsync(Snowflake snowflake, ushort limit = 100);
 
-    public IAsyncEnumerable<DiscordMessage> GetMessagesBeforeAsync(DiscordSnowflake snowflake, ushort limit = 100);
+    public IAsyncEnumerable<Message> GetMessagesBeforeAsync(Snowflake snowflake, ushort limit = 100);
 
-    public IAsyncEnumerable<DiscordMessage> GetMessagesAfterAsync(DiscordSnowflake snowflake, ushort limit = 100);
+    public IAsyncEnumerable<Message> GetMessagesAfterAsync(Snowflake snowflake, ushort limit = 100);
 
-    public Task<DiscordMessage> SendMessageAsync(MessageBuilder builder);
+    public IAsyncEnumerable<Message> GetPinnedMessagesAsync();
 
+    public Task<Message> SendMessageAsync(MessageBuilder builder);
+
+    public Task DeleteMessageAsync(Snowflake messageId);
 }

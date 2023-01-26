@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 /// <summary>Basic implementations for channel endpoints.</summary>
@@ -199,6 +200,22 @@ public static class ChannelEndpoints
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#channel-object-example-thread-channel">thread channel object</see></returns>
     public static Task<JsonElement> CreateThreadChannelAsync(this DiscordHttpClient httpClient, ulong channelId)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/threads").GetJsonAsync();
+
+    /// <summary>Creates a new thread in a forum channel.</summary>
+    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#start-thread-in-forum-channel-jsonform-params">Click here to see valid JSON parameters</see>.</remarks>
+    /// <returns><see href="https://discord.com/developers/docs/resources/channel#channel-object-example-thread-channel">thread channel object</see></returns>
+    public static async Task<(JsonElement thread, JsonElement message)> CreateForumThreadChannelAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> jsonDelegate, IList<FileAttachment> attachments)
+    {
+        var responseJson = await httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/threads").GetJsonAsync();
+        var mutableJson = JsonObject.Create(responseJson);
+
+        mutableJson.Remove("message", out JsonNode messageNode);
+
+        var threadJson = mutableJson.AsElement();
+        var messageJson = messageNode.AsElement();
+
+        return (threadJson, messageJson);
+    }
 
     /// <summary>Adds a user to a thread.</summary>
     public static Task<JsonElement> AddThreadChannelMemberAsync(this DiscordHttpClient httpClient, ulong threadChannelId, ulong userId)

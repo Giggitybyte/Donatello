@@ -34,8 +34,4 @@
 	  <ProjectReference Include="..\Donatello.Rest\Donatello.Rest.csproj" />
 	</ItemGroup>
 
-	<ItemGroup>
-	  <Folder Include="Command\Attribute\" />
-	</ItemGroup>
-
 </Project>

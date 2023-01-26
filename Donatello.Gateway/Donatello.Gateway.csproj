@@ -10,11 +10,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\Donatello.Common\Donatello.Common.csproj" />
+	  <Folder Include="Command\" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Folder Include="Command\" />
+	  <ProjectReference Include="..\Donatello.Common\Donatello.Common.csproj" />
 	</ItemGroup>
 
 </Project>

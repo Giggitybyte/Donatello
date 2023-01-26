@@ -1,11 +1,7 @@
 ﻿namespace Donatello.Extension.Internal;
 
 using Donatello;
-using System;
 using System.Buffers;
-using System.IO;
-using System.Net.Http;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -26,8 +22,8 @@ internal static class InternalExtensionMethods
         return array;
     }
 
-    /// <summary>Deserializes the JSON property as string and converts the value to a <see cref="DiscordSnowflake"/>.</summary>
-    internal static DiscordSnowflake ToSnowflake(this JsonElement jsonProperty)
+    /// <summary>Deserializes the JSON property as string and converts the value to a <see cref="Snowflake"/>.</summary>
+    internal static Snowflake ToSnowflake(this JsonElement jsonProperty)
     {
         if (jsonProperty.ValueKind is not JsonValueKind.String)
             throw new JsonException($"Expected a string, got {jsonProperty.ValueKind} instead.");
@@ -36,7 +32,7 @@ internal static class InternalExtensionMethods
     }
 
     /// <summary></summary>
-    internal static DiscordSnowflake ToSnowflake(this JsonValue jsonNode)
+    internal static Snowflake ToSnowflake(this JsonValue jsonNode)
     {
         if (jsonNode.TryGetValue<string>(out var value) is false)
             throw new JsonException($"Expected a string.");

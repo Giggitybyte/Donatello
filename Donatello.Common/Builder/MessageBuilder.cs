@@ -31,17 +31,17 @@ public sealed class MessageBuilder : EntityBuilder
     {
         public AllowedMentions()
         {
-            this.UserIds = new List<DiscordSnowflake>();
-            this.RoleIds = new List<DiscordSnowflake>();
+            this.UserIds = new List<Snowflake>();
+            this.RoleIds = new List<Snowflake>();
             this.RepliedUser = false;
             this.Types = MentionType.Default;
         }
 
         /// <summary></summary>
-        public List<DiscordSnowflake> RoleIds { get; private init; }
+        public List<Snowflake> RoleIds { get; private init; }
 
         /// <summary></summary>
-        public List<DiscordSnowflake> UserIds { get; private init; }
+        public List<Snowflake> UserIds { get; private init; }
 
         /// <summary>Whether to mention the author of a message being replied to</summary>
         public bool RepliedUser { get; private set; }
@@ -93,7 +93,7 @@ public sealed class MessageBuilder : EntityBuilder
         {
             var userArray = new JsonArray();
 
-            foreach (DiscordSnowflake snowflake in allowedMentions.UserIds)
+            foreach (Snowflake snowflake in allowedMentions.UserIds)
                 userArray.Add(snowflake);
 
             mentionJson["users"] = userArray;
@@ -103,7 +103,7 @@ public sealed class MessageBuilder : EntityBuilder
         {
             var roleArray = new JsonArray();
 
-            foreach (DiscordSnowflake snowflake in allowedMentions.RoleIds)
+            foreach (Snowflake snowflake in allowedMentions.RoleIds)
                 roleArray.Add(snowflake);
 
             mentionJson["roles"] = roleArray;
@@ -126,7 +126,7 @@ public sealed class MessageBuilder : EntityBuilder
     }
 
     /// <summary>Adds a reference to an existing message.</summary>
-    public MessageBuilder SetReply(DiscordMessage message)
+    public MessageBuilder SetReply(Message message)
     {
         this.Json["message_reference"] = new JsonObject()
         {

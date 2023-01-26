@@ -1,8 +1,6 @@
-﻿namespace Donatello.Entity.Builder;
+﻿namespace Donatello.Builder;
 
-using System.Text.Json;
-
-public sealed class ThreadChannelBuilder : GuildChannelBuilder
+public class ThreadChannelBuilder : GuildChannelBuilder
 {
 
 }

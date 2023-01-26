@@ -4,10 +4,10 @@ using Donatello;
 using Donatello.Entity;
 
 /// <summary>Fired when an entity has been deleted or is otherwise inaccessable.</summary>
-public sealed class EntityDeletedEvent<TEntity> : DiscordEvent where TEntity : DiscordEntity
+public sealed class EntityDeletedEvent<TEntity> : DiscordEvent where TEntity : Entity
 {
     /// <summary></summary>
-    public DiscordSnowflake EntityId { get; internal init; }
+    public Snowflake EntityId { get; internal init; }
 
     /// <summary></summary>
     internal TEntity Instance { get; init; }

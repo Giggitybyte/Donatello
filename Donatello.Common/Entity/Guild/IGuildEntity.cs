@@ -7,9 +7,8 @@ public interface IGuildEntity : ISnowflakeEntity
 {
 
     /// <summary></summary>
-    public DiscordSnowflake GuildId { get; }
+    public Snowflake GuildId { get; }
 
     /// <summary>Fetches the guild associated with this entity.</summary>
-    public ValueTask<DiscordGuild> GetGuildAsync();
+    public ValueTask<Guild> GetGuildAsync();
 }
-

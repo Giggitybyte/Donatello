@@ -6,9 +6,9 @@ using Donatello.Entity;
 public class GuildUnbanEvent : DiscordEvent
 {
     /// <summary>User who was unbanned.</summary>
-    public DiscordUser User { get; internal init; }
+    public User User { get; internal init; }
 
     /// <summary>Guild the user was unbanned from.</summary>
-    public DiscordGuild Guild { get; internal init; }
+    public Guild Guild { get; internal init; }
 }
 

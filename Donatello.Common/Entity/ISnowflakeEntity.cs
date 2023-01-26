@@ -7,6 +7,6 @@ using Donatello;
 public interface ISnowflakeEntity : IJsonEntity, IEquatable<ISnowflakeEntity>
 {
     /// <summary>Unique snowflake identifier.</summary>
-    public DiscordSnowflake Id { get; }
+    public Snowflake Id { get; }
 }
 

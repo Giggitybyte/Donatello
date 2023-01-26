@@ -2,20 +2,8 @@
 
 using System;
 
-public sealed class ChannelBuilder : EntityBuilder
+public class ChannelBuilder<TBuilder> : EntityBuilder where TBuilder : class
 {
-    public class Guild
-    {
-        private readonly ChannelBuilder _parent;
-
-        
-        
-        public Guild SetPosition(int position)
-        {
-            
-        }
-    }
-
     public TBuilder SetName(string name)
     {
         if (name.Length <= 100)

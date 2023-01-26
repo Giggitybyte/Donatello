@@ -89,21 +89,19 @@ public class DiscordHttpClient
     private Task<HttpResponse> SendRequestCoreAsync(HttpRequest request)
     {
         ulong attemptCount = 0;
-        Task<HttpResponse> delayTask = null;
 
-        if (_globalBucket.TryUse())
+        if (_globalBucket.TryUse() && _endpointBucketIds.TryGetValue(request.Endpoint, out string bucketId))
         {
-            if (_endpointBucketIds.TryGetValue(request.Endpoint, out string bucketId))
-                if (_endpointBuckets.TryGetValue(bucketId, out RatelimitBucket endpointBucket) && (endpointBucket.TryUse() is false))
-                {
-                    this.Logger.LogWarning("Request to {Endpoint} will be sent at a later time to avoid exceeding ratelimits.", request.Endpoint);
-                    delayTask = DelayRequestAsync(endpointBucket.ResetDate - DateTimeOffset.UtcNow);
-                }
+            if (_endpointBuckets.TryGetValue(bucketId, out RatelimitBucket endpointBucket) && endpointBucket.TryUse())
+                return DispatchRequestAsync();
+            else
+            {
+                this.Logger.LogWarning("Request to {Endpoint} will be sent at a future time to avoid exceeding ratelimits.", request.Endpoint);
+                return DelayRequestAsync(endpointBucket.ResetDate - DateTimeOffset.UtcNow);
+            }
         }
         else
-            delayTask = DelayRequestAsync(_globalBucket.ResetDate - DateTimeOffset.UtcNow);
-
-        return delayTask ?? DispatchRequestAsync();
+            return DelayRequestAsync(_globalBucket.ResetDate - DateTimeOffset.UtcNow);
 
         // Send request, update ratelimit bucket, handle 429, return response.
         async Task<HttpResponse> DispatchRequestAsync()
@@ -117,18 +115,15 @@ public class DiscordHttpClient
                 var bucketId = values.Single();
                 _endpointBucketIds[request.Endpoint] = bucketId;
 
-                if (_endpointBuckets.TryGetValue(bucketId, out var bucket))
-                {
+                if (_endpointBuckets.TryGetValue(bucketId, out RatelimitBucket bucket))
                     bucket.Update(response.Headers);
-                    this.Logger.LogTrace("Updated existing ratelimit bucket {Id}", bucketId);
-                }
                 else
                 {
                     bucket = new RatelimitBucket(bucketId, response.Headers);
-
                     _endpointBuckets[bucketId] = bucket;
-                    this.Logger.LogTrace("Created new ratelimit bucket {Id}", bucketId);
                 }
+
+                this.Logger.LogTrace("Mapped {Endpoint} to {Id}", request.Endpoint, bucketId);
             }
 
             if (response.StatusCode is HttpStatusCode.TooManyRequests)
@@ -148,7 +143,7 @@ public class DiscordHttpClient
             using var responseStream = await response.Content.ReadAsStreamAsync();
             using var responseJson = await JsonDocument.ParseAsync(responseStream);
 
-            this.Logger.LogTrace("Request to {Url} completed after {Attempt} attempts.", request.Endpoint, attemptCount);
+            this.Logger.LogDebug("Request to {Url} completed after {Attempt} attempts.", request.Endpoint, attemptCount);
 
             return new HttpResponse()
             {
@@ -162,7 +157,7 @@ public class DiscordHttpClient
         // Retries the request at a different time.
         Task<HttpResponse> DelayRequestAsync(TimeSpan delayTime)
         {
-            this.Logger.LogWarning("Request to {Uri} delayed until {Time} (attempt #{Attempt})", request.Endpoint, DateTime.Now.Add(delayTime), attemptCount);
+            this.Logger.LogWarning("Delayed request to {Uri} until {Time} (attempt #{Attempt})", request.Endpoint, DateTime.Now.Add(delayTime), attemptCount);
             return Task.Delay(delayTime).ContinueWith(t => DispatchRequestAsync()).Unwrap();
         }
 

@@ -2,10 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Net;
 using System.Net.Http;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 /// <summary>Basic implementations for guild endpoints.</summary>

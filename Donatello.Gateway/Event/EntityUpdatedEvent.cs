@@ -3,7 +3,7 @@
 using Donatello.Entity;
 
 /// <summary></summary>
-public sealed class EntityUpdatedEvent<TEntity> : DiscordEvent where TEntity : DiscordEntity
+public sealed class EntityUpdatedEvent<TEntity> : DiscordEvent where TEntity : Entity
 {
     /// <summary>The updated entity received in this event.</summary>
     public TEntity UpdatedEntity { get; internal init; }

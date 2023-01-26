@@ -37,13 +37,13 @@ public sealed class HttpRequest
     }
 
     /// <summary></summary>
-    internal HttpMethod Method { get => _method; }
+    internal HttpMethod Method => _method;
 
     /// <summary></summary>
-    internal string Endpoint { get => _endpoint; }
+    internal string Endpoint => _endpoint;
 
     /// <summary></summary>
-    internal HttpRequestMessage Message { get => (HttpRequestMessage)this; }
+    internal HttpRequestMessage Message => (HttpRequestMessage)this;
 
     /// <summary>Discord endpoint to send the request to.</summary>
     public HttpRequest SetEndpoint(string endpoint)

@@ -1,7 +1,10 @@
 ﻿namespace Donatello.Rest.Extension;
 
 using System;
+using System.Buffers;
 using System.Text;
+using System.Text.Json.Nodes;
+using System.Text.Json;
 
 internal static class InternalExtensionMethods
 {
@@ -29,6 +32,19 @@ internal static class InternalExtensionMethods
         }
 
         return builder.ToString();
+    }
+
+    /// <summary></summary>
+    internal static JsonElement AsElement(this JsonNode jsonNode)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using var jsonWriter = new Utf8JsonWriter(buffer);
+
+        jsonNode.WriteTo(jsonWriter);
+        jsonWriter.Flush();
+
+        using var jsonDoc = JsonDocument.Parse(buffer.WrittenMemory);
+        return jsonDoc.RootElement.Clone();
     }
 }
 
