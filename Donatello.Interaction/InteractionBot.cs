@@ -40,32 +40,19 @@ public sealed class InteractionBot : Bot
     /// <summary>Whether this instance is listening for interactions.</summary>
     public override bool IsConnected => _interactionListenerTask.Status == TaskStatus.Running;
 
-    /// <summary>Searches the provided assembly for classes which inherit from <see cref="DiscordCommandModule"/> and registers each of their commands.</summary>
-    public void LoadCommandModules(Assembly assembly)
-        => _commandService.AddModules(assembly);
-
-    /// <summary>Registers all commands found in the provided command module type with the command framework.</summary>
-    public void LoadCommandModule<T>() where T : DiscordCommandModule
-        => _commandService.AddModule(typeof(T));
-
     /// <summary>Submits all registered commands to Discord and begins listening for interactions.</summary>
-    public override ValueTask StartAsync()
+    public override Task StartAsync()
     {
         if (this.IsConnected)
             throw new InvalidOperationException("Instance is already active.");
 
         _interactionListenerTask = this.ListenAsync(_cts.Token);
 
-        foreach (var command in _commandService.GetAllCommands())
-        {
-            // ...
-        }
-
         throw new NotImplementedException();
     }
 
     /// <summary>Stops listening for interactions.</summary>
-    public override async ValueTask StopAsync()
+    public override async Task StopAsync()
     {
         if (!this.IsConnected)
             throw new InvalidOperationException("Instance is not active.");
@@ -153,12 +140,11 @@ public sealed class InteractionBot : Bot
         void ProcessCommand()
         {
             var data = interactionJson.GetProperty("data");
-            var commandType = (CommandType)(data.TryGetProperty("type", out var prop) ? prop.GetInt32() : 1);
+            var commandType = data.TryGetProperty("type", out var prop) ? prop.GetInt32() : 1;
 
             var name = data.GetProperty("name").GetString();
-            var result = _commandService.FindCommands(name)[0];
 
-            if (result is not null)
+            if (true)
             {
                 // ...
             }

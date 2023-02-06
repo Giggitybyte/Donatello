@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Builder;
+using Builder;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -11,7 +11,11 @@ public class GuildVoiceChannel : GuildChannel, IVoiceChannel, ITextChannel
     public GuildVoiceChannel(Bot bot, JsonElement json)
         : base(bot, json)
     {
+    }
 
+    public GuildVoiceChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
+        : base(bot, entityJson, guildId)
+    {
     }
 
     /// <inheritdoc cref = "IVoiceChannel.Bitrate"/>

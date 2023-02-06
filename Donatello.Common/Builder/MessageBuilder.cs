@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Builder;
 
-using Donatello.Entity;
+using Entity;
 using System;
 using System.Collections.Generic;
 using System.Linq;

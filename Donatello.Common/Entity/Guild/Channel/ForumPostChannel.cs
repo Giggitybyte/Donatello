@@ -1,7 +1,7 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Extension.Internal;
-using Donatello.Type;
+using Extension.Internal;
+using Type;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;

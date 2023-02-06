@@ -1,8 +1,8 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Builder;
+using Builder;
 using Donatello.Rest.Extension.Endpoint;
-using Donatello.Type;
+using Type;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,12 +14,16 @@ public class GuildForumChannel : GuildChannel
 {
     protected internal GuildForumChannel(Bot bot, JsonElement json)
         : base(bot, json)
+    {        
+    }
+
+    public GuildForumChannel(Bot bot, JsonElement entityJson, Snowflake guildId) 
+        : base(bot, entityJson, guildId)
     {
-        this.CachedPosts = new EntityCache<ForumPostChannel>();
     }
 
     /// <summary>Cached</summary>
-    public EntityCache<ForumPostChannel> CachedPosts { get; private init; }
+    public EntityCache<ForumPostChannel> PostCache { get; } = new EntityCache<ForumPostChannel>();
 
     /// <summary>Rules to follow when creating new posts.</summary>
     public string Guidelines => this.Json.TryGetProperty("topic", out JsonElement guidelines) ? guidelines.GetString() : string.Empty;
@@ -54,7 +58,7 @@ public class GuildForumChannel : GuildChannel
         var postsJson = await this.Bot.RestClient.GetActiveThreadsAsync(this.GuildId);
         foreach (var postJson in postsJson.GetProperty("threads").EnumerateArray())
         {
-            var post = Channel.Create<ForumPostChannel>(postJson, this.Bot);
+            var post = Create<ForumPostChannel>(this.Bot, postJson);
             yield return post;
         }
     }
@@ -62,7 +66,7 @@ public class GuildForumChannel : GuildChannel
     /// <summary></summary>
     public async ValueTask<ForumPostChannel> GetPostAsync(Snowflake postId)
     {
-        if (this.CachedPosts.TryGet(postId, out ForumPostChannel post) is false)
+        if (this.PostCache.TryGet(postId, out ForumPostChannel post) is false)
             post = await this.FetchActivePostsAsync().FirstOrDefaultAsync(post => post.Id == postId);
 
         return post;

@@ -1,7 +1,8 @@
 ﻿namespace Donatello.Type;
 
-using Donatello.Entity;
+using Entity;
 using System.Collections.Generic;
+using System.Text.Json;
 
 /// <summary>Memory-based cache for short-term storage of <typeparamref name="TEntity"/> instances.</summary> 
 /// <typeparam name="TEntity">Stored entity type.</typeparam>
@@ -19,8 +20,17 @@ public sealed class EntityCache<TEntity> : ObjectCache<TEntity> where TEntity : 
     public new bool TryGet(Snowflake snowflake, out TEntity cachedEntity)
         => base.TryGet(snowflake, out cachedEntity);
 
-    /// <summary>Adds the provided <paramref name="updatedEntity"/> to the cache and returns the previously cached object.</summary>
-    internal TEntity Replace(TEntity updatedEntity)
-        => base.Replace(updatedEntity.Id, updatedEntity);
+    /// <summary>Attempts to update the underlying JSON object for an entity.</summary>
+    /// <remarks>Returns <see langword="true"/> if the provided <paramref name="snowflake"/> had an entry in the cache which was updated successfully.</remarks>
+    internal bool TryUpdate(Snowflake snowflake, JsonElement updatedJson)
+    {
+        if (this.TryGet(snowflake, out TEntity cachedEntity))
+        {
+            cachedEntity.Update(updatedJson);
+            return true;
+        }
+
+        return false;
+    }
 }
 

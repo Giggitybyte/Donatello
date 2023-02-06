@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reactive.Linq;
 
 /// <summary>Memory-based cache for short-term storage of <typeparamref name="T"/> instances.</summary> 
@@ -13,10 +14,10 @@ public class ObjectCache<T> : IEnumerable<T>
 {
     protected sealed class Entry
     {
-        public T Object { get; set; }
+        public T Object { get; init; }
         public DateTime ExpiryDate { get; set; }
         public DateTime LastAccessed { get; set; }
-        public IDisposable TimerSubscription { get; set; }
+        public IDisposable TimerSubscription { get; init; }
     }
 
     private TimeSpan _inactiveLifetime;
@@ -35,7 +36,7 @@ public class ObjectCache<T> : IEnumerable<T>
             _maximumLifetime = TimeSpan.FromHours(1);
 
         _cache = new ConcurrentDictionary<Snowflake, Entry>();
-        _purgeTimer = Observable.Interval(TimeSpan.FromSeconds(1));
+        _purgeTimer = Observable.Interval(TimeSpan.FromSeconds(5));
     }
 
     /// <summary>Number of entries currently cached.</summary>
@@ -53,6 +54,10 @@ public class ObjectCache<T> : IEnumerable<T>
         set => this.Add(snowflake, value);
     }
 
+    /// <summary>Whether the provided snowflake has an entry in this cache. </summary>
+    public bool Contains(Snowflake snowflake)
+        => _cache.ContainsKey(snowflake);
+
     /// <summary>Returns <see langword="true"/> if the provided <paramref name="snowflake"/> has a cache entry associated with it, <see langword="false"/> otherwise.</summary>
     /// <param name="snowflake"></param>
     /// <param name="cachedObject">If the method returns <see langword="true"/> this parameter will contain the cached instance; otherwise it will be <see langword="null"/>.</param>
@@ -66,7 +71,7 @@ public class ObjectCache<T> : IEnumerable<T>
         else
             cachedObject = default(T);
 
-        return !cachedObject.Equals(default(T));
+        return cachedObject != null;
     }
 
     /// <summary>Adds the provided <typeparamref name="T"/> instance to this cache.</summary>
@@ -79,12 +84,12 @@ public class ObjectCache<T> : IEnumerable<T>
             Object = newObject,
             LastAccessed = addDate,
             ExpiryDate = addDate + _maximumLifetime,
-            TimerSubscription = _purgeTimer.Subscribe(TimerElasped)
+            TimerSubscription = _purgeTimer.Subscribe(TimerElapsed)
         };
 
         _cache[snowflake] = newEntry;
 
-        void TimerElasped(long elapseCount)
+        void TimerElapsed(long elapseCount)
         {
             if (_cache.TryGetValue(snowflake, out Entry cachedEntry))
             {
@@ -116,7 +121,7 @@ public class ObjectCache<T> : IEnumerable<T>
         return outdatedObject;
     }
 
-    /// <summary>Removes the entry assoicated with the provided <paramref name="snowflake"/> and returns its <typeparamref name="T"/> value.</summary>
+    /// <summary>Removes the entry associated with the provided <paramref name="snowflake"/> and returns its <typeparamref name="T"/> value.</summary>
     /// <remarks>If the snowflake does not currently exist in the cache, this method will return <see langword="null"/>.</remarks>
     internal T Remove(Snowflake snowflake)
     {
@@ -129,19 +134,15 @@ public class ObjectCache<T> : IEnumerable<T>
             return default;
     }
 
-    /// <summary>Removes the entry assoicated with the provided <paramref name="snowflakes"/> and returns each <typeparamref name="T"/> value.</summary>
-    internal IEnumerable<T> RemoveMany(IEnumerable<Snowflake> snowflakes)
-    {
-        foreach (var id in snowflakes)
-            yield return this.Remove(id);
-    }
+    /// <summary>Removes the entry associated with the provided <paramref name="snowflakes"/> and returns each <typeparamref name="T"/> value.</summary>
+    internal IEnumerable<T> RemoveMany(IEnumerable<Snowflake> snowflakes) 
+        => snowflakes.Select(id => this.Remove(id));
 
     /// <summary>Removes all entries from this cache.</summary>
     internal void Clear()
         => _cache.Clear();
 
-    /// <summary>Returns an enumerator which iterates through the cache.</summary>
-    public IEnumerator<T> GetEnumerator()
+    IEnumerator<T> IEnumerable<T>.GetEnumerator()
     {
         foreach (var entry in _cache.Values)
         {
@@ -150,6 +151,7 @@ public class ObjectCache<T> : IEnumerable<T>
         }
     }
 
-    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator()
+        => (this as IEnumerable<T>).GetEnumerator();
 }
 

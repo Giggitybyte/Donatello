@@ -6,6 +6,13 @@ using System.Text.Json;
 public class GuildNewsChannel : GuildTextChannel
 {
     public GuildNewsChannel(Bot bot, JsonElement json) 
-        : base(bot, json) { }
+        : base(bot, json) 
+    { 
+    }
+
+    public GuildNewsChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
+        : base(bot, entityJson, guildId)
+    {
+    }
 }
 

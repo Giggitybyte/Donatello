@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Enum;
+using Enum;
 
 /// <summary></summary>
 public interface IChannel : ISnowflakeEntity

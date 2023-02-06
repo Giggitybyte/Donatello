@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interaction.Enumeration;
+﻿namespace Donatello.Interaction.Command;
 
 /// <summary>The interaction method of a command.</summary>
 public enum CommandType : ushort

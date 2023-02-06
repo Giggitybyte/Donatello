@@ -3,7 +3,7 @@
 using System.Text.Json;
 using System.Threading.Tasks;
 using System;
-using Donatello.Extension.Internal;
+using Extension.Internal;
 
 /// <summary></summary>
 public sealed class ThreadMember : GuildMember

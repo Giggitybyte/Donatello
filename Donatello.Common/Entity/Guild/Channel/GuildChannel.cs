@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Extension.Internal;
+using Extension.Internal;
 using System;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -18,6 +18,13 @@ public abstract class GuildChannel : Channel, IGuildChannel
         else
             throw new ArgumentException("JSON does not contain a guild ID.", nameof(entityJson));
     }
+
+    public GuildChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
+        : base(bot, entityJson)
+    {
+        _guildId = guildId;
+    }
+
 
     /// <inheritdoc cref="IGuildChannel.Position"/>
     public int Position => this.Json.GetProperty("position").GetInt32();

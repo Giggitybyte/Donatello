@@ -1,9 +1,9 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Enum;
-using Donatello.Extension.Internal;
+using Enum;
+using Extension.Internal;
 using Donatello.Rest.Extension.Endpoint;
-using Donatello.Type;
+using Type;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -16,7 +16,11 @@ public class GuildThreadChannel : GuildTextChannel, IThreadChannel
     public GuildThreadChannel(Bot bot, JsonElement json)
         : base(bot, json)
     {
-        this.MemberCache = new JsonCache(json => json.GetProperty("user_id").ToSnowflake());
+    }
+
+    public GuildThreadChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
+        : base(bot, entityJson, guildId)
+    {
     }
 
     /// <summary>An additional sub-set of fields sent only with threads.</summary>
@@ -26,7 +30,7 @@ public class GuildThreadChannel : GuildTextChannel, IThreadChannel
     protected internal Snowflake ParentId => this.Json.GetProperty("parent_id").ToSnowflake();
 
     /// <summary></summary>
-    internal JsonCache MemberCache { get; init; }
+    internal JsonCache MemberCache { get; } = new JsonCache(json => json.GetProperty("user_id").ToSnowflake());
 
     /// <summary></summary>
     public bool Locked => this.Metadata.GetProperty("locked").GetBoolean();

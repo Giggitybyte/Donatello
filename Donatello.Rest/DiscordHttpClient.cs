@@ -90,23 +90,24 @@ public class DiscordHttpClient
     {
         ulong attemptCount = 0;
 
-        if (_globalBucket.TryUse() && _endpointBucketIds.TryGetValue(request.Endpoint, out string bucketId))
-        {
-            if (_endpointBuckets.TryGetValue(bucketId, out RatelimitBucket endpointBucket) && endpointBucket.TryUse())
-                return DispatchRequestAsync();
-            else
-            {
-                this.Logger.LogWarning("Request to {Endpoint} will be sent at a future time to avoid exceeding ratelimits.", request.Endpoint);
-                return DelayRequestAsync(endpointBucket.ResetDate - DateTimeOffset.UtcNow);
-            }
-        }
-        else
+        if (_globalBucket.TryUse() is false)
             return DelayRequestAsync(_globalBucket.ResetDate - DateTimeOffset.UtcNow);
+
+        if (_endpointBucketIds.TryGetValue(request.Endpoint, out string bucketId) &&
+            _endpointBuckets.TryGetValue(bucketId, out RatelimitBucket endpointBucket) &&
+            endpointBucket.TryUse() is false)
+        {
+            this.Logger.LogWarning("Request to {Endpoint} will be sent at a future time to avoid exceeding ratelimits.", request.Endpoint);
+            return DelayRequestAsync(endpointBucket.ResetDate - DateTimeOffset.UtcNow);
+        }
+
+        return DispatchRequestAsync();
+
 
         // Send request, update ratelimit bucket, handle 429, return response.
         async Task<HttpResponse> DispatchRequestAsync()
         {
-            this.Logger.LogDebug("Sending request to {Method} {Uri} (attempt #{Attempt})", request.Method.Method, request.Endpoint, ++attemptCount);
+            this.Logger.LogTrace("Sending request to {Method} {Uri} (attempt #{Attempt})", request.Method.Method, request.Endpoint, ++attemptCount);
             using var response = await _client.SendAsync(request);
             this.Logger.LogDebug("Request to {Endpoint} got {Status} response from Discord.", request.Endpoint, response.StatusCode);
 
@@ -143,7 +144,7 @@ public class DiscordHttpClient
             using var responseStream = await response.Content.ReadAsStreamAsync();
             using var responseJson = await JsonDocument.ParseAsync(responseStream);
 
-            this.Logger.LogDebug("Request to {Url} completed after {Attempt} attempts.", request.Endpoint, attemptCount);
+            this.Logger.LogTrace("Request to {Url} completed after {Attempt} attempts.", request.Endpoint, attemptCount);
 
             return new HttpResponse()
             {
@@ -166,47 +167,50 @@ public class DiscordHttpClient
         {
             var errorMessages = new List<HttpResponse.Error>();
 
-            // TODO: array error
-
-            if (json.TryGetProperty("errors", out JsonElement errorObject)) // TODO: I think this logic is broke a little.
+            if (json.ValueKind is JsonValueKind.Object)
             {
-                if (errorObject.TryGetProperty("_errors", out JsonElement errorProp))
-                    AddErrors(errorProp, "request");
-                else
-                {
-                    foreach (var objectProp in errorObject.EnumerateObject())
-                        foreach (var errorJson in objectProp.Value.GetProperty("_errors").EnumerateArray())
-                            AddErrors(errorJson, objectProp.Name);
-                }
+                // TODO: array error.
 
-                void AddErrors(JsonElement errorArray, string name)
+                if (json.TryGetProperty("errors", out JsonElement errorObject)) // TODO: I think this logic is broke a little.
                 {
-                    foreach (var errorJson in errorArray.EnumerateArray())
+                    if (errorObject.TryGetProperty("_errors", out JsonElement errorProp))
+                        AddErrors(errorProp, "request");
+                    else
                     {
-                        var error = new HttpResponse.Error()
-                        {
-                            ParameterName = name,
-                            Code = errorJson.GetProperty("code").GetInt32(),
-                            Message = errorJson.GetProperty("message").GetString()
-                        };
-
-                        errorMessages.Add(error);
+                        foreach (var objectProp in errorObject.EnumerateObject())
+                            foreach (var errorJson in objectProp.Value.GetProperty("_errors").EnumerateArray())
+                                AddErrors(errorJson, objectProp.Name);
                     }
                 }
-            }
-            else if (json.TryGetProperty("message", out JsonElement messageProp))
-            {
-                var error = new HttpResponse.Error()
+                else if (json.TryGetProperty("message", out JsonElement messageProp))
                 {
-                    ParameterName = string.Empty,
-                    Code = json.GetProperty("code").GetInt32(),
-                    Message = messageProp.GetString()
-                };
+                    var error = new HttpResponse.Error()
+                    {
+                        ParameterName = string.Empty,
+                        Code = json.GetProperty("code").GetInt32(),
+                        Message = messageProp.GetString()
+                    };
 
-                errorMessages.Add(error);
+                    errorMessages.Add(error);
+                }
             }
 
             return errorMessages;
+
+            void AddErrors(JsonElement errorArray, string name)
+            {
+                foreach (var errorJson in errorArray.EnumerateArray())
+                {
+                    var error = new HttpResponse.Error()
+                    {
+                        ParameterName = name,
+                        Code = errorJson.GetProperty("code").GetInt32(),
+                        Message = errorJson.GetProperty("message").GetString()
+                    };
+
+                    errorMessages.Add(error);
+                }
+            }
         }
     }
 }

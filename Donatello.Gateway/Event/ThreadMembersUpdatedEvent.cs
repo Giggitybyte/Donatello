@@ -1,10 +1,10 @@
 ﻿namespace Donatello.Gateway.Event;
 
-using Donatello.Entity;
+using Entity;
 using System.Collections.ObjectModel;
 
 /// <summary></summary>
-public class ThreadMembersUpdatedEvent : DiscordEvent
+public class ThreadMembersUpdatedEvent : GuildEvent
 {
     /// <summary></summary>
     public GuildThreadChannel Thread { get; internal set; }

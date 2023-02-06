@@ -1,14 +1,11 @@
 ﻿namespace Donatello.Gateway.Event;
 
-using Donatello.Entity;
+using Entity;
 
 /// <summary>Dispatched when a user has been banned from a guild.</summary>
-public class GuildBanEvent : DiscordEvent
+public class GuildBanEvent : GuildEvent
 {
     /// <summary>User who was banned.</summary>
     public User User { get; internal init; }
-
-    /// <summary>Guild the user was banned from.</summary>
-    public Guild Guild { get; internal init; }
 }
 

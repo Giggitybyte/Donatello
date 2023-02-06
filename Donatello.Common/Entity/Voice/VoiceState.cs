@@ -1,7 +1,7 @@
 ﻿namespace Donatello.Entity;
 
 using Donatello;
-using Donatello.Extension.Internal;
+using Extension.Internal;
 using System.Text.Json;
 using System.Threading.Tasks;
 

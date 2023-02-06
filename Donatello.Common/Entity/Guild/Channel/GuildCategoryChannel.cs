@@ -8,7 +8,11 @@ public class GuildCategoryChannel : GuildChannel
 {
     public GuildCategoryChannel(Bot bot, JsonElement entityJson) : base(bot, entityJson)
     {
+    }
 
+    public GuildCategoryChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
+        : base(bot, entityJson, guildId)
+    {
     }
 
     public IAsyncEnumerable<GuildChannel> GetContainedChannels()

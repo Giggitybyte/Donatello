@@ -14,26 +14,26 @@ public static class UserExtensionMethods
     {
         if (response.Status is HttpStatusCode.OK or HttpStatusCode.NoContent)
             return response.Payload;
-        else
+        
+        var exceptionMessage = new StringBuilder();
+
+        if (response.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+            exceptionMessage.Append(response.Payload.GetProperty("message").GetString());
+        else if (response.HasErrors(out var errors))
         {
-            var exceptionMessage = new StringBuilder();
-
-            if (response.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
-                exceptionMessage.Append(response.Payload.GetProperty("message").GetString());
-            else if (response.HasErrors(out var errors))
-            {
-                foreach (var error in errors)
-                {
-                    exceptionMessage.Append('[').Append(error.ParameterName).Append("] ")
-                        .Append(error.Message).Append(": ").AppendLine(error.Code.ToString());
-                }
-            }
-            else
-                exceptionMessage.Append(response.Message);
-
-
-            throw new HttpRequestException($"Discord returned one or more errors:\n{exceptionMessage}");
+            foreach (var error in errors)
+                exceptionMessage.Append('[')
+                    .Append(error.ParameterName)
+                    .Append("] ")
+                    .Append(error.Message)
+                    .Append(": ")
+                    .AppendLine(error.Code.ToString());
         }
+        else
+            exceptionMessage.Append(response.Message);
+
+
+        throw new HttpRequestException($"Discord returned one or more errors:\n{exceptionMessage}");
     }
 
     /// <summary>Returns the resulting <see cref="HttpResponse.Payload"/>, or throws <see cref="HttpRequestException"/> if a non-success response code was returned.</summary>

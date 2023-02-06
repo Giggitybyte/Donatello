@@ -1,6 +1,5 @@
 ﻿namespace Donatello.Interaction.Command.Attribute;
 
-using Donatello.Interaction.Enumeration;
 using System;
 
 /// <summary>Explicitly specifies the type of a command.</summary>

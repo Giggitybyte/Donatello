@@ -1,8 +1,8 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Builder;
+using Builder;
 using Donatello.Rest.Extension.Endpoint;
-using Donatello.Type;
+using Type;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,18 +12,21 @@ using System.Threading.Tasks;
 /// <summary></summary>
 public class GuildTextChannel : GuildChannel, ITextChannel
 {
-    internal protected GuildTextChannel(Bot bot, JsonElement json)
+    public GuildTextChannel(Bot bot, JsonElement json)
         : base(bot, json)
     {
-        this.MessageCache = new EntityCache<Message>();
-        this.ThreadCache = new EntityCache<GuildThreadChannel>();
+    }
+
+    public GuildTextChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
+        : base(bot, entityJson, guildId)
+    {
     }
 
     /// <summary>Cached message instances.</summary>
-    public EntityCache<Message> MessageCache { get; private init; }
+    public EntityCache<Message> MessageCache { get; } = new();
 
     /// <summary>Cached thread channel instances.</summary>
-    public EntityCache<GuildThreadChannel> ThreadCache { get; private init; }
+    public EntityCache<GuildThreadChannel> ThreadCache { get; } = new();
 
     /// <summary></summary>
     public async ValueTask<Message> GetMessageAsync(Snowflake messageId)

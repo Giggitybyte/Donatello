@@ -1,10 +1,10 @@
 ﻿namespace Donatello;
 
-using Donatello.Entity;
-using Donatello.Extension.Internal;
-using Donatello.Rest;
+using Entity;
+using Extension.Internal;
+using Rest;
 using Donatello.Rest.Extension.Endpoint;
-using Donatello.Type;
+using Type;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -12,17 +12,25 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
+/// <summary>Common methods and properties for a Discord bot.</summary>
 public abstract class Bot
 {
-    public Bot(string token, ILogger logger = null)
+    private ILoggerFactory _loggerFactory;
+
+    protected Bot(string token, ILoggerFactory loggerFactory)
     {
+        _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
+        
         this.Token = token;
-        this.Logger = logger ?? NullLogger.Instance;
-        this.RestClient = new DiscordHttpClient(TokenType.Bot, token, this.Logger);
+        this.Logger = _loggerFactory.CreateLogger("Discord Bot");
+        this.RestClient = new DiscordHttpClient(TokenType.Bot, token, _loggerFactory.CreateLogger("Discord REST Client"));
         this.GuildCache = new EntityCache<Guild>();
         this.UserCache = new EntityCache<User>();
 
     }
+
+    /// <summary>Logger factory instance.</summary>
+    protected ILoggerFactory LoggerFactory => _loggerFactory;
 
     /// <summary>Discord API token string.</summary>
     protected internal string Token { get; private init; }
@@ -43,18 +51,17 @@ public abstract class Bot
     public abstract bool IsConnected { get; }
 
     /// <summary>Connects to the Discord API.</summary>
-    public abstract ValueTask StartAsync();
+    public abstract Task StartAsync();
 
     /// <summary>Disconnects from the Discord API and releases any resources in use.</summary>
-    public abstract ValueTask StopAsync();
+    public abstract Task StopAsync();
 
     /// <summary>Connects to the Discord API and waits until <paramref name="cancellationToken"/> is cancelled.</summary>
     /// <remarks>When <paramref name="cancellationToken"/> is cancelled, this instance will be disconnected from the API and the <see cref="Task"/> returned by this method will complete.</remarks>
     public virtual async Task RunAsync(CancellationToken cancellationToken)
     {
         await this.StartAsync();
-        await Task.Delay(-1, cancellationToken);
-        await this.StopAsync();
+        await Task.Delay(-1, cancellationToken).ContinueWith(delayTask => this.StopAsync()).Unwrap();
     }
 
     /// <summary>Requests an up-to-date user object from Discord.</summary>
@@ -99,7 +106,7 @@ public abstract class Bot
     public virtual async Task<TChannel> FetchChannelAsync<TChannel>(Snowflake channelId) where TChannel : class, IChannel
     {
         var channelJson = await this.RestClient.GetChannelAsync(channelId);
-        var channel = Channel.Create<TChannel>(channelJson, this);
+        var channel = Channel.Create<TChannel>(this, channelJson);
 
         if (channelJson.TryGetProperty("guild_id", out JsonElement prop))
         {
@@ -116,8 +123,8 @@ public abstract class Bot
     }
 
     /// <summary></summary>
-    public virtual Task<Channel> FetchChannelAsync(Snowflake channelId)
-        => this.FetchChannelAsync<Channel>(channelId);
+    public virtual Task<IChannel> FetchChannelAsync(Snowflake channelId)
+        => this.FetchChannelAsync<IChannel>(channelId);
 
     /// <inheritdoc cref="GetChannelAsync(Snowflake)"/>
     public virtual async ValueTask<TChannel> GetChannelAsync<TChannel>(Snowflake channelId) where TChannel : class, IChannel

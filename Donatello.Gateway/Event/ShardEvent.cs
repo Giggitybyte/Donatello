@@ -1,11 +1,10 @@
 ﻿namespace Donatello.Gateway.Event;
 
-/// <summary>Event received by a websocket shard.</summary>
-public abstract class DiscordEvent : IEvent
-{
-    /// <summary>Bot instance which dispatched this event.</summary>
-    public GatewayBot Bot { get; internal set; }
+using System;
 
+/// <summary>Event received by a websocket shard.</summary>
+public abstract class ShardEvent : BotEvent
+{
     /// <summary>The shard which received this event.</summary>
     public WebsocketShard Shard { get; internal set; }
 }

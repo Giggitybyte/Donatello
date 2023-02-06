@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Entity;
 
-using Donatello.Enum;
+using Enum;
 using System;
 using System.Collections.Generic;
 using System.Drawing;

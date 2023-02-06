@@ -1,9 +1,8 @@
 ﻿namespace Donatello.Gateway.Event;
 
-using System;
-
-public interface IEvent
+/// <summary></summary>
+public class BotEvent : IEvent
 {
     /// <summary>Bot instance which dispatched this event.</summary>
-    public GatewayBot Bot { get; }
+    public GatewayBot Bot { get; internal set; }
 }

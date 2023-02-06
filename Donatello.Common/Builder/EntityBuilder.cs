@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Builder;
 
-using Donatello.Rest;
+using Rest;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 
