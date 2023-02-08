@@ -22,59 +22,73 @@ public class GuildForumChannel : GuildChannel
     {
     }
 
-    /// <summary>Cached</summary>
-    public EntityCache<ForumPostChannel> PostCache { get; } = new EntityCache<ForumPostChannel>();
+    /// <summary>Cached thread channel instances.</summary>
+    public EntityCache<GuildThreadChannel> ThreadCache { get; } = new EntityCache<GuildThreadChannel>();
 
-    /// <summary>Rules to follow when creating new posts.</summary>
+    /// <summary>Rules to follow when creating new threads.</summary>
     public string Guidelines => this.Json.TryGetProperty("topic", out JsonElement guidelines) ? guidelines.GetString() : string.Empty;
 
-    /// <summary></summary>
-    public async Task<ForumPostChannel> CreatePostAsync(MessageBuilder builder)
+    /// <summary>Creates a new thread with a starting message.</summary>
+    public async Task<GuildThreadChannel> CreateThreadAsync(MessageBuilder builder)
     {
         var (thread, message) = await this.Bot.RestClient.CreateForumThreadChannelAsync(this.Id, jsonWriter => builder.Json.WriteTo(jsonWriter), builder.Files);
 
-        var post = new ForumPostChannel(this.Bot, thread);
+        var post = new GuildThreadChannel(this.Bot, thread);
         post.MessageCache.Add(new Message(this.Bot, message));
 
         return post;
     }
 
-    /// <summary></summary>
-    public Task<ForumPostChannel> CreatePostAsync(Action<MessageBuilder> builderDelegate)
+    /// <inheritdoc cref="CreateThreadAsync(Donatello.Builder.MessageBuilder)"/>
+    public Task<GuildThreadChannel> CreateThreadAsync(Action<MessageBuilder> builderDelegate)
     {
         var messageBuilder = new MessageBuilder();
         builderDelegate(messageBuilder);
 
-        return this.CreatePostAsync(messageBuilder);
+        return this.CreateThreadAsync(messageBuilder);
     }
 
-    /// <summary></summary>
-    public Task<ForumPostChannel> CreatePostAsync(string content)
-        => this.CreatePostAsync(builder => builder.SetContent(content));
+    /// <inheritdoc cref="CreateThreadAsync(Donatello.Builder.MessageBuilder)"/>
+    public Task<GuildThreadChannel> CreateThreadAsync(string content)
+        => this.CreateThreadAsync(builder => builder.SetContent(content));
 
     /// <summary></summary>
-    public async IAsyncEnumerable<ForumPostChannel> FetchActivePostsAsync()
+    public async IAsyncEnumerable<GuildThreadChannel> FetchActiveThreadsAsync()
     {
         var postsJson = await this.Bot.RestClient.GetActiveThreadsAsync(this.GuildId);
         foreach (var postJson in postsJson.GetProperty("threads").EnumerateArray())
         {
-            var post = Create<ForumPostChannel>(this.Bot, postJson);
+            var post = Channel.Create<GuildThreadChannel>(this.Bot, postJson);
+            this.ThreadCache.Add(post);
+            yield return post;
+        }
+    }
+
+    public async IAsyncEnumerable<GuildThreadChannel> FetchArchivedThreadsAsync()
+    {
+        var postsJson = await this.Bot.RestClient.GetArchivedPublicThreadsAsync(this.GuildId);
+        foreach (var postJson in postsJson.GetProperty("threads").EnumerateArray())
+        {
+            var post = Channel.Create<GuildThreadChannel>(this.Bot, postJson);
+            this.ThreadCache.Add(post);
             yield return post;
         }
     }
 
     /// <summary></summary>
-    public async ValueTask<ForumPostChannel> GetPostAsync(Snowflake postId)
+    public async ValueTask<GuildThreadChannel> GetThreadAsync(Snowflake threadId)
     {
-        if (this.PostCache.TryGet(postId, out ForumPostChannel post) is false)
-            post = await this.FetchActivePostsAsync().FirstOrDefaultAsync(post => post.Id == postId);
+        if (this.ThreadCache.TryGet(threadId, out GuildThreadChannel post) is false)
+            post = await this.FetchActiveThreadsAsync().FirstOrDefaultAsync(post => post.Id == threadId);
 
         return post;
     }
 
-    public IAsyncEnumerable<ForumPostChannel> GetOpenPostsAsync()
+    /// <summary></summary>
+    public IAsyncEnumerable<GuildThreadChannel> GetActiveThreadsAsync()
         => throw new NotImplementedException();
 
-    public IAsyncEnumerable<ForumPostChannel> GetClosedPostsAsync()
+    /// <summary></summary>
+    public IAsyncEnumerable<GuildThreadChannel> GetArchivedThreadsAsync()
         => throw new NotImplementedException();
 }

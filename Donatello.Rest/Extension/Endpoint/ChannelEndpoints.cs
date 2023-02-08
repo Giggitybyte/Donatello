@@ -250,7 +250,7 @@ public static class ChannelEndpoints
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/threads/active").GetJsonAsync();
 
     /// <summary>Fetches all archived public thread channels.</summary>
-    /// /// <remarks><see href="https://discord.com/developers/docs/resources/channel#list-public-archived-threads-query-string-params">Click to see valid query string params</see>.</remarks>
+    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#list-public-archived-threads-query-string-params">Click to see valid query string params</see>.</remarks>
     /// <returns><see href="https://discord.com/developers/docs/resources/channel#list-public-archived-threads-response-body">archived threads object</see></returns>
     public static Task<JsonElement> GetArchivedPublicThreadsAsync(this DiscordHttpClient httpClient, ulong channelId, params (string key, string value)[] queryParams)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/threads/archived/public{queryParams.ToParamString()}").GetJsonAsync();

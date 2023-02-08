@@ -97,7 +97,7 @@ public class DiscordHttpClient
             _endpointBuckets.TryGetValue(bucketId, out RatelimitBucket endpointBucket) &&
             endpointBucket.TryUse() is false)
         {
-            this.Logger.LogWarning("Request to {Endpoint} will be sent at a future time to avoid exceeding ratelimits.", request.Endpoint);
+            this.Logger.LogWarning("Request to {Endpoint} will be delayed to avoid exceeding ratelimits.", request.Endpoint);
             return DelayRequestAsync(endpointBucket.ResetDate - DateTimeOffset.UtcNow);
         }
 

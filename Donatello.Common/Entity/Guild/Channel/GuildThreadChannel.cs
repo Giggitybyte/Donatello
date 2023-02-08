@@ -11,7 +11,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 
 /// <summary>A sub-channel contained within a guild text channel.</summary>
-public class GuildThreadChannel : GuildTextChannel, IThreadChannel
+public class GuildThreadChannel : GuildTextChannel
 {
     public GuildThreadChannel(Bot bot, JsonElement json)
         : base(bot, json)
