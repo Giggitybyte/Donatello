@@ -57,11 +57,8 @@ public class GuildThreadChannel : GuildTextChannel
 
     /// <summary>Returns <see langword="true"/> if this thread has a creation date field; <see langword="false"/> otherwise.</summary>
     /// <remarks>Only threads created after January 9, 2022 will have a creation date field.</remarks>
-    /// <param name="creationDate">
-    /// When the method returns:<br/>
-    /// <see langword="true"/> this parameter will contain the date when this thread was created.<br/>
-    /// <see langword="false"/> this parameter will be <see cref="DateTimeOffset.MinValue"/>.
-    /// </param>
+    /// <param name="creationDate">If the method returns <see langword="true"/> this parameter will contain the date when this thread was created.
+    /// Otherwise, this parameter will be <see cref="DateTimeOffset.MinValue"/>.</param>
     public bool HasCreationDate(out DateTimeOffset creationDate)
         => this.Metadata.TryGetProperty("create_timestamp", out JsonElement prop) & prop.TryGetDateTimeOffset(out creationDate);
 
@@ -77,7 +74,10 @@ public class GuildThreadChannel : GuildTextChannel
 
     /// <summary>Fetches the text channel which contains this thread.</summary>
     public ValueTask<GuildTextChannel> GetParentChannelAsync()
-        => this.Bot.GetChannelAsync<GuildTextChannel>(this.Json.GetProperty("parent_id").ToSnowflake());
+    {
+        var parentChannelId = this.Json.GetProperty("parent_id").ToSnowflake();
+        return this.Bot.GetChannelAsync<GuildTextChannel>(parentChannelId);
+    }
 
     /// <summary></summary>
     public async IAsyncEnumerable<ThreadMember> FetchMembersAsync()
@@ -105,17 +105,5 @@ public class GuildThreadChannel : GuildTextChannel
 
         return members.AsReadOnly();
     }
-
-    JsonElement IThreadChannel.Metadata => this.Metadata;
-    Snowflake IThreadChannel.ParentId => this.ParentId;
-    bool IThreadChannel.Locked => this.Locked;
-    bool IThreadChannel.Archived => this.Archived;
-    Task IThreadChannel.JoinAsync() => throw new NotImplementedException();
-    Task IThreadChannel.LeaveAsync() => throw new NotImplementedException();
-    Task IThreadChannel.AddMemberAsync(User user) => throw new NotImplementedException();
-    ValueTask<ThreadMember> IThreadChannel.GetMemberAsync(Snowflake userId) => throw new NotImplementedException();
-    Task IThreadChannel.RemoveMemberAsync(User user) => throw new NotImplementedException();
-    Task<ReadOnlyCollection<ThreadMember>> IThreadChannel.GetMembersAsync() => this.GetMembersAsync();
-    IAsyncEnumerable<ThreadMember> IThreadChannel.FetchMembersAsync() => this.FetchMembersAsync();
 }
 

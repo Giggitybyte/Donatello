@@ -96,6 +96,6 @@ public abstract class Channel : Entity, IChannel
     }
 
     /// <summary>Converts a JSON object to the appropriate Discord channel entity and attempts to return it as <typeparamref name="TChannel"/>.</summary>
-    internal protected static TChannel Create<TChannel>(Bot botInstance, JsonObject channelObject, Snowflake guildId) where TChannel : class, IGuildChannel
+    protected internal static TChannel Create<TChannel>(Bot botInstance, JsonObject channelObject, Snowflake guildId) where TChannel : class, IGuildChannel
         => Create<TChannel>(botInstance, channelObject.AsElement(), guildId);
 }

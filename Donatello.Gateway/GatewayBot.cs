@@ -161,6 +161,18 @@ public sealed class GatewayBot : Bot
         var eventJson = eventPayload.GetProperty("d");
         var eventName = eventPayload.GetProperty("t").GetString();
 
+        void OnEntityCreated<TEntity>(TEntity entity) where TEntity : class, ISnowflakeEntity
+            => _events.OnNext(new EntityCreatedEvent<TEntity> { Entity = entity });
+
+        void OnEntityUpdated<TEntity>(TEntity updated, TEntity outdated) where TEntity : class, ISnowflakeEntity
+            => _events.OnNext(new EntityUpdatedEvent<TEntity> { UpdatedEntity = updated, OutdatedEntity = outdated });
+
+        void OnEntityDeleted<TEntity>(Snowflake snowflake, TEntity instance = null) where TEntity : class, ISnowflakeEntity
+            => _events.OnNext(new EntityDeletedEvent<TEntity> { EntityId = snowflake, Instance = instance });
+
+        void OnUnknownEvent()
+            => _events.OnNext(new UnknownEvent() { Name = eventName, Json = eventJson });
+
         switch (eventName)
         {
             case "READY":
@@ -181,9 +193,6 @@ public sealed class GatewayBot : Bot
             {
                 var channel = UpdateOrCreateChannel(eventJson);
 
-                if (channel is IGuildChannel guildChannel && this.GuildCache.TryGet(guildChannel.GuildId, out Guild guild))
-                    guild.ChannelCache.Add(guildChannel);
-
                 if (channel is GuildNewsChannel newsChannel)
                     OnEntityCreated(newsChannel);
                 else if (channel is GuildTextChannel textChannel)
@@ -195,10 +204,7 @@ public sealed class GatewayBot : Bot
                 else if (channel is GuildForumChannel forumChannel)
                     OnEntityCreated(forumChannel);
                 else if (channel is DirectMessageChannel dmChannel)
-                {
-                    this.DirectMessageChannelCache.Add(dmChannel);
                     OnEntityCreated(dmChannel);
-                }
                 else
                     OnUnknownEvent();
 
@@ -206,12 +212,12 @@ public sealed class GatewayBot : Bot
             }
             case "CHANNEL_UPDATE":
             {
-                var updatedChannel = Channel.Create(this, eventJson);
+                var updatedChannel = UpdateOrCreateChannel(eventJson);
                 IChannel outdatedChannel = null;
 
                 if (updatedChannel is IGuildChannel guildChannel && this.GuildCache.TryGet(guildChannel.GuildId, out Guild guild))
                     outdatedChannel = guild.ChannelCache.Add(guildChannel);
-                
+
                 if (updatedChannel is GuildNewsChannel newsChannel)
                     OnEntityUpdated(newsChannel, outdatedChannel);
                 else if (updatedChannel is GuildTextChannel textChannel)
@@ -236,14 +242,17 @@ public sealed class GatewayBot : Bot
             {
                 var guildId = eventJson.GetProperty("guild_id").ToSnowflake();
                 var channelId = eventJson.GetProperty("id").ToSnowflake();
-                IChannel channelInstance;
+                IChannel channelInstance = null;
 
-                if (this.GuildCache.TryGet(guildId, out Guild guild) && guild.ChannelCache.Contains(channelId))
-                    channelInstance = guild.ChannelCache.Remove(channelId);
-                else if (this.DirectMessageChannelCache.Contains(channelId))
-                    channelInstance = this.DirectMessageChannelCache.Remove(channelId);
-                else
+                if (this.GuildCache.TryGet(guildId, out Guild guild) && guild.ChannelCache.TryRemove(channelId, out IGuildChannel guildChannel))
+                    channelInstance = guildChannel;
+                else if (this.DirectMessageChannelCache.TryRemove(channelId, out DirectMessageChannel directMessageChannel))
+                    channelInstance = directMessageChannel;
+                
+                if (channelInstance is null)
                     channelInstance = Channel.Create(this, eventJson);
+                else 
+                    channelInstance.Update(eventJson);
 
                 if (channelInstance is DirectMessageChannel dmChannel)
                     OnEntityDeleted(channelId, dmChannel);
@@ -262,15 +271,8 @@ public sealed class GatewayBot : Bot
             }
             case "THREAD_CREATE":
             {
-                var threadChannel = Channel.Create<GuildThreadChannel>(this, eventJson);
+                var threadChannel = UpdateOrCreateChannel(eventJson);
 
-                if (this.GuildCache.TryGet(threadChannel.GuildId, out Guild cachedGuild) &&
-                    cachedGuild.ChannelCache.TryGet(threadChannel.ParentId, out IGuildChannel cachedChannel) &&
-                    cachedChannel is GuildTextChannel textChannel)
-                {
-                    textChannel.ThreadCache.Add(threadChannel);
-                }
-                
                 OnEntityCreated(threadChannel);
                 break;
             }
@@ -280,7 +282,7 @@ public sealed class GatewayBot : Bot
                 var parentId = eventJson.GetProperty("parent_id").ToSnowflake();
                 var guildId = eventJson.GetProperty("guild_id").ToSnowflake();
 
-                if (this.GuildCache.TryGet(guildId, out Guild guild) && 
+                if (this.GuildCache.TryGet(guildId, out Guild guild) &&
                     guild.ChannelCache.TryGet(parentId, out IGuildChannel guildChannel) &&
                     guildChannel is GuildTextChannel textChannel &&
                     textChannel.ThreadCache.TryRemove(threadId, out GuildThreadChannel threadChannel))
@@ -289,7 +291,7 @@ public sealed class GatewayBot : Bot
                 }
                 else
                     OnEntityDeleted<GuildThreadChannel>(threadId);
-                
+
                 break;
             }
             case "THREAD_LIST_SYNC":
@@ -411,7 +413,7 @@ public sealed class GatewayBot : Bot
                 var updatedGuild = new Guild(this, eventPayload.GetProperty("d"));
                 var outdatedGuild = this.GuildCache.Add(updatedGuild);
                 OnEntityUpdated(updatedGuild, outdatedGuild);
-                
+
                 break;
             }
             case "GUILD_DELETE":
@@ -453,19 +455,7 @@ public sealed class GatewayBot : Bot
                 break;
         }
 
-        void OnEntityCreated<TEntity>(TEntity entity) where TEntity : class, ISnowflakeEntity
-            => _events.OnNext(new EntityCreatedEvent<TEntity> { Entity = entity });
-
-        void OnEntityUpdated<TEntity>(TEntity updated, TEntity outdated) where TEntity : class, ISnowflakeEntity
-            => _events.OnNext(new EntityUpdatedEvent<TEntity> { UpdatedEntity = updated, OutdatedEntity = outdated });
-
-        void OnEntityDeleted<TEntity>(Snowflake snowflake, TEntity instance = null) where TEntity : class, ISnowflakeEntity
-            => _events.OnNext(new EntityDeletedEvent<TEntity> { EntityId = snowflake, Instance = instance });
-
-        void OnUnknownEvent()
-            => _events.OnNext(new UnknownEvent() { Name = eventName, Json = eventJson });
-
-        IChannel UpdateOrCreateChannel(JsonElement channelJson)
+        IChannel UpdateOrCreateChannel(JsonElement channelJson) // this doesn't work for returning old objects!!
         {
             var channelId = channelJson.GetProperty("id").ToSnowflake();
             var channelType = channelJson.GetProperty("type").GetInt32();
@@ -483,25 +473,34 @@ public sealed class GatewayBot : Bot
 
                 instance = dmChannel;
             }
-            else if (channelJson.TryGetProperty("guild_id", out JsonElement snowflakeJson) &&
-                     this.GuildCache.TryGet(snowflakeJson.ToSnowflake(), out Guild guild))
+            else if (channelJson.TryGetProperty("guild_id", out JsonElement snowflakeJson) && this.GuildCache.TryGet(snowflakeJson.ToSnowflake(), out Guild guild))
             {
+                IGuildChannel guildChannel = null;
+                
                 if (channelType is 10 or 11 or 12)
                 {
                     var parentId = channelJson.GetProperty("parent_id").ToSnowflake();
                     if (guild.ChannelCache.TryGet(parentId, out IGuildChannel parentChannel))
                     {
+                        GuildThreadChannel threadChannel = null;
                         
+                        if (parentChannel is GuildTextChannel textChannel && textChannel.ThreadCache.TryGet(channelId, out threadChannel))
+                            threadChannel.Update(channelJson);
+                        else if (parentChannel is GuildForumChannel forumChannel && forumChannel.ThreadCache.TryGet(channelId, out threadChannel))
+                            threadChannel.Update(channelJson); // hmm...
+
+                        guildChannel = threadChannel;
                     }
                 }
-                else if (guild.ChannelCache.TryGet(channelId, out IGuildChannel guildChannel))
+                else if (guild.ChannelCache.TryGet(channelId, out guildChannel))
                     guildChannel.Update(channelJson);
-                else
+                
+                if (guildChannel is null)
                 {
                     guildChannel = Channel.Create<IGuildChannel>(this, channelJson);
                     guild.ChannelCache.Add(guildChannel);
                 }
-
+                
                 instance = guildChannel;
             }
 

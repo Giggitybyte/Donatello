@@ -91,6 +91,9 @@ public class ObjectCache<T> : IEnumerable<T>
         _cache.TryRemove(snowflake, out Entry oldEntry);
         _cache[snowflake] = newEntry;
 
+        if (oldEntry is not null)
+            return oldEntry.Object;
+
         void TimerElapsed(long elapseCount)
         {
             if (_cache.TryRemove(snowflake, out Entry cachedEntry))
