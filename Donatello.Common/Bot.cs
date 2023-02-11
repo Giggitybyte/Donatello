@@ -15,22 +15,20 @@ using System.Threading.Tasks;
 /// <summary>Common methods and properties for a Discord bot.</summary>
 public abstract class Bot
 {
-    private ILoggerFactory _loggerFactory;
-
     protected Bot(string token, ILoggerFactory loggerFactory)
     {
-        _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
+        this.LoggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
         
         this.Token = token;
-        this.Logger = _loggerFactory.CreateLogger("Discord Bot");
-        this.RestClient = new DiscordHttpClient(TokenType.Bot, token, _loggerFactory.CreateLogger("Discord REST Client"));
+        this.Logger = this.LoggerFactory.CreateLogger("Discord Bot");
+        this.RestClient = new DiscordHttpClient(TokenType.Bot, token, this.LoggerFactory.CreateLogger("Discord REST Client"));
         this.GuildCache = new EntityCache<Guild>();
         this.UserCache = new EntityCache<User>();
 
     }
 
     /// <summary>Logger factory instance.</summary>
-    protected ILoggerFactory LoggerFactory => _loggerFactory;
+    protected ILoggerFactory LoggerFactory { get; }
 
     /// <summary>Discord API token string.</summary>
     protected internal string Token { get; private init; }
