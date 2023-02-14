@@ -1,10 +1,10 @@
-﻿namespace Donatello.Builder;
+﻿namespace Donatello.Common.Builder;
 
-using Entity;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using Entity.Message;
 
 /// <summary></summary>
 public sealed class MessageBuilder : EntityBuilder

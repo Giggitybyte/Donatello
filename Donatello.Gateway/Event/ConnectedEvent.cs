@@ -1,6 +1,7 @@
 ﻿namespace Donatello.Gateway.Event;
 
 using System.Collections.ObjectModel;
+using Common;
 
 /// <summary>Dispatched when a shard has successfully established or resumed a connection with Discord.</summary>
 /// <remarks>This event only indicates that the initial handshake to create a session was successful;

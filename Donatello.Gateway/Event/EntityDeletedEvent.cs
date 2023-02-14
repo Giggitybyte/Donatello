@@ -1,7 +1,7 @@
 ﻿namespace Donatello.Gateway.Event;
 
-using Donatello;
-using Entity;
+using Common;
+using Common.Entity;
 
 /// <summary>Dispatched when an entity has been deleted or is otherwise inaccessible.</summary>
 public sealed class EntityDeletedEvent<TEntity> : ShardEvent where TEntity : ISnowflakeEntity

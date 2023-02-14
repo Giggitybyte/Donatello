@@ -1,4 +1,4 @@
-﻿namespace Donatello.Extension;
+﻿namespace Donatello.Gateway.Extension;
 
 using System;
 using System.Reactive.Concurrency;
@@ -17,13 +17,16 @@ public static class ObservableExtensionMethods
     public static IDisposable SubscribeAsync<T>(this IObservable<T> source, Func<T, Task> onNextAsync)
         => source.Select(value => Observable.FromAsync(() => onNextAsync(value)))
             .Concat()
+            .ObserveOn(TaskPoolScheduler.Default)
             .Subscribe();
 
     /// <inheritdoc cref="SubscribeAsync{T}(System.IObservable{T},System.Func{T,System.Threading.Tasks.Task})"/>
     /// <param name="maximumConcurrency">Maximum number of element handlers which can be executed in parallel.</param>
     public static IDisposable SubscribeAsync<T>(this IObservable<T> source, Func<T, Task> onNextAsync, int maximumConcurrency)
         => source.Select(value => Observable.FromAsync(() => onNextAsync(value)))
+            .SubscribeOn(TaskPoolScheduler.Default)
             .Merge(maximumConcurrency)
+            .ObserveOn(TaskPoolScheduler.Default)
             .Subscribe();
 
     // Copied from https://stackoverflow.com/a/58796559 and modified.

@@ -1,17 +1,18 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild.Channel;
 
-using Extension.Internal;
 using System;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Common.Entity.Channel;
+using Extension;
 
 /// <summary>A channel associated with a guild.</summary>
 public abstract class GuildChannel : Channel, IGuildChannel
 {
     private readonly Snowflake _guildId;
 
-    public GuildChannel(Bot bot, JsonElement entityJson)
-        : base(bot, entityJson)
+    public GuildChannel(JsonElement entityJson)
+        : base(entityJson)
     {
         if (entityJson.TryGetProperty("guild_id", out JsonElement prop))
             _guildId = prop.ToSnowflake();
@@ -19,8 +20,8 @@ public abstract class GuildChannel : Channel, IGuildChannel
             throw new ArgumentException("JSON does not contain a guild ID.", nameof(entityJson));
     }
 
-    public GuildChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
-        : base(bot, entityJson)
+    public GuildChannel(JsonElement entityJson, Snowflake guildId)
+        : base(entityJson)
     {
         _guildId = guildId;
     }

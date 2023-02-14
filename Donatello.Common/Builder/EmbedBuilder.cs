@@ -1,8 +1,8 @@
-﻿namespace Donatello.Builder;
+﻿namespace Donatello.Common.Builder;
 
-using Rest;
 using System;
 using System.Text.Json.Nodes;
+using Donatello.Rest;
 
 /// <summary></summary>
 public sealed class EmbedBuilder : EntityBuilder

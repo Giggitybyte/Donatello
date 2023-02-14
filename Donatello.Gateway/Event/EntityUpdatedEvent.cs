@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Gateway.Event;
 
-using Entity;
+using Common.Entity;
 
 /// <summary></summary>
 public sealed class EntityUpdatedEvent<TEntity> : ShardEvent where TEntity : ISnowflakeEntity

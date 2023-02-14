@@ -1,7 +1,8 @@
 ﻿namespace Donatello.Gateway.Event;
 
-using Entity;
 using System.Collections.ObjectModel;
+using Common.Entity.Guild;
+using Common.Entity.Guild.Channel;
 
 /// <summary></summary>
 public class ThreadMembersUpdatedEvent : GuildEvent

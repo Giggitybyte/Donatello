@@ -1,13 +1,12 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild.Channel;
 
-using Builder;
-using Donatello.Rest.Extension.Endpoint;
-using Type;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Builder;
+using Common.Entity.Channel;
+using Message;
 
 /// <summary>A channel which can only contain threads; intended for organized topical conversations.</summary>
 public class GuildForumChannel : GuildChannel
@@ -39,7 +38,7 @@ public class GuildForumChannel : GuildChannel
         return post;
     }
 
-    /// <inheritdoc cref="CreateThreadAsync(Donatello.Builder.MessageBuilder)"/>
+    /// <inheritdoc cref="CreateThreadAsync(Donatello.Common.Builder.MessageBuilder)"/>
     public Task<GuildThreadChannel> CreateThreadAsync(Action<MessageBuilder> builderDelegate)
     {
         var messageBuilder = new MessageBuilder();
@@ -48,7 +47,7 @@ public class GuildForumChannel : GuildChannel
         return this.CreateThreadAsync(messageBuilder);
     }
 
-    /// <inheritdoc cref="CreateThreadAsync(Donatello.Builder.MessageBuilder)"/>
+    /// <inheritdoc cref="CreateThreadAsync(Donatello.Common.Builder.MessageBuilder)"/>
     public Task<GuildThreadChannel> CreateThreadAsync(string content)
         => this.CreateThreadAsync(builder => builder.SetContent(content));
 

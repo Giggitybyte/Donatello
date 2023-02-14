@@ -1,7 +1,8 @@
 ﻿namespace Donatello.Gateway.Event;
 
-using Entity;
 using System.Collections.ObjectModel;
+using Common.Entity.Guild;
+using Common.Entity.User;
 
 /// <summary>All shards have connected successfully and all guilds are available.</summary>
 public class ReadyEvent : BotEvent

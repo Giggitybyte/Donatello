@@ -1,11 +1,8 @@
-﻿namespace Donatello.Extension.User;
+﻿namespace Donatello.Common.Extension;
 
-using Entity;
-using System.Text.Json.Nodes;
-using System.Text.Json;
-using System;
 using System.Threading.Tasks;
-using Builder;
+using Entity.Guild;
+using Entity.User;
 
 public static class UserExtensionMethods
 {

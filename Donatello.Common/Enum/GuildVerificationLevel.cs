@@ -1,4 +1,4 @@
-﻿namespace Donatello.Enum;
+﻿namespace Donatello.Common.Enum;
 
 /// <summary>Guild membership criteria.</summary>
 public enum GuildVerificationLevel : ushort

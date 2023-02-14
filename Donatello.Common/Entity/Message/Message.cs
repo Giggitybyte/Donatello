@@ -1,11 +1,14 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Message;
 
-using Extension.Internal;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Channel;
+using Guild;
+using Guild.Channel;
+using User;
 
 /// <summary>A message sent in a channel.</summary>
 public sealed partial class Message : Entity

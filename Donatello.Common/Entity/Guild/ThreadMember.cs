@@ -1,9 +1,10 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild;
 
+using System;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System;
-using Extension.Internal;
+using Channel;
+using Extension;
 
 /// <summary></summary>
 public sealed class ThreadMember : GuildMember

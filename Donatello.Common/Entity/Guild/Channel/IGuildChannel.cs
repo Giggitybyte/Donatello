@@ -1,4 +1,6 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild.Channel;
+
+using Common.Entity.Channel;
 
 public interface IGuildChannel : IGuildEntity, IChannel
 {

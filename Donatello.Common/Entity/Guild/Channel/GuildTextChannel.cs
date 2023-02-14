@@ -1,32 +1,23 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild.Channel;
 
-using Builder;
-using Donatello.Rest.Extension.Endpoint;
-using Type;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Builder;
+using Common.Entity.Channel;
+using Message;
 
 /// <summary></summary>
 public class GuildTextChannel : GuildChannel, ITextChannel
 {
-    public GuildTextChannel(Bot bot, JsonElement json)
-        : base(bot, json)
+    public GuildTextChannel(JsonElement json) : base(json)
     {
     }
 
-    public GuildTextChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
-        : base(bot, entityJson, guildId)
+    public GuildTextChannel(JsonElement entityJson, Snowflake guildId) : base(entityJson, guildId)
     {
     }
-
-    /// <summary>Cached message instances.</summary>
-    public EntityCache<Message> MessageCache { get; } = new();
-
-    /// <summary>Cached thread channel instances.</summary>
-    public EntityCache<GuildThreadChannel> ThreadCache { get; } = new();
 
     /// <summary></summary>
     public async ValueTask<Message> GetMessageAsync(Snowflake messageId)

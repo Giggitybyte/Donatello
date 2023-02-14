@@ -1,9 +1,10 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Voice;
 
-using Donatello;
-using Extension.Internal;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Channel;
+using Guild.Channel;
+using User;
 
 /// <summary>Representation of a user's connection to a voice channel.</summary>
 public sealed class DiscordVoiceState : IJsonEntity, IBotEntity

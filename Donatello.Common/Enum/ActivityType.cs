@@ -1,4 +1,4 @@
-﻿namespace Donatello.Enum;
+﻿namespace Donatello.Common.Enum;
 
 /// <summary>Defines how the activity is displayed in the client.</summary>
 public enum ActivityType : ushort

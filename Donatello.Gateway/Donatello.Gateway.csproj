@@ -10,11 +10,12 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <Folder Include="Command\" />
+	  <ProjectReference Include="..\Donatello.Common\Donatello.Common.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\Donatello.Common\Donatello.Common.csproj" />
+	  <PackageReference Include="System.Linq.Async" Version="6.0.1" />
+	  <PackageReference Include="System.Reactive" Version="5.0.0" />
 	</ItemGroup>
 
 </Project>

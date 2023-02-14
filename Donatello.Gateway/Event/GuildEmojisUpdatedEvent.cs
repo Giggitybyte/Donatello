@@ -2,7 +2,7 @@
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using Entity;
+using Common.Entity.Guild;
 
 public class GuildEmojisUpdatedEvent : GuildEvent
 {

@@ -1,8 +1,8 @@
-﻿namespace Donatello.Builder;
+﻿namespace Donatello.Common.Builder;
 
-using Rest;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
+using Donatello.Rest;
 
 /// <summary></summary>
 public abstract class EntityBuilder

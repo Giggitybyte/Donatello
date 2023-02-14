@@ -1,4 +1,4 @@
-﻿namespace Donatello.Enum;
+﻿namespace Donatello.Common.Enum;
 
 /// <summary>Explicit content filter.</summary>
 public enum FilterLevel : ushort

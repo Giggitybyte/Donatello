@@ -1,10 +1,10 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild;
 
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Donatello;
+using User;
 
 public class GuildMember : User, IGuildEntity
 {

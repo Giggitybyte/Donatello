@@ -1,4 +1,4 @@
-﻿namespace Donatello.Interaction;
+﻿namespace Donatello.Interaction.Component;
 
 public sealed class ComponentInteraction : DiscordInteraction
 {

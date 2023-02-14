@@ -1,26 +1,21 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity;
 
-using Donatello;
-using Extension.Internal;
 using System;
 using System.Text.Json;
+using Extension;
 
-public abstract class Entity : ISnowflakeEntity, IBotEntity
+public abstract class Entity : ISnowflakeEntity
 {
-    protected Entity(Bot bot, JsonElement entityJson)
+    protected Entity(JsonElement entityJson)
     {
         if (entityJson.ValueKind is not JsonValueKind.Object)
             throw new ArgumentException($"Expected JSON object, got {entityJson.ValueKind}.", nameof(entityJson));
-
-        this.Bot = bot;
+        
         this.Json = entityJson;
     }
 
     /// <inheritdoc cref="IJsonEntity.Json"/>
     protected internal JsonElement Json { get; private set; }
-
-    /// <inheritdoc cref="IBotEntity.Bot"/>
-    protected Bot Bot { get; private init; }
 
     /// <inheritdoc cref="ISnowflakeEntity.Id"/>
     public virtual Snowflake Id => this.Json.GetProperty("id").ToSnowflake();
@@ -29,7 +24,7 @@ public abstract class Entity : ISnowflakeEntity, IBotEntity
     protected internal void Update(JsonElement updatedJson)
     {
         if (updatedJson.ValueKind is not JsonValueKind.Object)
-            throw new JsonException($"Expected JSON object, got {updatedJson.ValueKind.ToString().ToLower()} instead.");
+            throw new JsonException($"Expected object, got {updatedJson.ValueKind.ToString().ToLower()} instead.");
         
         if (updatedJson.TryGetProperty("id", out JsonElement snowflakeJson) is false)
             throw new JsonException("Key 'id' is not present; provided object is invalid.");
@@ -58,6 +53,5 @@ public abstract class Entity : ISnowflakeEntity, IBotEntity
 
     JsonElement IJsonEntity.Json => this.Json;
     void IJsonEntity.Update(JsonElement updatedJson) => this.Update(updatedJson);
-    Bot IBotEntity.Bot => this.Bot;
     bool IEquatable<ISnowflakeEntity>.Equals(ISnowflakeEntity other) => this.Equals(other);
 }

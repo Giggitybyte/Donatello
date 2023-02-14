@@ -1,25 +1,21 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild.Channel;
 
-using Enum;
-using Extension.Internal;
-using Donatello.Rest.Extension.Endpoint;
-using Type;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Enum;
+using Extension;
 
 /// <summary>A sub-channel contained within a guild text channel.</summary>
 public class GuildThreadChannel : GuildTextChannel
 {
-    public GuildThreadChannel(Bot bot, JsonElement json)
-        : base(bot, json)
+    public GuildThreadChannel(JsonElement json) : base(json)
     {
     }
 
-    public GuildThreadChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
-        : base(bot, entityJson, guildId)
+    public GuildThreadChannel(JsonElement entityJson, Snowflake guildId) : base(entityJson, guildId)
     {
     }
 
@@ -30,7 +26,7 @@ public class GuildThreadChannel : GuildTextChannel
     protected internal Snowflake ParentId => this.Json.GetProperty("parent_id").ToSnowflake();
 
     /// <summary></summary>
-    internal JsonCache MemberCache { get; } = new JsonCache(json => json.GetProperty("user_id").ToSnowflake());
+    internal JsonCache MemberCache { get; } = new JsonCache(snowflakeSelector: json => json.GetProperty("user_id").ToSnowflake());
 
     /// <summary></summary>
     public bool Locked => this.Metadata.GetProperty("locked").GetBoolean();
@@ -106,4 +102,3 @@ public class GuildThreadChannel : GuildTextChannel
         return members.AsReadOnly();
     }
 }
-

@@ -5,23 +5,21 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net.Http;
-using System.Reactive.Concurrency;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
-using System.Reactive.Threading.Tasks;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using Extension.Internal;
-using Entity;
-using Enum;
+using Common;
+using Common.Entity;
+using Common.Entity.Channel;
+using Common.Entity.Guild;
+using Common.Entity.Guild.Channel;
+using Common.Entity.User;
+using Common.Entity.Voice;
+using Common.Enum;
+using Common.Extension;
 using Event;
-using Extension;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Rest.Extension;
-using Rest.Extension.Endpoint;
-using Type;
 
 /// <summary>Implementation for Discord's real-time websocket API.</summary>
 /// <remarks>
@@ -62,10 +60,10 @@ public sealed class GatewayBot : Bot
     public override bool IsConnected => _shards.Length > 0 && _shards.All(shard => shard.IsConnected);
 
     /// <summary>Average websocket latency across all shards.</summary>
-    public TimeSpan Latency => TimeSpan.FromTicks(Convert.ToInt64(_shards.Average(shard => shard.Latency.Ticks)));
-
-    /// <summary>Cached direct message channels.</summary>
-    public EntityCache<DirectMessageChannel> DirectMessageChannelCache { get; private init; }
+    public TimeSpan Latency => TimeSpan.FromTicks
+    (
+        Convert.ToInt64(_shards.Average(shard => shard.Latency.Ticks))
+    );
 
     /// <summary>Connects to the Discord gateway.</summary>
     public override async Task StartAsync()
@@ -112,16 +110,6 @@ public sealed class GatewayBot : Bot
 
         await Task.WhenAll(disconnectTasks);
         _shards = Array.Empty<WebsocketShard>();
-    }
-
-    /// <summary>Fetches a user object for the account associated with the token provided during construction of this instance.</summary>
-    public async Task<User> GetSelfAsync()
-    {
-        var json = await this.RestClient.GetSelfAsync();
-        var user = new User(this, json);
-        this.UserCache.Add(user);
-
-        return user;
     }
 
     private Task IdentifyAsync(WebsocketShard shard)

@@ -1,20 +1,20 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild.Channel;
 
-using Builder;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Builder;
+using Common.Entity.Channel;
+using Message;
 
 /// <summary></summary>
 public class GuildVoiceChannel : GuildChannel, IVoiceChannel, ITextChannel
 {
-    public GuildVoiceChannel(Bot bot, JsonElement json)
-        : base(bot, json)
+    public GuildVoiceChannel(JsonElement json) : base(json)
     {
     }
 
-    public GuildVoiceChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
-        : base(bot, entityJson, guildId)
+    public GuildVoiceChannel(JsonElement entityJson, Snowflake guildId) : base(entityJson, guildId)
     {
     }
 

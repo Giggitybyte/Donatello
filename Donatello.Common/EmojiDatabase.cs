@@ -1,4 +1,4 @@
-﻿namespace Donatello;
+﻿namespace Donatello.Common;
 
 using System.Collections.Generic;
 

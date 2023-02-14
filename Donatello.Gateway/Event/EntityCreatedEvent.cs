@@ -1,6 +1,6 @@
 ﻿namespace Donatello.Gateway.Event;
 
-using Entity;
+using Common.Entity;
 
 /// <summary>Dispatched when an entity has been created or has otherwise become available.</summary>
 public sealed class EntityCreatedEvent<TEntity> : ShardEvent where TEntity : ISnowflakeEntity

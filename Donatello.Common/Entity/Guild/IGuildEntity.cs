@@ -1,14 +1,8 @@
-﻿namespace Donatello.Entity;
-
-using System.Threading.Tasks;
+﻿namespace Donatello.Common.Entity.Guild;
 
 /// <summary>Discord entity associated with a guild.</summary>
 public interface IGuildEntity : ISnowflakeEntity
 {
-
     /// <summary></summary>
     public Snowflake GuildId { get; }
-
-    /// <summary>Fetches the guild associated with this entity.</summary>
-    public ValueTask<Guild> GetGuildAsync();
 }

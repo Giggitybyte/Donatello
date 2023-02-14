@@ -1,21 +1,21 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild;
 
-using Donatello;
-using Extension.Internal;
-using Donatello.Rest.Extension.Endpoint;
-using Type;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Channel;
+using Enum;
+using User;
+using Voice;
 
 /// <summary>A collection of channels and members.</summary>
 public partial class Guild : Entity
 {
-    internal Guild(Bot bot, JsonElement json)
-        : base(bot, json)
+    internal Guild(JsonElement json)
+        : base(json)
     {
         this.MemberCache = new JsonCache(json => json.GetProperty("user").GetProperty("id").ToSnowflake());
         this.ChannelCache = new EntityCache<IGuildChannel>();
@@ -175,7 +175,7 @@ public partial class Guild : Entity
     public async IAsyncEnumerable<GuildTextChannel> FetchChannelsAsync()
     {
         var channels = this.Bot.RestClient.GetGuildChannelsAsync(this.Id)
-            .Select(channelJson => Channel.Create<GuildTextChannel>(this.Bot, channelJson));
+            .Select(channelJson => Common.Entity.Channel.Channel.Create<GuildTextChannel>(this.Bot, channelJson));
 
         await foreach (var channel in channels)
             yield return channel;
@@ -207,7 +207,7 @@ public partial class Guild : Entity
         var threads = activeThreads.GetProperty("threads").EnumerateArray();
         var members = activeThreads.GetProperty("members").EnumerateArray();
 
-        foreach (var thread in threads.Select(json => Channel.Create<GuildThreadChannel>(this.Bot, json)))
+        foreach (var thread in threads.Select(json => Common.Entity.Channel.Channel.Create<GuildThreadChannel>(this.Bot, json)))
         {
             foreach (var memberJson in members.Where(json => json.GetProperty("id").GetUInt64() == thread.Id))
                 thread.MemberCache.Add(memberJson);

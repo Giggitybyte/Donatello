@@ -1,16 +1,16 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.User;
 
-using Enum;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Text.Json;
+using Enum;
 
 /// <summary></summary>
 public class User : Entity
 {
-    public User(Bot bot, JsonElement jsonElement)
-        : base(bot, jsonElement)
+    public User(JsonElement jsonElement)
+        : base(jsonElement)
     {
 
     }
@@ -57,11 +57,9 @@ public class User : Entity
         if (this.Presense.HasValue && this.Presense.Value.TryGetProperty("activities", out JsonElement activityArray))
             foreach (var activityJson in activityArray.EnumerateArray())
                 yield return new UserActivity(activityJson);
-        else
-            yield break;
     }
 
-    /// <summary>Returns <see langword="true"/> if the user is not offline or invisble on at least one platform.</summary>
+    /// <summary>Returns <see langword="true"/> if the user is not offline or invisible on at least one platform.</summary>
     public bool HasStatus(out UserStatus desktop, out UserStatus mobile, out UserStatus web)
     {
         desktop = UserStatus.Offline;
@@ -85,7 +83,7 @@ public class User : Entity
             }
             else if (this.Presense.Value.TryGetProperty("status", out JsonElement prop))
             {
-                var status = Enum.Parse<UserStatus>(prop.GetString());
+                var status = Enum.Parse<UserStatus>(prop.GetString()!);
 
                 desktop = status;
                 mobile = status;

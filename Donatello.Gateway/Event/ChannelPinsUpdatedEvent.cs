@@ -1,8 +1,11 @@
 ﻿namespace Donatello.Gateway.Event;
 
-using Entity;
+using Common;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Common.Entity.Guild;
+using Common.Entity.Guild.Channel;
+using Common.Entity.Message;
 
 /// <summary>Dispatched when a message is pinned or unpinned in a text channel.</summary>
 public class ChannelPinsUpdatedEvent : ShardEvent

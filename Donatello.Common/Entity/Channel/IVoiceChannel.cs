@@ -1,4 +1,4 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Channel;
 
 /// <summary>A channel which users are able to connect to and transmit audio to other connected users.</summary>
 public interface IVoiceChannel : IChannel

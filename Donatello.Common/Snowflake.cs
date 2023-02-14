@@ -1,4 +1,4 @@
-﻿namespace Donatello;
+﻿namespace Donatello.Common;
 
 using System;
 using System.Globalization;
@@ -7,7 +7,7 @@ using System.Text.Json.Nodes;
 /// <summary></summary>
 public class Snowflake : IComparable<Snowflake>
 {
-    private readonly static DateTimeOffset _discordEpoch = new(2015, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset _discordEpoch = new(2015, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     /// <param name="rawValue">64-bit integer representing a Discord snowflake.</param>
     internal Snowflake(ulong rawValue)
@@ -58,7 +58,7 @@ public class Snowflake : IComparable<Snowflake>
         => left is not null & right is not null && left.Value == right.Value;
 
     public static bool operator !=(Snowflake left, Snowflake right)
-        => left.Value != right.Value;
+        => left?.Value != right?.Value;
 
     public static bool operator <(Snowflake left, Snowflake right)
         => left is null ? right is not null : left.CompareTo(right) < 0;

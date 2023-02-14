@@ -2,7 +2,8 @@
 
 using System;
 using System.Text.Json;
-using Entity;
+using Common;
+using Common.Entity;
 
 public abstract class DiscordInteraction : IInteraction
 {
