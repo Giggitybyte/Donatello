@@ -1,16 +1,13 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild.Channel;
 
+using System;
 using System.Text.Json;
 
 public class HubDirectoryChannel : GuildChannel
 {
-    public HubDirectoryChannel(Bot bot, JsonElement entityJson) 
-        : base(bot, entityJson)
+    public HubDirectoryChannel(JsonElement entityJson, Bot bot) 
+        : base(entityJson, bot)
     {
-    }
-
-    public HubDirectoryChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
-        : base(bot, entityJson, guildId)
-    {
+        throw new NotImplementedException();
     }
 }

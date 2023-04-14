@@ -1,4 +1,4 @@
-﻿namespace Donatello.Enum;
+﻿namespace Donatello.Common.Enum;
 
 /// <summary>The context under which an auto moderation rule should be checked.</summary>
 public enum ModerationEventType : ushort

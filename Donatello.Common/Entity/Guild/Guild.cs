@@ -1,38 +1,23 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild;
 
-using Donatello;
-using Extension.Internal;
-using Donatello.Rest.Extension.Endpoint;
-using Type;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Channel;
+using Donatello.Rest.Extension.Endpoint;
+using Enum;
+using Extension;
+using User;
 
 /// <summary>A collection of channels and members.</summary>
-public partial class Guild : Entity
+public class Guild : Entity
 {
-    internal Guild(Bot bot, JsonElement json)
-        : base(bot, json)
+    public Guild(JsonElement json, Bot bot) : base(json, bot)
     {
-        this.MemberCache = new JsonCache(json => json.GetProperty("user").GetProperty("id").ToSnowflake());
-        this.ChannelCache = new EntityCache<IGuildChannel>();
-        this.RoleCache = new EntityCache<Role>();
+        
     }
-
-    /// <summary>Cached guild member JSON objects.</summary>
-    internal JsonCache MemberCache { get; private init; }
-
-    /// <summary>Cached role instances.</summary>
-    public EntityCache<Role> RoleCache { get; private set; }
-
-    /// <summary>Cached channel instances associated with this guild.</summary>
-    public EntityCache<IGuildChannel> ChannelCache { get; private set; }
-
-    /// <summary>Cached voice state instances.</summary>
-    public ObjectCache<DiscordVoiceState> VoiceStateCache { get; private set; }
 
     /// <summary>Name of this guild.</summary>
     public string Name => this.Json.GetProperty("name").GetString();
@@ -40,22 +25,21 @@ public partial class Guild : Entity
     /// <summary>Permissions in the guild, excluding channel overwrites.</summary>
     public GuildPermission Permissions => throw new NotImplementedException();
 
+    /// <summary>Snowflake ID for the user which owns this guild.</summary>
+    public Snowflake OwnerId => this.Json.GetProperty("owner_id").ToSnowflake();
+
     /// <summary>Returns whether this guild has a specific feature enabled.</summary>
     public bool HasFeature(string feature)
         => this.Json.GetProperty("features").EnumerateArray().Any(guildFeature => guildFeature.GetString() == feature.ToUpper());
 
     /// <summary>Returns <see langword="true"/> if the guild has an icon image uploaded, <see langword="false"/> otherwise.</summary>
-    /// <param name="iconUrl">
-    /// When the method returns:<br/>
-    /// <see langword="true"/> this parameter will contain the icon URL.<br/>
-    /// <see langword="false"/> this parameter will contain an empty string.
-    /// </param>
+    /// <param name="iconUrl">If the method returns <see langword="true"/> this parameter will contain the icon URL; otherwise it will be <see cref="string.Empty"/>.</param>
     public bool HasIcon(out string iconUrl)
     {
         if (this.Json.TryGetProperty("icon", out var prop) && prop.ValueKind is not JsonValueKind.Null)
         {
             var iconHash = prop.GetString();
-            var extension = iconHash.StartsWith("a_") ? "gif" : "png";
+            var extension = iconHash!.StartsWith("a_") ? "gif" : "png";
             iconUrl = $"https://cdn.discordapp.com/icons/{this.Id}/{iconHash}.{extension}";
         }
         else
@@ -65,11 +49,7 @@ public partial class Guild : Entity
     }
 
     /// <summary>Returns <see langword="true"/> if the guild has an invite splash image uploaded, <see langword="false"/> otherwise.</summary>
-    /// <param name="splashUrl">
-    /// When the method returns:<br/>
-    /// - <see langword="true"/> this parameter will conatain the invite splash URL.<br/>
-    /// - <see langword="false"/> this parameter will contain an empty string.
-    /// </param>
+    /// <param name="splashUrl">If the method returns <see langword="true"/> this parameter will contain the invite splash URL; otherwise it will be <see cref="string.Empty"/>.</param>
     public bool HasInviteSplash(out string splashUrl)
     {
         splashUrl = (this.Json.TryGetProperty("splash", out var property) && property.ValueKind is not JsonValueKind.Null)
@@ -79,12 +59,8 @@ public partial class Guild : Entity
         return splashUrl != string.Empty;
     }
 
-    /// <summary>Returns <see langword="true"/> if the guild has an discovery splash image uploaded, <see langword="false"/> otherwise.</summary>
-    /// <param name="splashUrl">
-    /// When the method returns:<br/>
-    /// - <see langword="true"/> this parameter will conatain the discovery splash URL.<br/>
-    /// - <see langword="false"/> this parameter will contain an empty string.
-    /// </param>
+    /// <summary>Returns <see langword="true"/> if the guild has a discovery splash image uploaded, <see langword="false"/> otherwise.</summary>
+    /// <param name="splashUrl">If the method returns <see langword="true"/> this parameter will contain the discovery splash URL; otherwise it will be <see cref="string.Empty"/>.</param>
     public bool HasDiscoverySplash(out string splashUrl)
     {
         splashUrl = (this.Json.TryGetProperty("discovery_splash", out var property) && property.ValueKind is not JsonValueKind.Null)
@@ -95,137 +71,113 @@ public partial class Guild : Entity
     }
 
     /// <summary>Returns <see langword="true"/> if the guild has an AFK voice channel set, <see langword="false"/> otherwise.</summary>
-    /// <param name="voiceChannel"> If the method returns <see langword="true"/> this parameter will conatain a <see cref="GuildVoiceChannel"/> instance, otherwise <see langword="null"/>.</param>
-    public bool HasAfkChannel(out GuildVoiceChannel voiceChannel)
+    /// <param name="channelId">
+    /// If the method returns <see langword="true"/> this parameter will contain the
+    /// <see cref="Snowflake"/> ID of the AFK channel, otherwise it will be <see langword="null"/>.
+    /// </param>
+    public bool HasAfkChannel(out Snowflake channelId)
     {
-        // figure out a better construct...
-        voiceChannel = null; 
-
-        return voiceChannel != null;
+        channelId = this.Json.GetProperty("afk_channel_id").ToSnowflake();
+        return channelId is not null;
     }
 
     /// <summary></summary>
     public ValueTask<User> GetOwnerAsync()
-        => this.Bot.GetUserAsync(this.Json.GetProperty("owner_id").ToSnowflake());
+        => this.Bot.GetUserAsync(this.OwnerId);
 
     /// <summary></summary>
     public async IAsyncEnumerable<Role> FetchRolesAsync()
     {
-        var roles = this.Bot.RestClient.GetGuildRolesAsync(this.Id)
-            .Select(json => new Role(this.Bot, json));
-
-        await foreach (var role in roles)
+        await foreach (var roleJson in this.Bot.RestClient.GetGuildRolesAsync(this.Id))
         {
-            this.RoleCache.Add(role.Id, role);
-            yield return role;
+            this.Bot.GuildRoleCache[this.Id].AddOrUpdate(roleJson);
+            yield return new Role(this.Bot, roleJson);
         }
-    }
-
-    /// <summary></summary>
-    public async Task<ReadOnlyCollection<Role>> GetRolesAsync()
-    {
-        this.RoleCache.Clear();
-
-        var roles = new List<Role>();
-        await foreach (var role in this.FetchRolesAsync())
-            roles.Add(role);
-
-        return roles.AsReadOnly();
     }
 
     /// <summary></summary>
     public async ValueTask<Role> GetRoleAsync(Snowflake roleId)
     {
-        if (this.RoleCache.TryGet(roleId, out Role role) is false)
-            role = await this.FetchRolesAsync().SingleOrDefaultAsync(role => role.Id == roleId);
+        if (this.Bot.GuildRoleCache[this.Id].TryGetEntry(roleId, out JsonElement roleJson) is false)
+            roleJson = await this.Bot.RestClient.GetGuildRolesAsync(this.Id).FirstOrDefaultAsync(json => roleId == json.GetProperty("id").ToSnowflake());
 
-        return role;
+        if (roleJson.ValueKind is not JsonValueKind.Undefined)
+            return new Role(this.Bot, roleJson);
+        else
+            throw new ArgumentException("Invalid role ID", nameof(roleId));
     }
-
 
     /// <summary></summary>
     public async IAsyncEnumerable<GuildMember> FetchMembersAsync()
     {
-        this.MemberCache.Clear();
+        this.Bot.GuildMemberCache[this.Id].Clear();
 
         await foreach (var memberJson in this.Bot.RestClient.GetGuildMembersAsync(this.Id))
         {
-            var userId = memberJson.GetProperty("id").ToSnowflake();
-            this.MemberCache.Add(userId, memberJson);
-
-            var user = await this.Bot.GetUserAsync(userId);
-            yield return new GuildMember(this.Bot, this.Id, user, memberJson);
+            this.Bot.GuildMemberCache[this.Id].AddOrUpdate(memberJson);
+            yield return new GuildMember(memberJson, this.Id, this.Bot);
         }
     }
 
     /// <summary></summary>
     public async ValueTask<GuildMember> GetMemberAsync(Snowflake userId)
     {
-        if (this.MemberCache.TryGet(userId, out JsonElement memberJson) is false)
+        if (this.Bot.GuildMemberCache[this.Id].TryGetEntry(userId, out JsonElement memberJson) is false)
         {
             memberJson = await this.Bot.RestClient.GetGuildMemberAsync(this.Id, userId);
-            this.MemberCache.Add(userId, memberJson);
+            this.Bot.GuildMemberCache[this.Id].AddOrUpdate(userId, memberJson);
         }
-
-        var user = await this.Bot.GetUserAsync(userId);
-        return new GuildMember(this.Bot, this.Id, user, memberJson);
+        
+        return new GuildMember(memberJson, this.Id, this.Bot);
     }
 
     /// <summary></summary>
-    public async IAsyncEnumerable<GuildTextChannel> FetchChannelsAsync()
+    public async IAsyncEnumerable<GuildChannel> FetchChannelsAsync()
     {
-        var channels = this.Bot.RestClient.GetGuildChannelsAsync(this.Id)
-            .Select(channelJson => Channel.Create<GuildTextChannel>(this.Bot, channelJson));
-
-        await foreach (var channel in channels)
-            yield return channel;
-    }
-
-    /// <summary></summary>
-    public async Task<ReadOnlyCollection<GuildTextChannel>> GetChannelsAsync()
-    {
-        this.ChannelCache.Clear();
-
-        var channels = new List<GuildTextChannel>();
-        await foreach (var channel in this.FetchChannelsAsync())
+        await foreach (var channelJson in this.Bot.RestClient.GetGuildChannelsAsync(this.Id))
         {
-            channels.Add(channel);
-            this.ChannelCache.Add(channel);
+            this.Bot.ChannelCache.AddOrUpdate(channelJson);
+            yield return channelJson.AsChannel<GuildChannel>(this.Bot);
         }
-
-        return channels.AsReadOnly();
     }
 
     /// <inheritdoc cref="Bot.GetChannelAsync(Snowflake)"/>
-    public ValueTask<TChannel> GetChannelAsync<TChannel>(Snowflake channelId) where TChannel : class, IGuildChannel
+    public ValueTask<TChannel> GetChannelAsync<TChannel>(Snowflake channelId) where TChannel : GuildChannel
         => this.Bot.GetChannelAsync<TChannel>(channelId);
 
     /// <summary></summary>
-    public async IAsyncEnumerable<GuildThreadChannel> FetchThreadsAsync()
+    public async IAsyncEnumerable<GuildThreadChannel> FetchAllThreadsAsync()
     {
         var activeThreads = await this.Bot.RestClient.GetActiveThreadsAsync(this.Id);
-        var threads = activeThreads.GetProperty("threads").EnumerateArray();
-        var members = activeThreads.GetProperty("members").EnumerateArray();
+        var jsonThreads = activeThreads.GetProperty("threads");
+        var jsonMembers = activeThreads.GetProperty("members");
+        var threads = new List<GuildThreadChannel>(jsonThreads.GetArrayLength());
 
-        foreach (var thread in threads.Select(json => Channel.Create<GuildThreadChannel>(this.Bot, json)))
+        foreach (var threadJson in jsonThreads.EnumerateArray())
         {
-            foreach (var memberJson in members.Where(json => json.GetProperty("id").GetUInt64() == thread.Id))
-                thread.MemberCache.Add(memberJson);
+            var thread = threadJson.AsChannel<GuildThreadChannel>(this.Bot);
+            
+            foreach (var memberJson in jsonMembers.EnumerateArray())
+            {
+                if (memberJson.GetProperty("id").GetUInt64() != thread.Id) continue;
+                this.Bot.ThreadMemberCache[thread.Id].AddOrUpdate(memberJson.GetProperty("user_id").ToSnowflake(), memberJson);
+            }
 
-            yield return thread;
+            this.Bot.GuildThreadCache[this.Id].AddOrUpdate(thread.Json);
+            threads.Add(thread);
         }
+
+        foreach (var thread in threads.OrderByDescending(thread => thread.Id.CreationDate))
+            yield return thread;
     }
 
     /// <summary></summary>
-    public async ValueTask<GuildThreadChannel> GetThreadAsync(Snowflake threadId)
+    public ValueTask<GuildThreadChannel> GetThreadAsync(Snowflake threadId)
     {
-        foreach (var textChannel in this.ChannelCache.OfType<GuildTextChannel>())
-        {
-            if (textChannel.ThreadCache.TryGet(threadId, out GuildThreadChannel thread))
-                return thread;
-        }
-
-        return await this.FetchThreadsAsync().FirstOrDefaultAsync(thread => thread.Id == threadId);
+        if (this.Bot.GuildThreadCache[this.Id].TryGetEntry(threadId, out JsonElement threadJson))
+            return ValueTask.FromResult(new GuildThreadChannel(threadJson, this.Bot));
+        else
+            return this.FetchAllThreadsAsync().FirstOrDefaultAsync(thread => thread.Id == threadId);
     }
 }
 

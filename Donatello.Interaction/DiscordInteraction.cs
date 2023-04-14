@@ -2,9 +2,10 @@
 
 using System;
 using System.Text.Json;
-using Entity;
+using Common;
+using Common.Entity;
 
-public abstract class DiscordInteraction : IInteraction
+public abstract class DiscordInteraction : IInteractionEntity
 {
     JsonElement IJsonEntity.Json => throw new NotImplementedException();
 
@@ -12,11 +13,11 @@ public abstract class DiscordInteraction : IInteraction
 
     Snowflake ISnowflakeEntity.Id => throw new NotImplementedException();
 
-    Snowflake IInteraction.ApplicationId => throw new NotImplementedException();
+    Snowflake IInteractionEntity.ApplicationId => throw new NotImplementedException();
 
-    int IInteraction.Type => throw new NotImplementedException();
+    int IInteractionEntity.Type => throw new NotImplementedException();
 
-    string IInteraction.Token => throw new NotImplementedException();
+    string IInteractionEntity.Token => throw new NotImplementedException();
 
-    int IInteraction.Version => throw new NotImplementedException();
+    int IInteractionEntity.Version => throw new NotImplementedException();
 }

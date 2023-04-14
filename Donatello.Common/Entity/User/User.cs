@@ -1,16 +1,15 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.User;
 
-using Enum;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Text.Json;
+using Enum;
 
 /// <summary></summary>
 public class User : Entity
 {
-    public User(Bot bot, JsonElement jsonElement)
-        : base(bot, jsonElement)
+    public User(JsonElement jsonElement, Bot bot) : base(jsonElement, bot)
     {
 
     }
@@ -22,19 +21,19 @@ public class User : Entity
     public string Username => this.Json.GetProperty("username").GetString();
 
     /// <summary>Numeric sequence used to differentiate between users with the same username.</summary>
-    public ushort Discriminator => ushort.Parse(this.Json.GetProperty("discriminator").GetString());
+    public ushort Discriminator => ushort.Parse(this.Json.GetProperty("discriminator").GetString()!);
 
     /// <summary>Full Discord tag, e.g. <c>thegiggitybyte#8099</c>.</summary>
     public string Tag => $"{this.Username}#{this.Discriminator}";
 
     /// <summary>Global user avatar URL.</summary>
-    public virtual string AvatarUrl
+    public string AvatarUrl
     {
         get
         {
             if (this.Json.TryGetProperty("avatar", out JsonElement prop) && prop.ValueKind is not JsonValueKind.Null)
             {
-                var extension = prop.GetString().StartsWith("a_") ? "gif" : "png";
+                var extension = prop.GetString()!.StartsWith("a_") ? "gif" : "png";
                 return $"https://cdn.discordapp.com/avatars/{this.Id}/{prop.GetString()}.{extension}";
             }
             else

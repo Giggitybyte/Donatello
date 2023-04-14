@@ -1,8 +1,8 @@
-﻿namespace Donatello.Builder;
+﻿namespace Donatello.Common.Builder;
 
-using Rest;
 using System;
 using System.Text.Json.Nodes;
+using Donatello.Rest;
 
 /// <summary></summary>
 public sealed class EmbedBuilder : EntityBuilder
@@ -43,7 +43,7 @@ public sealed class EmbedBuilder : EntityBuilder
         var fieldArray = fieldNode.AsArray();
 
         if (fieldArray.Count + 1 <= 25)
-            fieldArray.Add(new JsonObject()
+            fieldArray.Add(new JsonObject
             {
                 { "name", name },
                 { "value", content },

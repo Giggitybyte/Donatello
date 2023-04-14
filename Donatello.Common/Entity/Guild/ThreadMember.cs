@@ -1,44 +1,38 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild;
 
+using System;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System;
-using Extension.Internal;
+using Channel;
+using Extension;
+using User;
 
 /// <summary></summary>
-public sealed class ThreadMember : GuildMember
+public sealed class ThreadMember : GuildEntity
 {
-    private readonly JsonElement _threadMember;
-
-    public ThreadMember(Bot bot, Snowflake guildId, JsonElement userJson, JsonElement guildMemberJson, JsonElement threadMemberJson)
-        : base(bot, guildId, userJson, guildMemberJson)
+    public ThreadMember(JsonElement threadMemberJson, Bot bot)
+        : base(threadMemberJson, bot)
     {
-        _threadMember = threadMemberJson;
     }
 
-    public ThreadMember(Bot bot, GuildMember guildMember, JsonElement threadMemberJson)
-        : base(bot, guildMember)
-    {
-        _threadMember = threadMemberJson;
-    }
+    /// <summary>Discord user ID of this member.</summary>
+    public new Snowflake Id => this.Json.GetProperty("user_id").ToSnowflake();
 
-    /// <summary>Backing thread member object.</summary>
-    internal new JsonElement Json => _threadMember;
-
-    /// <inheritdoc cref="GuildMember.Json"/>
-    internal JsonElement GuildMemberJson => base.Json;
+    /// <summary>ID of the thread which this member belongs to.</summary>
+    public Snowflake ThreadId => base.Id;
 
     /// <summary>When the member was added to the thread.</summary>
-    public new DateTimeOffset JoinDate => _threadMember.GetProperty("joined_at").GetDateTimeOffset();
+    public DateTimeOffset JoinDate => this.Json.GetProperty("joined_at").GetDateTimeOffset();
 
-    /// <inheritdoc cref="GuildMember.JoinDate"/>
-    public DateTimeOffset GuildJoinDate => base.JoinDate;
+    /// <summary></summary>
+    public ValueTask<User> GetUserAsync()
+        => this.Bot.GetUserAsync(this.Id);
 
     /// <summary>Fetches the thread this member belongs to.</summary>
-    public async ValueTask<GuildThreadChannel> GetThreadChannelAsync()
+    public async ValueTask<GuildThreadChannel> GetThreadAsync()
     {
         var guild = await this.GetGuildAsync();
-        var threadId = _threadMember.GetProperty("id").ToSnowflake();
+        var threadId = this.Json.GetProperty("id").ToSnowflake();
         var thread = await guild.GetThreadAsync(threadId);
 
         return thread;

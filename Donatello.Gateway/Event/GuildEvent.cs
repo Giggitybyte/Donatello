@@ -1,7 +1,8 @@
 ﻿namespace Donatello.Gateway.Event;
 
 using System.Threading.Tasks;
-using Entity;
+using Common;
+using Common.Entity.Guild;
 
 /// <summary>Guild related event received by a websocket shard.</summary>
 public abstract class GuildEvent : ShardEvent

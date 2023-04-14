@@ -5,38 +5,42 @@ using System;
 using System.Buffers;
 using System.Net.WebSockets;
 using System.Reactive;
+using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Common.Enum;
 
 /// <summary>Websocket client for the Discord API.</summary>
 public sealed class WebsocketShard
 {
     private ClientWebSocket _websocketClient;
-    private Subject<JsonElement> _events;
+    private Subject<JsonElement> _payloadSubject;
+    private TaskPoolScheduler _payloadScheduler;
     private CancellationTokenSource _websocketCts, _heartbeatCts;
     private Task _wsReceiveTask, _wsHeartbeatTask;
-    private ILogger _logger;
     private string _sessionResumeUrl;
+    private ILogger _logger;
 
     internal WebsocketShard(int id, ILogger logger)
     {
         this.Id = id;
         _logger = logger;
-        _events = new Subject<JsonElement>();
+        _payloadSubject = new Subject<JsonElement>();
+        _payloadScheduler = new TaskPoolScheduler();
     }
-
-    /// <summary>Last received event sequence number.</summary>
-    internal int EventIndex { get; private set; }
-
+    
+    /// <summary>Zero-based shard ID number.</summary>
+    public int Id { get; }
+    
     /// <summary>Gateway session ID.</summary>
     public string SessionId { get; private set; }
 
-    /// <summary>Zero-based shard ID number.</summary>
-    public int Id { get; private init; }
+    /// <summary>Last received event sequence number.</summary>
+    public int EventIndex { get; private set; }
 
     /// <summary></summary>
     public TimeSpan Latency { get; private set; }
@@ -48,7 +52,7 @@ public sealed class WebsocketShard
     public bool IsHeartbeatActive => _wsHeartbeatTask?.Status == TaskStatus.Running;
 
     /// <summary>An observable sequence of raw gateway payloads received by this shard.</summary>
-    public IObservable<JsonElement> Payloads => _events.AsObservable();
+    public IObservable<JsonElement> Payloads => _payloadSubject.AsObservable().SubscribeOn(_payloadScheduler).ObserveOn(_payloadScheduler);
 
     /// <summary>Sends a payload to the gateway containing an inner data object.</summary>
     public ValueTask SendPayloadAsync(int opCode, Action<Utf8JsonWriter> jsonDelegate)
@@ -68,7 +72,7 @@ public sealed class WebsocketShard
 
         if (_logger.IsEnabled(LogLevel.Trace))
         {
-            var jsonString = JsonSerializer.Serialize(buffer.WrittenMemory, new JsonSerializerOptions() { WriteIndented = true });
+            var jsonString = JsonSerializer.Serialize(buffer.WrittenMemory);
             _logger.LogTrace("Sending OP {OpCode} payload ({Size} bytes):\n{Json}", opCode, buffer.WrittenCount, jsonString);
         }
         else
@@ -86,24 +90,29 @@ public sealed class WebsocketShard
         jsonWriter.WriteStartObject();
         jsonWriter.WriteNumber("op", opcode);
 
-        if (payloadType is JsonValueKind.String && payloadValue is string)
-            jsonWriter.WriteString("d", payloadValue as string);
+        if (payloadType is JsonValueKind.Null | payloadValue is null)
+            jsonWriter.WriteNull("d");
+        if (payloadType is JsonValueKind.String && payloadValue is string payloadString)
+            jsonWriter.WriteString("d", payloadString);
         else if (payloadType is JsonValueKind.Number && payloadValue is short or int or long)
             jsonWriter.WriteNumber("d", Convert.ToInt64(payloadValue));
+        else if (payloadType is JsonValueKind.Number && payloadValue is ushort or uint or ulong)
+            jsonWriter.WriteNumber("d", Convert.ToUInt64(payloadValue));
+        else if (payloadType is JsonValueKind.Number && payloadValue is decimal payloadDecimal)
+            jsonWriter.WriteNumber("d", payloadDecimal);
+        else if (payloadType is JsonValueKind.Number && payloadValue is double payloadDouble)
+            jsonWriter.WriteNumber("d", payloadDouble);
         else if (payloadType is JsonValueKind.True)
             jsonWriter.WriteBoolean("d", true);
         else if (payloadType is JsonValueKind.False)
             jsonWriter.WriteBoolean("d", false);
-        else if (payloadType is JsonValueKind.Null)
-            jsonWriter.WriteNull("d");
         else
             throw new JsonException("Invalid payload.");
 
         jsonWriter.WriteEndObject();
         jsonWriter.Flush();
 
-        _logger.LogDebug("Sending OP {OpCode} payload with value '{Value}'", opcode, payloadValue is not null ? payloadValue.ToString() : "null");
-
+        _logger.LogDebug("Sending OP {OpCode} with value '{Value}'", opcode, payloadValue is not null ? payloadValue.ToString() : "null");
         return _websocketClient.SendAsync(buffer.WrittenMemory, WebSocketMessageType.Text, true, CancellationToken.None);
     }
 
@@ -119,15 +128,54 @@ public sealed class WebsocketShard
 
         await _websocketClient.ConnectAsync(new Uri($"{gatewayUrl}?v=10&encoding=json"), CancellationToken.None);
 
-        _wsReceiveTask = this.ListenAsync(_websocketCts.Token)
-            .ContinueWith(receiveTask =>
+        _wsReceiveTask = this.ListenAsync(_websocketCts.Token).ContinueWith(receiveTask =>
+        {
+            if (receiveTask.Status is TaskStatus.Faulted)
             {
-                if (receiveTask.Status is TaskStatus.Faulted)
-                {
-                    _logger.LogCritical(receiveTask.Exception, "Websocket receive task threw an exception.");
-                    _events.OnError(receiveTask.Exception!);
-                }    
-            });
+                _logger.LogCritical(receiveTask.Exception!, "Websocket receive task threw an exception.");
+                _payloadSubject.OnError(receiveTask.Exception!);
+            }
+        });
+    }
+
+    /// <summary></summary>
+    internal Task IdentifyAsync(string token, GatewayIntent intents, int totalShards)
+    {
+        Task requestTask;
+
+        if (this.SessionId is null)
+        {
+            requestTask = this.SendPayloadAsync(2, json =>
+            {
+                json.WriteString("token", token);
+
+                json.WriteStartObject("properties");
+                json.WriteString("os", Environment.OSVersion.ToString());
+                json.WriteString("browser", "Donatello/0.0.0");
+                json.WriteString("device", "Donatello/0.0.0");
+                json.WriteEndObject();
+
+                json.WriteStartArray("shard");
+                json.WriteNumberValue(this.Id);
+                json.WriteNumberValue(totalShards);
+                json.WriteEndArray();
+
+                json.WriteNumber("intents", (int)intents);
+                json.WriteNumber("large_threshold", 250);
+                // json.WriteBoolean("compress", true);
+            }).AsTask();
+        }
+        else
+        {
+            requestTask = this.SendPayloadAsync(6, json =>
+            {
+                json.WriteString("token", token);
+                json.WriteString("session_id", this.SessionId);
+                json.WriteNumber("seq", this.EventIndex);
+            }).AsTask();
+        }
+
+        return requestTask;
     }
 
     /// <summary>Closes the connection with the Discord gateway.</summary>
@@ -162,19 +210,17 @@ public sealed class WebsocketShard
     }
 
     internal IObservable<Unit> Reconnect()
-    {
-        return Observable.FromAsync(ct => this.DisconnectAsync(invalidateSession: false))
+        => Observable.FromAsync(ct => this.DisconnectAsync(invalidateSession: false))
             .Concat(Observable.FromAsync(ct => this.ConnectAsync()))
             .LastAsync();
-    }
 
     /// <summary>Receives incoming payloads from the gateway connection.</summary>
     private async Task ListenAsync(CancellationToken wsCancelToken)
     {
-        var heartbeatAckChannel = Channel.CreateBounded<DateTime>(1);
         byte[] payloadBuffer;
         int payloadByteCount;
-        WebSocketReceiveResult response;        
+        WebSocketReceiveResult response;
+        var heartbeatAckChannel = Channel.CreateBounded<DateTime>(1);
 
         while (!wsCancelToken.IsCancellationRequested)
         {
@@ -183,15 +229,15 @@ public sealed class WebsocketShard
 
             do
             {
+                if (payloadByteCount == payloadBuffer.Length) ResizeBuffer(ref payloadBuffer);
+
                 var bufferSegment = new ArraySegment<byte>(payloadBuffer, payloadByteCount, payloadBuffer.Length - payloadByteCount);
                 response = await _websocketClient.ReceiveAsync(bufferSegment, CancellationToken.None);
                 payloadByteCount += response.Count;
-
-                if (payloadByteCount == payloadBuffer.Length) ResizeBuffer(ref payloadBuffer);
             } while (!response.EndOfMessage);
 
             var payloadJson = await ParsePayloadAsync();
-            _events.OnNext(payloadJson);
+            _payloadSubject.OnNext(payloadJson);
 
             ArrayPool<byte>.Shared.Return(payloadBuffer, true);
         }
@@ -215,22 +261,24 @@ public sealed class WebsocketShard
 
             if (_logger.IsEnabled(LogLevel.Trace))
             {
-                var jsonString = JsonSerializer.Serialize(eventJson, new JsonSerializerOptions { WriteIndented = true });
-                _logger.LogTrace("Received OP {OpCode} ({Size} bytes)\n{Json}", opCode, payloadByteCount, jsonString);
+                var jsonString = JsonSerializer.Serialize(eventJson);
+                _logger.LogTrace("Received OP {OpCode} ({Size} bytes): {Json}", opCode, payloadByteCount, jsonString);
             }
-            else
+            else if (opCode is not 0)
                 _logger.LogDebug("Received OP {OpCode} ({Size} bytes)", opCode, payloadByteCount);
 
             if (opCode is 0)
             {
                 var eventName = eventJson.GetProperty("t").GetString();
-                _logger.LogInformation("Received event {Name}", eventName);
 
                 if (eventName is "READY")
                 {
                     this.SessionId = eventJson.GetProperty("d").GetProperty("session_id").GetString();
                     _sessionResumeUrl = eventJson.GetProperty("d").GetProperty("resume_gateway_url").GetString();
                 }
+
+                if (_logger.IsEnabled(LogLevel.Trace) is false)
+                    _logger.LogDebug("Received '{Name}' event", eventName);
 
                 this.EventIndex = eventJson.GetProperty("s").GetInt32();
             }
@@ -251,15 +299,14 @@ public sealed class WebsocketShard
             else if (opCode is 10)
             {
                 var intervalMs = eventJson.GetProperty("d").GetProperty("heartbeat_interval").GetInt32();
-                _wsHeartbeatTask = HeartbeatAsync(intervalMs)
-                    .ContinueWith(heartbeatTask =>
+                _wsHeartbeatTask = HeartbeatAsync(intervalMs).ContinueWith(heartbeatTask =>
+                {
+                    if (heartbeatTask.IsFaulted)
                     {
-                        if (heartbeatTask.IsFaulted)
-                        {
-                            _logger.LogError(heartbeatTask.Exception!, "Websocket heartbeat task threw an exception.");
-                            _events.OnError(heartbeatTask.Exception!);
-                        }
-                    });
+                        _logger.LogError(heartbeatTask.Exception!, "Websocket heartbeat task threw an exception.");
+                        _payloadSubject.OnError(heartbeatTask.Exception!);
+                    }
+                });
             }
             else if (opCode is 11)
                 await heartbeatAckChannel.Writer.WriteAsync(DateTime.Now);
@@ -274,8 +321,7 @@ public sealed class WebsocketShard
             while (!wsCancelToken.IsCancellationRequested)
             {
                 _heartbeatCts = new CancellationTokenSource();
-                await Task.Delay(intervalMs, _heartbeatCts.Token)
-                    .ContinueWith(delayTask => _logger.LogDebug("Sending heartbeat to gateway."));
+                await Task.Delay(intervalMs, _heartbeatCts.Token).ContinueWith(delayTask => _logger.LogDebug("Sending heartbeat to gateway."));
 
                 var heartbeatTask = this.EventIndex is not 0
                     ? this.SendPayloadAsync(1, JsonValueKind.Number, this.EventIndex)
@@ -315,8 +361,3 @@ public sealed class WebsocketShard
         }
     }
 }
-
-
-
-
-

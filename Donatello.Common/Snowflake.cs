@@ -1,4 +1,4 @@
-﻿namespace Donatello;
+﻿namespace Donatello.Common;
 
 using System;
 using System.Globalization;
@@ -7,12 +7,12 @@ using System.Text.Json.Nodes;
 /// <summary></summary>
 public class Snowflake : IComparable<Snowflake>
 {
-    private readonly static DateTimeOffset _discordEpoch = new(2015, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset _discordEpoch = new(2015, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     /// <param name="rawValue">64-bit integer representing a Discord snowflake.</param>
-    internal Snowflake(ulong rawValue)
+    private Snowflake(ulong rawValue)
     {
-        this.CreationDate = DiscordEpoch.AddMilliseconds(rawValue >> 22);
+        this.CreationDate = _discordEpoch.AddMilliseconds(rawValue >> 22);
         this.InternalWorkerId = (byte)((rawValue & 0x3E0000) >> 17);
         this.InternalProcessId = (byte)((rawValue & 0x1F000) >> 12);
         this.InternalIncrement = (ushort)(rawValue & 0xFFF);
@@ -20,23 +20,20 @@ public class Snowflake : IComparable<Snowflake>
         this.Value = rawValue;
     }
 
-    /// <summary>The first second of the year 2015.</summary>
-    public static DateTimeOffset DiscordEpoch => _discordEpoch;
-
     /// <summary>64-bit integer representation of this snowflake.</summary>
-    public ulong Value { get; private init; }
+    public ulong Value { get; }
 
     /// <summary>The date this snowflake was generated.</summary>
-    public DateTimeOffset CreationDate { get; private init; }
+    public DateTimeOffset CreationDate { get; }
 
     /// <summary>The internal worker's ID that was used by Discord to generate the snowflake.</summary>
-    public byte InternalWorkerId { get; private init; }
+    public byte InternalWorkerId { get; }
 
-    /// <summary>The internal process' ID that was used by Discord to generate the snowflake.</summary>
-    public byte InternalProcessId { get; private init; }
+    /// <summary>The internal process ID that was used by Discord to generate the snowflake.</summary>
+    public byte InternalProcessId { get; }
 
     /// <summary>A number incremented by Discord every time a snowflake is generated.</summary>
-    public ushort InternalIncrement { get; private init; }
+    public ushort InternalIncrement { get; }
 
     /// <summary>Returns the 64-bit integer representation of this snowflake as a string.</summary>
     public override string ToString()

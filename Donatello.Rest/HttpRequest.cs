@@ -42,9 +42,6 @@ public sealed class HttpRequest
     /// <summary></summary>
     internal string Endpoint => _endpoint;
 
-    /// <summary></summary>
-    internal HttpRequestMessage Message => (HttpRequestMessage)this;
-
     /// <summary>Discord endpoint to send the request to.</summary>
     public HttpRequest SetEndpoint(string endpoint)
     {

@@ -1,9 +1,9 @@
 ﻿namespace Donatello.Gateway.Event;
 
-using Entity;
+using Common.Entity;
 
-/// <summary></summary>
-public sealed class EntityUpdatedEvent<TEntity> : ShardEvent where TEntity : ISnowflakeEntity
+/// <summary>Dispatched when the properties of an entity have been modified.</summary>
+public sealed class EntityUpdatedEvent<TEntity> : EntityUpdatedEvent where TEntity : ISnowflakeEntity
 {
     /// <summary>The updated entity received in this event.</summary>
     public TEntity UpdatedEntity { get; internal init; }
@@ -19,6 +19,11 @@ public sealed class EntityUpdatedEvent<TEntity> : ShardEvent where TEntity : ISn
         outdatedEntity = this.OutdatedEntity;
         return outdatedEntity != null;
     }
-
 }
 
+/// <summary>Dispatched when the properties of an entity have been modified.</summary>
+public class EntityUpdatedEvent : ShardEvent
+{
+    internal static EntityUpdatedEvent<TEntity> Create<TEntity>(TEntity updatedEntity, TEntity outdatedEntity) where TEntity : ISnowflakeEntity
+        => new() { UpdatedEntity = updatedEntity, OutdatedEntity = outdatedEntity };
+}

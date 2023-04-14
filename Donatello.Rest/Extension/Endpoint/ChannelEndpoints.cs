@@ -11,40 +11,40 @@ using System.Threading.Tasks;
 public static class ChannelEndpoints
 {
     /// <summary>Fetches a channel using its ID.</summary>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#channel-object">channel object</see></returns>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#channel-object">channel object</a></returns>
     public static Task<JsonElement> GetChannelAsync(this DiscordHttpClient httpClient, ulong channelId)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}").GetJsonAsync();
 
     /// <summary>Updates the settings for a channel.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#modify-channel">Click here to see valid JSON parameters</see>.</remarks>
-    /// <returns>Updated <see href="https://discord.com/developers/docs/resources/channel#channel-object">channel object</see>.</returns>
+    /// <remarks><a href="https://discord.com/developers/docs/resources/channel#modify-channel">Click here to see valid JSON parameters</a>.</remarks>
+    /// <returns>Updated <a href="https://discord.com/developers/docs/resources/channel#channel-object">channel object</see>.</returns>
     public static Task<JsonElement> ModifyChannelAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Patch, $"channels/{channelId}", jsonDelegate).GetJsonAsync();
 
-    /// <summary>Permananently deletes a guild channel or thread.</summary>
+    /// <summary>Permanently deletes a guild channel or thread.</summary>
     public static Task<JsonElement> DeleteChannelAsync(this DiscordHttpClient httpClient, ulong channelId)
         => httpClient.SendRequestAsync(HttpMethod.Delete, $"channels/{channelId}").GetJsonAsync();
 
-    /// <summary>Fetches a specific message in a channnel.</summary>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message object</see></returns>
+    /// <summary>Fetches a specific message in a channel.</summary>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#message-object">message object</a></returns>
     public static Task<JsonElement> GetChannelMessageAsync(this DiscordHttpClient httpClient, ulong channelId, ulong messageId)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/messages/{messageId}").GetJsonAsync();
 
     /// <summary>Fetches up to 100 messages from a channel.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#get-channel-messages-query-string-params">Click here to see valid query parameters</see>.</remarks>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message objects</see></returns>
+    /// <remarks><a href="https://discord.com/developers/docs/resources/channel#get-channel-messages-query-string-params">Click here to see valid query parameters</a>.</remarks>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#message-object">message objects</a></returns>
     public static IAsyncEnumerable<JsonElement> GetChannelMessagesAsync(this DiscordHttpClient httpClient, ulong channelId, params (string key, string value)[] queryParams)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/messages{queryParams.ToParamString()}").GetJsonArrayAsync();
 
     /// <summary>Posts a message to a channel.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#create-message-jsonform-params">Click here to see valid JSON parameters</see>.</remarks>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message object</see></returns>
+    /// <remarks><a href="https://discord.com/developers/docs/resources/channel#create-message-jsonform-params">Click here to see valid JSON parameters</a>.</remarks>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#message-object">message object</a></returns>
     public static Task<JsonElement> CreateMessageAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/messages", jsonDelegate).GetJsonAsync();
 
     /// <summary>Posts a message to a channel.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#create-message-jsonform-params">Click here to see valid JSON parameters</see>.</remarks>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message object</see></returns>
+    /// <remarks><a href="https://discord.com/developers/docs/resources/channel#create-message-jsonform-params">Click here to see valid JSON parameters</a>.</remarks>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#message-object">message object</a></returns>
     public static Task<JsonElement> CreateMessageAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> jsonDelegate, IList<FileAttachment> attachments)
     {
         return httpClient.SendRequestAsync(request =>
@@ -60,13 +60,13 @@ public static class ChannelEndpoints
     }
 
     /// <summary>Crosspost a message in a news channel to following channels. </summary>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message object</see></returns>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#message-object">message object</a></returns>
     public static Task<JsonElement> CrosspostMessageAsync(this DiscordHttpClient httpClient, ulong channelId, ulong messageId)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/messages/{messageId}/crosspost").GetJsonAsync();
 
     /// <summary>Creates a reaction for a message in a channel.</summary>
     /// <remarks>
-    /// <paramref name="emoji"/> must be <see href="https://en.wikipedia.org/wiki/Percent-encoding">URL encoded</see> when using unicode emoji.<br/>
+    /// <paramref name="emoji"/> must be <a href="https://en.wikipedia.org/wiki/Percent-encoding">URL encoded</a> when using unicode emoji.
     /// To use custom emoji, you must encode <paramref name="emoji"/> in the format <b><c>name:id</c></b> with the emoji name and emoji id.
     /// </remarks>
     public static Task<JsonElement> CreateReactionAsync(this DiscordHttpClient httpClient, ulong channelId, ulong messageId, string emoji)
@@ -74,7 +74,7 @@ public static class ChannelEndpoints
 
     /// <summary>Removes a reaction to a message made by the current user.</summary>
     /// <remarks>
-    /// <paramref name="emoji"/> must be <see href="https://en.wikipedia.org/wiki/Percent-encoding">URL encoded</see> when using unicode emoji.<br/>
+    /// <paramref name="emoji"/> must be <a href="https://en.wikipedia.org/wiki/Percent-encoding">URL encoded</see> when using unicode emoji.<br/>
     /// To use custom emoji, you must encode <paramref name="emoji"/> in the format <b><c>name:id</c></b> with the emoji name and emoji id.
     /// </remarks>
     public static Task<JsonElement> DeleteReactionAsync(this DiscordHttpClient httpClient, ulong channelId, ulong messageId, string emoji)
@@ -82,7 +82,7 @@ public static class ChannelEndpoints
 
     /// <summary>Removes a reaction to a message made by another user.</summary>
     /// <remarks>
-    /// <paramref name="emoji"/> must be <see href="https://en.wikipedia.org/wiki/Percent-encoding">URL encoded</see> when using unicode emoji.<br/>
+    /// <paramref name="emoji"/> must be <a href="https://en.wikipedia.org/wiki/Percent-encoding">URL encoded</see> when using unicode emoji.<br/>
     /// To use custom emoji, you must encode <paramref name="emoji"/> in the format <b><c>name:id</c></b> with the emoji name and emoji id.
     /// </remarks>
     public static Task<JsonElement> DeleteReactionAsync(this DiscordHttpClient httpClient, ulong channelId, ulong messageId, ulong userId, string emoji)
@@ -90,16 +90,16 @@ public static class ChannelEndpoints
 
     /// <summary>Fetches all users which reacted to the specified message with <paramref name="emoji"/>.</summary>
     /// <remarks>
-    /// <paramref name="emoji"/> must be <see href="https://en.wikipedia.org/wiki/Percent-encoding">URL encoded</see> when using unicode emoji.<br/>
+    /// <paramref name="emoji"/> must be <a href="https://en.wikipedia.org/wiki/Percent-encoding">URL encoded</see> when using unicode emoji.<br/>
     /// To use custom emoji, you must encode <paramref name="emoji"/> in the format <b><c>name:id</c></b> with the emoji name and emoji id.
     /// </remarks>
-    /// <returns><see href="https://discord.com/developers/docs/resources/user#user-object">user objects</see>.</returns>
+    /// <returns><a href="https://discord.com/developers/docs/resources/user#user-object">user objects</see>.</returns>
     public static IAsyncEnumerable<JsonElement> GetReactionsAsync(this DiscordHttpClient httpClient, ulong channelId, ulong messageId, string emoji)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/messages/{messageId}/reactions/{emoji}").GetJsonArrayAsync();
 
     /// <summary>Removes reactions for a specific <paramref name="emoji"/> on a message.</summary>
     /// <remarks>
-    /// <paramref name="emoji"/> must be <see href="https://en.wikipedia.org/wiki/Percent-encoding">URL encoded</see> when using unicode emoji.<br/>
+    /// <paramref name="emoji"/> must be <a href="https://en.wikipedia.org/wiki/Percent-encoding">URL encoded</see> when using unicode emoji.<br/>
     /// To use custom emoji, you must encode <paramref name="emoji"/> in the format <b><c>name:id</c></b> with the emoji name and emoji id.
     /// </remarks>
     public static Task<JsonElement> DeleteReactionsAsync(this DiscordHttpClient httpClient, ulong channelId, ulong messageId, string emoji)
@@ -110,8 +110,8 @@ public static class ChannelEndpoints
         => httpClient.SendRequestAsync(HttpMethod.Delete, $"channels/{channelId}/messages/{messageId}/reactions").GetJsonAsync();
 
     /// <summary>Edit a previously sent message.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#edit-message-jsonform-params">Click to see valid JSON parameters</see>.</remarks>
-    /// <returns>Updated <see href="https://discord.com/developers/docs/resources/channel#message-object">message object</see>.</returns>
+    /// <remarks><a href="https://discord.com/developers/docs/resources/channel#edit-message-jsonform-params">Click to see valid JSON parameters</a>.</remarks>
+    /// <returns>Updated <a href="https://discord.com/developers/docs/resources/channel#message-object">message object</see>.</returns>
     public static Task<JsonElement> ModifyMessageAsync(this DiscordHttpClient httpClient, ulong channelId, ulong messageId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Patch, $"channels/{channelId}/messages/{messageId}", jsonDelegate).GetJsonAsync();
 
@@ -137,7 +137,7 @@ public static class ChannelEndpoints
     }
 
     /// <summary>Edit the channel permission overwrites for a user or role in a channel.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#edit-channel-permissions-json-params">Click to see valid JSON parameters</see>.</remarks>
+    /// <remarks><a href="https://discord.com/developers/docs/resources/channel#edit-channel-permissions-json-params">Click to see valid JSON parameters</a>.</remarks>
     public static Task<HttpResponse> ModifyPermissionOverwriteAsync(this DiscordHttpClient httpClient, ulong channelId, ulong overwriteId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Put, $"channels/{channelId}/permissions/{overwriteId}", jsonDelegate);
 
@@ -147,20 +147,20 @@ public static class ChannelEndpoints
 
     /// <summary>Fetches all invites for a guild channel.</summary>
     /// <returns>
-    /// <see href="https://discord.com/developers/docs/resources/invite#invite-object-invite-structure">Invite objects</see> with
-    /// <see href="https://discord.com/developers/docs/resources/invite#invite-metadata-object-invite-metadata-structure">extra invite metadata</see> fields.
+    /// <a href="https://discord.com/developers/docs/resources/invite#invite-object-invite-structure">Invite objects</see> with
+    /// <a href="https://discord.com/developers/docs/resources/invite#invite-metadata-object-invite-metadata-structure">extra invite metadata</see> fields.
     /// </returns>
     public static IAsyncEnumerable<JsonElement> GetChannelInvitesAsync(this DiscordHttpClient httpClient, ulong channelId)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/invites").GetJsonArrayAsync();
 
     /// <summary>Creates a new invite for a guild channel.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#create-channel-invite-json-params">Click to see valid JSON parameters</see>.</remarks>
+    /// <remarks><a href="https://discord.com/developers/docs/resources/channel#create-channel-invite-json-params">Click to see valid JSON parameters</a>.</remarks>
     public static Task<JsonElement> CreateChannelInviteAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/invites", jsonDelegate).GetJsonAsync();
 
     /// <summary>'Follow' a news channel to send messages to a target channel. </summary>
     /// <remarks>Requires the <c>MANAGE_WEBHOOKS</c> permission in the target channel.</remarks>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#followed-channel-object">followed channel object</see></returns>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#followed-channel-object">followed channel object</a></returns>
     public static Task<JsonElement> FollowNewsChannelAsync(this DiscordHttpClient httpClient, ulong newsChannelId, ulong targetChannelId)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{newsChannelId}/followers", (json) => json.WriteString("webhook_channel_id", targetChannelId.ToString())).GetJsonAsync();
 
@@ -169,7 +169,7 @@ public static class ChannelEndpoints
         => httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/typing");
 
     /// <summary>Fetches all messages pinned in a channel.</summary>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#message-object">message objects</see>.</returns>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#message-object">message objects</see>.</returns>
     public static IAsyncEnumerable<JsonElement> GetPinnedMessagesAsync(this DiscordHttpClient httpClient, ulong channelId)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/pins").GetJsonArrayAsync();
 
@@ -190,20 +190,20 @@ public static class ChannelEndpoints
         => httpClient.SendRequestAsync(HttpMethod.Delete, $"channels/{channelId}/recipients/{userId}");
 
     /// <summary>Creates a new thread from an existing message.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#start-thread-with-message-json-params">Click here to see valid JSON parameters</see>.</remarks>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#channel-object-example-thread-channel">thread channel object</see></returns>
+    /// <remarks><a href="https://discord.com/developers/docs/resources/channel#start-thread-with-message-json-params">Click here to see valid JSON parameters</a>.</remarks>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#channel-object-example-thread-channel">thread channel object</a></returns>
     public static Task<JsonElement> CreateThreadChannelAsync(this DiscordHttpClient httpClient, ulong channelId, ulong messageId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/messages/{messageId}", jsonDelegate).GetJsonAsync();
 
     /// <summary>Creates a new thread that is not connected to an existing message.</summary>
-    /// <remarks>Defaults to a private thread. <see href="https://discord.com/developers/docs/resources/channel#start-thread-without-message-json-params">Click here to see valid JSON parameters</see>.</remarks>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#channel-object-example-thread-channel">thread channel object</see></returns>
+    /// <remarks>Defaults to a private thread. <a href="https://discord.com/developers/docs/resources/channel#start-thread-without-message-json-params">Click here to see valid JSON parameters</a>.</remarks>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#channel-object-example-thread-channel">thread channel object</a></returns>
     public static Task<JsonElement> CreateThreadChannelAsync(this DiscordHttpClient httpClient, ulong channelId)
         => httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/threads").GetJsonAsync();
 
     /// <summary>Creates a new thread in a forum channel.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#start-thread-in-forum-channel-jsonform-params">Click here to see valid JSON parameters</see>.</remarks>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#channel-object-example-thread-channel">thread channel object</see></returns>
+    /// <remarks><a href="https://discord.com/developers/docs/resources/channel#start-thread-in-forum-channel-jsonform-params">Click here to see valid JSON parameters</a>.</remarks>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#channel-object-example-thread-channel">thread channel object</a></returns>
     public static async Task<(JsonElement thread, JsonElement message)> CreateForumThreadChannelAsync(this DiscordHttpClient httpClient, ulong channelId, Action<Utf8JsonWriter> jsonDelegate, IList<FileAttachment> attachments)
     {
         var responseJson = await httpClient.SendRequestAsync(HttpMethod.Post, $"channels/{channelId}/threads").GetJsonAsync();
@@ -234,36 +234,36 @@ public static class ChannelEndpoints
         => httpClient.SendRequestAsync(HttpMethod.Delete, $"channels/{threadChannelId}/thread-members/@me").GetJsonAsync();
 
     /// <summary>Fetches a specific member in a thread.</summary>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#thread-member-object">thread member object</see></returns>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#thread-member-object">thread member object</a></returns>
     public static Task<JsonElement> GetThreadChannelMemberAsync(this DiscordHttpClient httpClient, ulong threadChannelId, ulong userId)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{threadChannelId}/thread-members/{userId}").GetJsonAsync();
 
     /// <summary>Fetches all members in a thread channel.</summary>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#thread-member-object">thread member objects</see>.</returns>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#thread-member-object">thread member objects</a>.</returns>
     public static IAsyncEnumerable<JsonElement> GetThreadChannelMembersAsync(this DiscordHttpClient httpClient, ulong threadChannelId)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{threadChannelId}/thread-members").GetJsonArrayAsync();
 
     /// <summary>Fetches all active threads in a channel.</summary>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#list-active-threads-response-body">active threads object</see></returns>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#list-active-threads-response-body">active threads object</a></returns>
     [Obsolete("Deprecated in Discord API v9; use GetActiveThreadsAsync(ulong guildId) instead.", false)]
     public static Task<JsonElement> GetThreadChannelsAsync(this DiscordHttpClient httpClient, ulong channelId)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/threads/active").GetJsonAsync();
 
     /// <summary>Fetches all archived public thread channels.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#list-public-archived-threads-query-string-params">Click to see valid query string params</see>.</remarks>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#list-public-archived-threads-response-body">archived threads object</see></returns>
+    /// <remarks><a href="https://discord.com/developers/docs/resources/channel#list-public-archived-threads-query-string-params">Click to see valid query string params</a>.</remarks>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#list-public-archived-threads-response-body">archived threads object</a></returns>
     public static Task<JsonElement> GetArchivedPublicThreadsAsync(this DiscordHttpClient httpClient, ulong channelId, params (string key, string value)[] queryParams)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/threads/archived/public{queryParams.ToParamString()}").GetJsonAsync();
 
     /// <summary>Fetches all archived private thread channels.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#list-private-archived-threads-query-string-params">Click to see valid query string params</see>.</remarks>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#list-private-archived-threads-response-body">archived threads object</see></returns>
+    /// <remarks><a href="https://discord.com/developers/docs/resources/channel#list-private-archived-threads-query-string-params">Click to see valid query string params</a>.</remarks>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#list-private-archived-threads-response-body">archived threads object</a></returns>
     public static Task<JsonElement> GetArchivedPrivateThreadsAsync(this DiscordHttpClient httpClient, ulong channelId, params (string key, string value)[] queryParams)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/threads/archived/private{queryParams.ToParamString()}").GetJsonAsync();
 
     /// <summary>Fetches all archived private thread channels that the current user has joined.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/resources/channel#list-joined-private-archived-threads-query-string-params">Click to see valid query string params</see>.</remarks>
-    /// <returns><see href="https://discord.com/developers/docs/resources/channel#list-joined-private-archived-threads-response-body">archived threads object</see></returns>
+    /// <remarks><a href="https://discord.com/developers/docs/resources/channel#list-joined-private-archived-threads-query-string-params">Click to see valid query string params</a>.</remarks>
+    /// <returns><a href="https://discord.com/developers/docs/resources/channel#list-joined-private-archived-threads-response-body">archived threads object</a></returns>
     public static Task<JsonElement> GetJoinedArchivedPrivateThreadsAsync(this DiscordHttpClient httpClient, ulong channelId, params (string key, string value)[] queryParams)
         => httpClient.SendRequestAsync(HttpMethod.Get, $"channels/{channelId}/users/@me/threads/archived/private{queryParams.ToParamString()}").GetJsonAsync();
 }

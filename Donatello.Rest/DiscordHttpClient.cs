@@ -141,14 +141,13 @@ public class DiscordHttpClient
                 return await DelayRequestAsync(retryTime);
             }
 
-            using var responseStream = await response.Content.ReadAsStreamAsync();
+            await using var responseStream = await response.Content.ReadAsStreamAsync();
             using var responseJson = await JsonDocument.ParseAsync(responseStream);
 
             this.Logger.LogTrace("Request to {Url} completed after {Attempt} attempts.", request.Endpoint, attemptCount);
 
             return new HttpResponse()
             {
-                Errors = ParseErrorMessages(responseJson.RootElement),
                 Payload = responseJson.RootElement.Clone(),
                 Status = response.StatusCode,
                 Message = response.ReasonPhrase
@@ -163,54 +162,6 @@ public class DiscordHttpClient
         }
 
         // Returns all error messages present.
-        ICollection<HttpResponse.Error> ParseErrorMessages(JsonElement json)
-        {
-            var errorMessages = new List<HttpResponse.Error>();
-
-            if (json.ValueKind is JsonValueKind.Object)
-            {
-                // TODO: array error.
-
-                if (json.TryGetProperty("errors", out JsonElement errorObject)) // TODO: I think this logic is broke a little.
-                {
-                    if (errorObject.TryGetProperty("_errors", out JsonElement errorProp))
-                        AddErrors(errorProp, "request");
-                    else
-                    {
-                        foreach (var objectProp in errorObject.EnumerateObject())
-                            foreach (var errorJson in objectProp.Value.GetProperty("_errors").EnumerateArray())
-                                AddErrors(errorJson, objectProp.Name);
-                    }
-                }
-                else if (json.TryGetProperty("message", out JsonElement messageProp))
-                {
-                    var error = new HttpResponse.Error()
-                    {
-                        ParameterName = string.Empty,
-                        Code = json.GetProperty("code").GetInt32(),
-                        Message = messageProp.GetString()
-                    };
-
-                    errorMessages.Add(error);
-                }
-            }
-
-            return errorMessages;
-
-            void AddErrors(JsonElement errorArray, string name)
-            {
-                foreach (var errorJson in errorArray.EnumerateArray())
-                {
-                    var error = new HttpResponse.Error()
-                    {
-                        ParameterName = name,
-                        Code = errorJson.GetProperty("code").GetInt32(),
-                        Message = errorJson.GetProperty("message").GetString()
-                    };
-
-                    errorMessages.Add(error);
-                }
-            }
-        }
+        
     }
 }

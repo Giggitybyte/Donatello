@@ -1,4 +1,4 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Enum;
 
 using System;
 

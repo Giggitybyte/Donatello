@@ -1,21 +1,21 @@
-﻿namespace Donatello.Builder;
+﻿namespace Donatello.Common.Builder;
 
-using Rest;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
+using Donatello.Rest;
 
 /// <summary></summary>
 public abstract class EntityBuilder
 {
-    public EntityBuilder()
+    protected EntityBuilder()
     {
         this.Json = new JsonObject();
         this.Files = new List<FileAttachment>();
     }
 
     /// <summary></summary>
-    internal protected List<FileAttachment> Files { get; private init; }
+    protected internal List<FileAttachment> Files { get; private init; }
 
     /// <summary></summary>
-    internal protected JsonObject Json { get; private init; }
+    protected internal JsonObject Json { get; private init; }
 }

@@ -1,4 +1,4 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Message;
 
 using System.Text.Json;
 

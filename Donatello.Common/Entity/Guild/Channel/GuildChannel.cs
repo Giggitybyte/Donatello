@@ -1,30 +1,23 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild.Channel;
 
-using Extension.Internal;
 using System;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Common.Entity.Channel;
+using Enum;
+using Extension;
 
 /// <summary>A channel associated with a guild.</summary>
-public abstract class GuildChannel : Channel, IGuildChannel
+public abstract class GuildChannel : GuildEntity, IChannel
 {
-    private readonly Snowflake _guildId;
+    protected GuildChannel(JsonElement entityJson, Bot bot) : base(entityJson, bot) { }
+    protected GuildChannel(JsonElement entityJson, Snowflake id, Bot bot) : base(entityJson, id, bot) { }
 
-    public GuildChannel(Bot bot, JsonElement entityJson)
-        : base(bot, entityJson)
-    {
-        if (entityJson.TryGetProperty("guild_id", out JsonElement prop))
-            _guildId = prop.ToSnowflake();
-        else
-            throw new ArgumentException("JSON does not contain a guild ID.", nameof(entityJson));
-    }
-
-    public GuildChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
-        : base(bot, entityJson)
-    {
-        _guildId = guildId;
-    }
-
+    /// <inheritdoc cref="IChannel.Type"/>
+    public ChannelType Type => (ChannelType)this.Json.GetProperty("type").GetInt32();
+    
+    /// <inheritdoc cref="IChannel.Name"/>
+    public string Name { get; }
 
     /// <inheritdoc cref="IGuildChannel.Position"/>
     public int Position => this.Json.GetProperty("position").GetInt32();
@@ -32,13 +25,7 @@ public abstract class GuildChannel : Channel, IGuildChannel
     /// <summary></summary>
     public bool Nsfw => throw new NotImplementedException();
 
-    public Snowflake GuildId => _guildId;
-
-    /// <inheritdoc cref="IGuildEntity.GetGuildAsync()"/>
-    public ValueTask<Guild> GetGuildAsync()
-        => this.Bot.GetGuildAsync(_guildId);
-
     /// <summary></summary>
-    public bool HasParent(out IGuildChannel parent)
+    public bool HasParent(out GuildChannel parent)
         => throw new NotImplementedException();
 }

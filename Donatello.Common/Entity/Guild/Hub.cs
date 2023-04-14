@@ -1,4 +1,4 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild;
 
 using System;
 using System.Text.Json;
@@ -6,7 +6,7 @@ using System.Text.Json;
 public class Hub : Guild
 {
     public Hub(Bot bot, JsonElement json) 
-        : base(bot, json)
+        : base(json, bot)
     {
         throw new NotImplementedException();
     }

@@ -21,10 +21,7 @@ internal static class InternalExtensionMethods
             if (parameter == default || string.IsNullOrEmpty(parameter.key))
                 continue;
 
-            if (builder.Length > 0)
-                builder.Append('&');
-            else
-                builder.Append('?');
+            builder.Append(builder.Length > 0 ? '&' : '?');
 
             builder.Append(parameter.key);
             builder.Append('=');

@@ -1,9 +1,9 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Channel;
 
-using Donatello;
-using Builder;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Builder;
+using Message;
 
 /// <summary>A channel which contains messages sent by users.</summary>
 public interface ITextChannel : IChannel

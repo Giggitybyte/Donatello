@@ -1,4 +1,4 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild.Channel;
 
 using System;
 using System.Collections.Generic;
@@ -6,14 +6,8 @@ using System.Text.Json;
 
 public class GuildCategoryChannel : GuildChannel
 {
-    public GuildCategoryChannel(Bot bot, JsonElement entityJson) : base(bot, entityJson)
-    {
-    }
-
-    public GuildCategoryChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
-        : base(bot, entityJson, guildId)
-    {
-    }
+    public GuildCategoryChannel(JsonElement entityJson, Bot bot) : base(entityJson, bot) { }
+    public GuildCategoryChannel(JsonElement entityJson, Snowflake id, Bot bot) : base(entityJson, id, bot) { }
 
     public IAsyncEnumerable<GuildChannel> GetContainedChannels()
     {

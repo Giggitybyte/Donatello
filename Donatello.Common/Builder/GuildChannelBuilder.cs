@@ -1,4 +1,5 @@
-﻿namespace Donatello.Builder;
+﻿namespace Donatello.Common.Builder;
+
 public class GuildChannelBuilder : ChannelBuilder<GuildChannelBuilder>
 {
 

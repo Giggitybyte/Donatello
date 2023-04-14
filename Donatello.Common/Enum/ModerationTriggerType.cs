@@ -1,4 +1,4 @@
-﻿namespace Donatello.Enum;
+﻿namespace Donatello.Common.Enum;
 
 /// <summary></summary>
 public enum ModerationTriggerType : ushort

@@ -1,9 +1,10 @@
 ﻿namespace Donatello.Interaction;
 
-using Entity;
+using Common;
+using Common.Entity;
 
 /// <summary></summary>
-public interface IInteraction : ISnowflakeEntity
+public interface IInteractionEntity : ISnowflakeEntity
 {
     /// <summary></summary>
     public Snowflake ApplicationId { get; }

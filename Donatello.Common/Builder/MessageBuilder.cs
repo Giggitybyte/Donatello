@@ -1,10 +1,10 @@
-﻿namespace Donatello.Builder;
+﻿namespace Donatello.Common.Builder;
 
-using Entity;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using Entity.Message;
 
 /// <summary></summary>
 public sealed class MessageBuilder : EntityBuilder
@@ -56,7 +56,7 @@ public sealed class MessageBuilder : EntityBuilder
         if (content.Length <= 2000)
             this.Json["content"] = content;
         else
-            throw new ArgumentException("Content cannot be greater than 2,000 characters");
+            throw new ArgumentOutOfRangeException(nameof(content), "Content cannot be greater than 2,000 characters");
 
         return this;
     }
@@ -69,9 +69,9 @@ public sealed class MessageBuilder : EntityBuilder
         else if (allowedMentions.Types.HasFlag(MentionType.Roles) && allowedMentions.RoleIds.Any())
             throw new InvalidOperationException("Role mention parse type cannot be specified when role IDs are provided.");
         else if (allowedMentions.UserIds.Count >= 100)
-            throw new InvalidOperationException("Count of user IDs cannot be greater than 100.");
+            throw new ArgumentOutOfRangeException(nameof(allowedMentions.UserIds), "Number of user IDs cannot be greater than 100.");
         else if (allowedMentions.RoleIds.Count >= 100)
-            throw new InvalidOperationException("Count of role IDs cannot be greater than 100.");
+            throw new ArgumentOutOfRangeException(nameof(allowedMentions.RoleIds), "Number of role IDs cannot be greater than 100.");
 
         var mentionJson = new JsonObject();
 
@@ -128,7 +128,7 @@ public sealed class MessageBuilder : EntityBuilder
     /// <summary>Adds a reference to an existing message.</summary>
     public MessageBuilder SetReply(Message message)
     {
-        this.Json["message_reference"] = new JsonObject()
+        this.Json["message_reference"] = new JsonObject
         {
             ["message_id"] = message.Id.Value,
             ["channel_id"] = message.ChannelId.Value,

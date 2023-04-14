@@ -26,8 +26,8 @@ public static class ApplicationEndpoints
         => httpClient.SendRequestAsync(HttpMethod.Get, $"applications/{applicationId}/commands/{commandId}").GetJsonAsync();
 
     /// <summary>Changes attributes of a global command.</summary>
-    /// <remarks><see href="https://discord.com/developers/docs/interactions/application-commands#edit-global-application-command">Click here to see valid JSON parameters</see>.</remarks>
-    /// <returns>Updated <see href="https://discord.com/developers/docs/interactions/application-commands#application-command-object">application command object</see>.</returns>
+    /// <remarks><a href="https://discord.com/developers/docs/interactions/application-commands#edit-global-application-command">Click here to see valid JSON parameters</a>.</remarks>
+    /// <returns>Updated <a href="https://discord.com/developers/docs/interactions/application-commands#application-command-object">application command object</a>.</returns>
     public static Task<JsonElement> ModifyGlobalAppCommandAsync(this DiscordHttpClient httpClient, ulong applicationId, ulong commandId, Action<Utf8JsonWriter> jsonDelegate)
         => httpClient.SendRequestAsync(HttpMethod.Patch, $"applications/{applicationId}/commands/{commandId}", jsonDelegate).GetJsonAsync();
 

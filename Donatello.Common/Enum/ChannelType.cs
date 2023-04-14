@@ -1,6 +1,6 @@
-﻿namespace Donatello.Enum;
+﻿namespace Donatello.Common.Enum;
 
-public enum ChannelType : ushort
+public enum ChannelType
 {
     /// <summary>Text channel within a guild.</summary>
     Text = 0,
@@ -24,7 +24,7 @@ public enum ChannelType : ushort
     AnnouncementThread = 10,
 
     /// <summary>Temporary sub-channel within a text channel.</summary>
-    Thread = 11,
+    PublicThread = 11,
 
     /// <summary>Temporary sub-channel within a text channel viewable only by invited (<c>@mentioned</c>) users.</summary>
     PrivateThread = 12,
@@ -32,13 +32,9 @@ public enum ChannelType : ushort
     /// <summary>A voice channel for hosting events with an audience.</summary>
     Stage = 13,
 
-    /// <summary>
-    /// The channel in a 
-    /// <see href="https://support.discord.com/hc/en-us/articles/4406046651927">hub guild</see>
-    /// which contains its listed servers.
-    /// </summary>
+    /// <summary> The channel in a <see href="https://support.discord.com/hc/en-us/articles/4406046651927">hub guild</see> which contains its listed servers. </summary>
     Directory = 14,
 
     /// <summary>A channel which can only contain threads.</summary>
-    Fourm = 15
+    Forum = 15
 }

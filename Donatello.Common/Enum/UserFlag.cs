@@ -1,4 +1,4 @@
-﻿namespace Donatello.Enum;
+﻿namespace Donatello.Common.Enum;
 
 using System;
 
@@ -33,7 +33,7 @@ public enum UserFlag : int
     /// <summary>User was a Legacy Nitro subscriber.</summary>
     EarlySupporter = 1 << 9,
 
-    /// <summary>User is not actually a user, but a representation for a <see href="https://discord.com/developers/docs/topics/teams">team</see>.</summary>
+    /// <summary>User is not actually a user, but a representation for a <a href="https://discord.com/developers/docs/topics/teams">team</a>.</summary>
     Team = 1 << 10,
 
     /// <summary>The user is the official Discord system user.</summary>

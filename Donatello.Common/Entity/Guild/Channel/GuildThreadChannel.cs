@@ -1,36 +1,24 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild.Channel;
 
-using Enum;
-using Extension.Internal;
-using Donatello.Rest.Extension.Endpoint;
-using Type;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Donatello.Rest.Extension.Endpoint;
+using Enum;
+using Extension;
 
 /// <summary>A sub-channel contained within a guild text channel.</summary>
 public class GuildThreadChannel : GuildTextChannel
 {
-    public GuildThreadChannel(Bot bot, JsonElement json)
-        : base(bot, json)
-    {
-    }
-
-    public GuildThreadChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
-        : base(bot, entityJson, guildId)
-    {
-    }
+    public GuildThreadChannel(JsonElement json, Bot bot) : base(json, bot) { }
+    public GuildThreadChannel(JsonElement entityJson, Snowflake id, Bot bot) : base(entityJson, id, bot) { }
 
     /// <summary>An additional sub-set of fields sent only with threads.</summary>
     internal JsonElement Metadata => this.Json.GetProperty("thread_metadata");
 
     /// <summary></summary>
     protected internal Snowflake ParentId => this.Json.GetProperty("parent_id").ToSnowflake();
-
-    /// <summary></summary>
-    internal JsonCache MemberCache { get; } = new JsonCache(json => json.GetProperty("user_id").ToSnowflake());
 
     /// <summary></summary>
     public bool Locked => this.Metadata.GetProperty("locked").GetBoolean();
@@ -84,26 +72,10 @@ public class GuildThreadChannel : GuildTextChannel
     {
         await foreach (var threadMemberJson in this.Bot.RestClient.GetThreadChannelMembersAsync(this.Id))
         {
-            this.MemberCache.Add(threadMemberJson);
-
-            var guild = await this.GetGuildAsync();
-            var guildMember = await guild.GetMemberAsync(threadMemberJson.GetProperty("user_id").ToSnowflake());
-            var threadMember = new ThreadMember(this.Bot, guildMember, threadMemberJson);
-
+            this.Bot.GuildThreadCache[this.GuildId].AddOrUpdate(threadMemberJson);
+            var threadMember = new ThreadMember(threadMemberJson, this.Bot);
             yield return threadMember;
         }
-    }
-
-    /// <summary></summary>
-    public async Task<ReadOnlyCollection<ThreadMember>> GetMembersAsync()
-    {
-        this.MemberCache.Clear();
-
-        var members = new List<ThreadMember>();
-        await foreach (var threadMember in this.FetchMembersAsync())
-            members.Add(threadMember);
-
-        return members.AsReadOnly();
     }
 }
 

@@ -1,45 +1,30 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild.Channel;
 
-using Builder;
-using Donatello.Rest.Extension.Endpoint;
-using Type;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Builder;
+using Common.Entity.Channel;
+using Donatello.Rest.Extension.Endpoint;
+using Message;
 
 /// <summary></summary>
 public class GuildTextChannel : GuildChannel, ITextChannel
 {
-    public GuildTextChannel(Bot bot, JsonElement json)
-        : base(bot, json)
-    {
-    }
-
-    public GuildTextChannel(Bot bot, JsonElement entityJson, Snowflake guildId)
-        : base(bot, entityJson, guildId)
-    {
-    }
-
-    /// <summary>Cached message instances.</summary>
-    public EntityCache<Message> MessageCache { get; } = new();
-
-    /// <summary>Cached thread channel instances.</summary>
-    public EntityCache<GuildThreadChannel> ThreadCache { get; } = new();
+    public GuildTextChannel(JsonElement json, Bot bot) : base(json, bot) { }
+    public GuildTextChannel(JsonElement entityJson, Snowflake id, Bot bot) : base(entityJson, id, bot) { }
 
     /// <summary></summary>
     public async ValueTask<Message> GetMessageAsync(Snowflake messageId)
     {
-        if (this.MessageCache.TryGet(messageId, out Message message) is false)
+        if (this.Bot.MessageCache.TryGetEntry(messageId, out JsonElement messageJson) is false)
         {
-            var messageJson = await this.Bot.RestClient.GetChannelMessageAsync(this.Id, messageId);
-            message = new Message(this.Bot, messageJson);
-
-            this.MessageCache.Add(messageId, message);
+            messageJson = await this.Bot.RestClient.GetChannelMessageAsync(this.Id, messageId);
+            this.Bot.MessageCache.AddOrUpdate(messageJson);
         }
 
-        return message;
+        return new Message(messageJson, this.Bot);
     }
 
     /// <summary></summary>
@@ -64,23 +49,21 @@ public class GuildTextChannel : GuildChannel, ITextChannel
             ? this.Bot.RestClient.GetChannelMessagesAsync(this.Id, ("limit", limit.ToString()))
             : this.Bot.RestClient.GetChannelMessagesAsync(this.Id, (timeframe, snowflake.ToString()), ("limit", limit.ToString()));
 
-        await foreach (var message in messages.Select(json => new Message(this.Bot, json)))
+        await foreach (var messageJson in messages)
         {
-            this.MessageCache.Add(message.Id, message);
-            yield return message;
+            this.Bot.MessageCache.AddOrUpdate(messageJson);
+            yield return new Message(messageJson, this.Bot);
         }
     }
 
     /// <summary></summary>
     public async IAsyncEnumerable<Message> GetPinnedMessagesAsync()
     {
-        var messages = this.Bot.RestClient.GetPinnedMessagesAsync(this.Id)
-            .Select(messageJson => new Message(this.Bot, messageJson));
-
+        var messages = this.Bot.RestClient.GetPinnedMessagesAsync(this.Id);
         await foreach (var message in messages)
         {
-            this.MessageCache.Add(message);
-            yield return message;
+            this.Bot.MessageCache.AddOrUpdate(message);
+            yield return new Message(message, this.Bot);
         }
     }
 
@@ -88,10 +71,9 @@ public class GuildTextChannel : GuildChannel, ITextChannel
     public async Task<Message> SendMessageAsync(MessageBuilder builder)
     {
         var messageJson = await this.Bot.RestClient.CreateMessageAsync(this.Id, jsonWriter => builder.Json.WriteTo(jsonWriter), builder.Files);
-        var message = new Message(this.Bot, messageJson);
-        this.MessageCache.Add(message.Id, message);
+        this.Bot.MessageCache.AddOrUpdate(messageJson);
 
-        return message;
+        return new Message(messageJson, this.Bot);
     }
 
     /// <summary></summary>

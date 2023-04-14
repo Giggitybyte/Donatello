@@ -1,15 +1,12 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild;
 
 using System.Text.Json;
 using System.Threading.Tasks;
 
-public sealed class Role : Entity, IGuildEntity
+public sealed class Role : GuildEntity
 {
-    public Role(Bot bot, JsonElement entityJson) : base(bot, entityJson)
+    public Role(Bot bot, JsonElement entityJson) : base(entityJson, bot)
     {
 
     }
-
-    public Snowflake GuildId => throw new System.NotImplementedException();
-    public ValueTask<Guild> GetGuildAsync() => throw new System.NotImplementedException();
 }

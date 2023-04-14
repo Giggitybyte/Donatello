@@ -1,4 +1,4 @@
-﻿namespace Donatello.Extension;
+﻿namespace Donatello.Common.Extension;
 
 using System;
 using System.Reactive.Concurrency;
@@ -14,17 +14,13 @@ public static class ObservableExtensionMethods
     /// <summary>Subscribes an asynchronous element handler to an observable sequence.</summary>
     /// <param name="source">The observable sequence to subscribe to.</param>
     /// <param name="onNextAsync">Asynchronous function to invoke for each element in the observable sequence.</param>
-    public static IDisposable SubscribeAsync<T>(this IObservable<T> source, Func<T, Task> onNextAsync)
-        => source.Select(value => Observable.FromAsync(() => onNextAsync(value)))
-            .Concat()
-            .Subscribe();
+    public static IDisposable Subscribe<T>(this IObservable<T> source, Func<T, Task> onNextAsync, Func<Exception, Task> onErrorAsync = null) 
+        => source.Select(value => Observable.FromAsync(() => onNextAsync(value))).Concat().Subscribe();
 
-    /// <inheritdoc cref="SubscribeAsync{T}(System.IObservable{T},System.Func{T,System.Threading.Tasks.Task})"/>
+    /// <inheritdoc cref="M:Donatello.Common.Extension.ObservableExtensionMethods.Subscribe``1(System.IObservable{``0},System.Func{``0,System.Threading.Tasks.Task})"/>
     /// <param name="maximumConcurrency">Maximum number of element handlers which can be executed in parallel.</param>
-    public static IDisposable SubscribeAsync<T>(this IObservable<T> source, Func<T, Task> onNextAsync, int maximumConcurrency)
-        => source.Select(value => Observable.FromAsync(() => onNextAsync(value)))
-            .Merge(maximumConcurrency)
-            .Subscribe();
+    public static IDisposable Subscribe<T>(this IObservable<T> source, Func<T, Task> onNextAsync, int maximumConcurrency)
+        => source.Select(value => Observable.FromAsync(() => onNextAsync(value))).Merge(maximumConcurrency).Subscribe();
 
     // Copied from https://stackoverflow.com/a/58796559 and modified.
     /// <summary>Writes a debug log message when <c>Subscribe</c>, <c>OnNext</c>, <c>OnError</c>, and <c>OnCompleted</c> are called on the source sequence.</summary>

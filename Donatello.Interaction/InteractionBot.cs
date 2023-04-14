@@ -1,17 +1,16 @@
 ﻿namespace Donatello.Interaction;
 
-using Donatello;
 using Microsoft.Extensions.Logging;
 using NSec.Cryptography;
 using System;
 using System.Buffers;
 using System.IO;
 using System.Net;
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Common;
 
 /// <summary>Bot framework for Discord's interaction API model.</summary>
 /// <remarks>Interactions are received from Discord through an integrated webhook listener.</remarks>

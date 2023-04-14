@@ -1,13 +1,12 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity;
 
-using Donatello;
-using Extension.Internal;
 using System;
 using System.Text.Json;
+using Extension;
 
 public abstract class Entity : ISnowflakeEntity, IBotEntity
 {
-    protected Entity(Bot bot, JsonElement entityJson)
+    protected Entity(JsonElement entityJson, Bot bot)
     {
         if (entityJson.ValueKind is not JsonValueKind.Object)
             throw new ArgumentException($"Expected JSON object, got {entityJson.ValueKind}.", nameof(entityJson));
@@ -17,28 +16,13 @@ public abstract class Entity : ISnowflakeEntity, IBotEntity
     }
 
     /// <inheritdoc cref="IJsonEntity.Json"/>
-    protected internal JsonElement Json { get; private set; }
+    protected internal JsonElement Json { get; }
 
     /// <inheritdoc cref="IBotEntity.Bot"/>
-    protected Bot Bot { get; private init; }
+    protected Bot Bot { get; }
 
     /// <inheritdoc cref="ISnowflakeEntity.Id"/>
     public virtual Snowflake Id => this.Json.GetProperty("id").ToSnowflake();
-
-    /// <summary>Replaces the backing <see cref="JsonElement"/> of this entity with the provided instance.</summary>
-    protected internal void Update(JsonElement updatedJson)
-    {
-        if (updatedJson.ValueKind is not JsonValueKind.Object)
-            throw new JsonException($"Expected JSON object, got {updatedJson.ValueKind.ToString().ToLower()} instead.");
-        
-        if (updatedJson.TryGetProperty("id", out JsonElement snowflakeJson) is false)
-            throw new JsonException("Key 'id' is not present; provided object is invalid.");
-
-        if (snowflakeJson.ToSnowflake() != this.Id)
-            throw new InvalidOperationException("ID mismatch; provided entity does not represent this entity.");
-
-        this.Json = updatedJson;
-    }
 
     public override int GetHashCode()
         => this.Id.GetHashCode();
@@ -57,7 +41,6 @@ public abstract class Entity : ISnowflakeEntity, IBotEntity
         => entity.Id;
 
     JsonElement IJsonEntity.Json => this.Json;
-    void IJsonEntity.Update(JsonElement updatedJson) => this.Update(updatedJson);
     Bot IBotEntity.Bot => this.Bot;
     bool IEquatable<ISnowflakeEntity>.Equals(ISnowflakeEntity other) => this.Equals(other);
 }

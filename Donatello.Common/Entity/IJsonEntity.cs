@@ -1,4 +1,4 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity;
 
 using System.Text.Json;
 
@@ -7,7 +7,4 @@ public interface IJsonEntity
 {
     /// <summary>JSON representation of this object.</summary>
     protected internal JsonElement Json { get; }
-
-    /// <summary>Replaces the underlying <see cref="JsonElement"/> instance of this entity with the provided instance.</summary>
-    protected internal void Update(JsonElement updatedJson);
 }

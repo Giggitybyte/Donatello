@@ -1,33 +1,27 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Voice;
 
-using Donatello;
-using Extension.Internal;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Channel;
+using Extension;
+using User;
 
 /// <summary>Representation of a user's connection to a voice channel.</summary>
 public sealed class DiscordVoiceState : IJsonEntity, IBotEntity
 {
-    private readonly Snowflake _guildId;
-
-    public DiscordVoiceState(Bot bot, JsonElement entityJson, Snowflake guildId = null)
+    public DiscordVoiceState(Bot bot, JsonElement entityJson)
     {
         this.Json = entityJson;
         this.Bot = bot;
-
-        if (entityJson.TryGetProperty("guild_id", out JsonElement prop))
-            _guildId = prop.ToSnowflake();
-        else
-            _guildId = guildId;
     }
 
     /// <inheritdoc cref="IJsonEntity.Json"/>
     internal JsonElement Json { get; private set; }
-    JsonElement IJsonEntity.Json => this.Json;
 
     /// <inheritdoc cref="IBotEntity.Bot"/>
     internal Bot Bot { get; private set; }
-    Bot IBotEntity.Bot => this.Bot;
+
+    public Snowflake UserId => this.Json.GetProperty("user_id").ToSnowflake();
 
     /// <summary>Voice channel session ID.</summary>
     public string SessionId => this.Json.GetProperty("session_id").GetString();
@@ -54,33 +48,16 @@ public sealed class DiscordVoiceState : IJsonEntity, IBotEntity
     public bool Suppressed => this.Json.GetProperty("suppress").GetBoolean();
 
     /// <summary>Fetches the user associated with the voice connection.</summary>
-    public async ValueTask<User> GetUserAsync()
-    {
-        var userId = this.Json.GetProperty("user_id").ToSnowflake();
-
-        if (_guildId is null)
-            return await this.Bot.GetUserAsync(userId);
-        else
-        {
-            var guild = await this.Bot.GetGuildAsync(_guildId);
-            return await guild.GetMemberAsync(userId);
-        }
-    }
+    public ValueTask<User> GetUserAsync()
+        => this.Bot.GetUserAsync(this.UserId);
 
     /// <summary>Fetches the voice channel the user is connected to.</summary>
-    public async Task<IVoiceChannel> GetChannelAsync()
+    public ValueTask<IVoiceChannel> GetChannelAsync()
     {
-        IVoiceChannel channel = null;
-        Snowflake channelId = this.Json.GetProperty("channel_id").ToSnowflake();
-
-        if (_guildId is not null)
-        {
-            var guild = await this.Bot.GetGuildAsync(_guildId);
-            channel = await guild.GetChannelAsync<GuildVoiceChannel>(channelId);
-        }
-        else
-            channel = await this.Bot.GetChannelAsync<IVoiceChannel>(channelId);
-
-        return channel;
+        var channelId = this.Json.GetProperty("channel_id").ToSnowflake();
+        return this.Bot.GetChannelAsync<IVoiceChannel>(channelId);
     }
+    
+    JsonElement IJsonEntity.Json => this.Json;
+    Bot IBotEntity.Bot => this.Bot;
 }

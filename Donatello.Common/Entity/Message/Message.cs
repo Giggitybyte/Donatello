@@ -1,17 +1,21 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Message;
 
-using Extension.Internal;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Channel;
+using Extension;
+using Guild;
+using Guild.Channel;
+using User;
 
 /// <summary>A message sent in a channel.</summary>
 public sealed partial class Message : Entity
 {
-    public Message(Bot bot, JsonElement jsonObject)
-        : base(bot, jsonObject)
+    public Message(JsonElement jsonObject, Bot bot)
+        : base(jsonObject, bot)
     {
 
     }
@@ -36,15 +40,10 @@ public sealed partial class Message : Entity
     public IEnumerable<User> GetMentionedUsers()
     {
         var mentions = this.Json.GetProperty("mentions");
-        if (mentions.GetArrayLength() is 0)
-            yield break;
-
-        if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
-            foreach (var partialUser in mentions.EnumerateArray())
-                yield return new GuildMember(this.Bot, guildProp.ToSnowflake(), partialUser, memberJson);
-        else
-            foreach (var partialUser in mentions.EnumerateArray())
-                yield return new User(this.Bot, partialUser);
+        if (mentions.GetArrayLength() is 0) yield break;
+        
+        foreach (var partialUser in mentions.EnumerateArray())
+            yield return new User(partialUser, this.Bot);
     }
 
     /// <summary></summary>
@@ -69,9 +68,8 @@ public sealed partial class Message : Entity
 
     /// <summary>Returns <see langword="true"/> if this message contained any <see cref="string"/> content, <see langword="false"/> otherwise.</summary>
     /// <param name="content">
-    /// When the method returns:<br/>
-    /// - <see langword="true"/> this parameter will contain the string value of the message.<br/>
-    /// - <see langword="false"/> this parameter will contain an empty string.
+    /// If the method returns <see langword="true"/> this parameter will contain the string value of the message,
+    /// otherwise it will contain an empty string.
     /// </param>
     public bool HasContent(out string content)
     {
@@ -81,18 +79,16 @@ public sealed partial class Message : Entity
 
     /// <summary>Returns <see langword="true"/> if this message was edited at any point in time, <see langword="false"/> otherwise.</summary>
     /// <param name="lastEditDate">
-    /// When the method returns:<br/>
-    /// - <see langword="true"/> this parameter will contain the date when the message was last edited.<br/>
-    /// - <see langword="false"/> this parameter will be set to <see cref="DateTimeOffset.MinValue"/>.
+    /// If the method returns <see langword="true"/> this parameter will contain the date when the message was last edited,
+    /// otherwise it will be <see cref="DateTimeOffset.MinValue"/>.
     /// </param>
     public bool WasEdited(out DateTimeOffset lastEditDate)
     {
         var dateJson = this.Json.GetProperty("edited_timestamp");
 
-        if (dateJson.ValueKind is not JsonValueKind.Null)
-            lastEditDate = dateJson.GetDateTimeOffset();
-        else
-            lastEditDate = DateTimeOffset.MinValue;
+        lastEditDate = dateJson.ValueKind is not JsonValueKind.Null 
+            ? dateJson.GetDateTimeOffset() 
+            : DateTimeOffset.MinValue;
 
         return lastEditDate != DateTimeOffset.MinValue;
     }
@@ -100,17 +96,9 @@ public sealed partial class Message : Entity
     /// <summary></summary>
     public bool TryGetAuthor(out User author)
     {
-        if (this.Json.TryGetProperty("webhook_id", out _))
-            author = null;
-        else
-        {
-            var partialUserJson = this.Json.GetProperty("author");
-
-            if (this.Json.TryGetProperty("guild_id", out var guildProp) && this.Json.TryGetProperty("member", out var memberJson))
-                author = new GuildMember(this.Bot, guildProp.ToSnowflake(), partialUserJson, memberJson);
-            else
-                author = new User(this.Bot, partialUserJson);
-        }
+        author = this.Json.TryGetProperty("webhook_id", out _) 
+            ? null // Figure out how to represent a webhook
+            : new User(this.Json.GetProperty("author"), this.Bot);
 
         return author != null;
     }
@@ -118,10 +106,9 @@ public sealed partial class Message : Entity
     /// <summary></summary>
     public bool TryGetWebhook(out ulong webhookId) // Figure out best way to return an entity or merge with above.
     {
-        if (this.Json.TryGetProperty("webhook_id", out var webhookProp))
-            webhookId = webhookProp.ToSnowflake();
-        else
-            webhookId = 0;
+        webhookId = this.Json.TryGetProperty("webhook_id", out var webhookProp) 
+            ? webhookProp.ToSnowflake() 
+            : 0ul;
 
         return webhookId != 0;
     }

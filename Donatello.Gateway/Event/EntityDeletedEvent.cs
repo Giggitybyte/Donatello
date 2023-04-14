@@ -1,7 +1,7 @@
 ﻿namespace Donatello.Gateway.Event;
 
-using Donatello;
-using Entity;
+using Common;
+using Common.Entity;
 
 /// <summary>Dispatched when an entity has been deleted or is otherwise inaccessible.</summary>
 public sealed class EntityDeletedEvent<TEntity> : ShardEvent where TEntity : ISnowflakeEntity
@@ -20,5 +20,15 @@ public sealed class EntityDeletedEvent<TEntity> : ShardEvent where TEntity : ISn
         cachedEntity = this.Instance;
         return cachedEntity != null;
     }
+}
+
+/// <summary>Dispatched when an entity has been deleted or is otherwise inaccessible.</summary>
+public class EntityDeletedEvent : ShardEvent
+{
+    internal static EntityDeletedEvent<TEntity> Create<TEntity>(TEntity instance) where TEntity : class, ISnowflakeEntity 
+        => new() { EntityId = instance.Id, Instance = instance };
+    
+    internal static EntityDeletedEvent<TEntity> Create<TEntity>(Snowflake id, TEntity instance = null) where TEntity : class, ISnowflakeEntity 
+        => new() { EntityId = id, Instance = instance };
 }
 

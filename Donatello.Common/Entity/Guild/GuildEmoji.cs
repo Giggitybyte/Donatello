@@ -1,23 +1,18 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild;
 
-using Extension.Internal;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Extension;
+using Rest.Extension.Endpoint;
 
-public sealed class GuildEmoji : Entity, IGuildEntity
+public sealed class GuildEmoji : GuildEntity
 {
-    private Snowflake _guildId;
-
-    public GuildEmoji(Bot bot, JsonElement entityJson, Snowflake guildId)
-        : base(bot, entityJson)
+    public GuildEmoji(JsonElement entityJson, Bot bot)
+        : base(entityJson, bot)
     {
-        _guildId = guildId;
     }
-
-    /// <summary></summary>
-    public Snowflake GuildId => _guildId;
 
     /// <summary>Whether this emoji can be used.</summary>
     /// <remarks>Can be <see langword="false"/> when a guild loses a tier of Nitro.</remarks>
@@ -27,19 +22,15 @@ public sealed class GuildEmoji : Entity, IGuildEntity
     public bool Animated => this.Json.TryGetProperty("animated", out JsonElement prop) && prop.GetBoolean();
 
     /// <summary>Fetches the user which created this emoji.</summary>
-    public async ValueTask<User> GetCreatorAsync()
+    public async ValueTask<GuildMember> GetCreatorAsync()
     {
-        var guild = await this.GetGuildAsync();
-        var user = await this.Bot.GetUserAsync(this.Json.GetProperty("user_id").ToSnowflake());
+        var userId = this.Json.GetProperty("user_id").ToSnowflake();
 
+        if (this.Bot.GuildMemberCache[this.GuildId].TryGetEntry(userId, out JsonElement memberJson) is false)
+            memberJson = await this.Bot.RestClient.GetGuildMemberAsync(this.GuildId, userId);
 
-        if (guild.MemberCache.TryGet(user.Id, out JsonElement memberJson))
-            return new GuildMember(this.Bot, this.GuildId, user, memberJson);
-        else
-            return user;
+        return new GuildMember(memberJson, this.GuildId, this.Bot);
     }
-
-    public ValueTask<Guild> GetGuildAsync() => throw new NotImplementedException();
 
     /// <summary>Fetches the roles allowed to use this emoji.</summary>
     public async IAsyncEnumerable<Role> GetRolesAsync()

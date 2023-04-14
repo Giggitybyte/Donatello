@@ -1,11 +1,11 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild;
 
 using System.Text.Json;
 
-public class GuildInvite : Entity
+public class GuildInvite : GuildEntity
 {
-    public GuildInvite(Bot bot, JsonElement entityJson) 
-        : base(bot, entityJson)
+    public GuildInvite(JsonElement entityJson, Bot bot) 
+        : base(entityJson, bot)
     {
 
     }

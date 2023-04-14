@@ -1,36 +1,30 @@
-﻿namespace Donatello.Entity;
+﻿namespace Donatello.Common.Entity.Guild;
 
-using Extension.Internal;
 using System;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Extension;
 
 /// <summary>Discord entity associated with a guild.</summary>
-public abstract class GuildEntity : Entity, IGuildEntity
+public abstract class GuildEntity : Entity
 {
-    private readonly Snowflake _guildId;
-
-    public GuildEntity(Bot bot, JsonElement entityJson, Snowflake guildId)
-        : base(bot, entityJson)
-    {
-        _guildId = guildId;
-    }
-
-    public GuildEntity(Bot bot, JsonElement entityJson)
-        : base(bot, entityJson)
+    protected GuildEntity(JsonElement entityJson, Bot bot) : base(entityJson, bot)
     {
         if (entityJson.TryGetProperty("guild_id", out JsonElement prop))
-            _guildId = prop.ToSnowflake();
+            this.GuildId = prop.ToSnowflake();
         else
             throw new ArgumentException("JSON does not contain a guild ID.", nameof(entityJson));
     }
 
+    protected GuildEntity(JsonElement entityJson, Snowflake guildId, Bot bot) : base(entityJson, bot)
+    {
+        this.GuildId = guildId;
+    }
+
     /// <summary></summary>
-    internal protected Snowflake GuildId => _guildId;
+    public Snowflake GuildId { get; }
 
-    /// <inheritdoc cref="IGuildEntity.GetGuildAsync()"/>
+    /// <summary>Fetches the guild associated with this entity.</summary>
     public ValueTask<Guild> GetGuildAsync()
-        => this.Bot.GetGuildAsync(_guildId);
-
-    Snowflake IGuildEntity.GuildId => this.GuildId;
+        => this.Bot.GetGuildAsync(this.GuildId);
 }
